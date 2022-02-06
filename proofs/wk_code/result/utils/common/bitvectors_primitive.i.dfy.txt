@@ -1,0 +1,23 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing utils/common/bitvectors_primitive.i.dfy
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0638292 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.lemma__ShiftsLeftSum ...
+  [0.452 s, 6 proof obligations]  verified
+
+Verifying Impl$$_module.__default.lemma__ShiftsLeftSum ...
+  [120.868 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.lemma__ShiftsRightSum ...
+  [0.103 s, 6 proof obligations]  verified
+
+Verifying Impl$$_module.__default.lemma__ShiftsRightSum ...
+  [358.386 s, 1 proof obligation]  verified
+
+Dafny program verifier finished with 4 verified, 0 errors

@@ -1,0 +1,10 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing ins/x86/ins_eval_def.dfy
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0119673 s]
+
+Dafny program verifier finished with 0 verified, 0 errors

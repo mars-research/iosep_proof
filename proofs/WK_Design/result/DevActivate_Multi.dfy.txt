@@ -1,0 +1,482 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing DevActivate_Multi.dfy
+../DetailedModel/SecurityProperties.dfy(75,21): Warning: /!\ No terms found to trigger on.
+../DetailedModel/SecurityProperties.dfy(78,21): Warning: /!\ No terms found to trigger on.
+../DetailedModel/SecurityProperties.dfy(81,21): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\../Abstract/Model.dfy(2123,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\../Abstract/Model.dfy(2184,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1677,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1685,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2493,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2501,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3159,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3151,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3274,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3282,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2162,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2267,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2303,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2375,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\K_AdditionalPropertiesLemmas.dfy(32,12): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\K_AdditionalPropertiesLemmas.dfy(34,12): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\../Abstract/BuildCAS/Utils_BuildCAS.dfy(285,12): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\Lemmas_DevHWProt.dfy(220,13): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\Lemmas_DevHWProt.dfy(457,12): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\./BuildCAS/ReachableTDsStates.dfy(99,19): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\./BuildCAS/ReachableTDsStates.dfy(207,19): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\./BuildCAS/ReachableTDsStates.dfy(292,15): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\./BuildCAS/ReachableTDsStates.dfy(297,15): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\./BuildCAS/ReachableTDsStates.dfy(400,21): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\./BuildCAS/ReachableTDsStates.dfy(1563,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\./BuildCAS/ReachableTDsStates.dfy(1570,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\./BuildCAS/ReachableTDsStates.dfy(1922,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\./BuildCAS/ReachableTDsStates.dfy(2147,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\./utils/Collections.dfy(338,12): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(470,12): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(696,12): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(843,12): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(833,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(834,13): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(1047,12): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(1034,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(1035,13): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(1237,12): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(1365,12): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(1984,12): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(1976,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2138,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2146,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2547,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2555,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2652,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2644,13): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(239,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(333,24): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(950,20): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.5176149 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.P__WSD__DevActivate__Multi__SubjObjModifications ...
+  [6.014 s, 42 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DevActivateMulti__ToTraceOps ...
+  [3.720 s, 8 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.P__WSD__DevActivate__Multi__SubjObjModifications__Subjs ...
+  [3.133 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.P__WSD__DevActivate__Multi__SubjObjModifications__Objs__PreConditions ...
+  [3.075 s, 9 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.P__WSD__DevActivate__Multi__SubjObjModifications__Objs ...
+  [6.461 s, 102 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.P__WSD__DevActivate__Multi__SubjObjModifications__Objs__Part1 ...
+  [2.955 s, 9 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.P__WSD__DevActivate__Multi__SubjObjModifications__Objs__Part2 ...
+  [19.724 s, 73 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.P__WSD__DevActivate__Multi__SubjObjModifications__Objs__Part3 ...
+  [4.028 s, 65 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__Subjs__Prove ...
+  [2.641 s, 6 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__Subjs__Prove ...
+  [2.798 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__Objs__Prove ...
+  [2.735 s, 6 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__Objs__Prove ...
+  [3.548 s, 5 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__Apply ...
+  [8.699 s, 63 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__Apply ...
+  [7.870 s, 12 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__Objs__ProveP__DMObjectsHasUniqueIDs ...
+  [3.613 s, 1 proof obligation]  verified
+
+Verifying Impl$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__Objs__ProveP__DMObjectsHasUniqueIDs ...
+  [73.533 s, 33 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__Objs__ProveSameSetOfTDsFDsDOs ...
+  [2.681 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__ProvePreConditionForObjModifications ...
+  [2.418 s, 5 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__ProvePreConditionForObjModifications ...
+  [2.492 s, 48 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__Objs__Part2__Prove ...
+  [3.019 s, 19 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__Objs__Part2__Prove ...
+  [4.181 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__Objs__Part3__Prove ...
+  [3.544 s, 12 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__Objs__Part3__Prove ...
+  [2.502 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__Objs__PreConditions__Prove ...
+  [2.331 s, 1 proof obligation]  verified
+
+Verifying Impl$$_module.__default.Lemma__P__WSD__DevActivate__Multi__SubjObjModifications__Objs__PreConditions__Prove ...
+  [2.321 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty3__Summary ...
+  [2.444 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty3__Summary ...
+  [2.300 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty4__Summary ...
+  [3.278 s, 164 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty4__Summary ...
+  [2.638 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty5__Summary ...
+  [2.549 s, 182 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty5__Summary ...
+  [2.431 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__Prove__EmptyDevIDs ...
+  [4.604 s, 64 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__Prove__EmptyDevIDs ...
+  [161.066 s, 38 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveConvertTraceToDetailedTrace__DevIDsNot0AndReturnTrue ...
+  [11.945 s, 2226 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveConvertTraceToDetailedTrace__DevIDsNot0AndReturnTrue ...
+  [24.742 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11 ...
+  [2.734 s, 99 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11 ...
+  [3.906 s, 539 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveDM__IsSecureOps ...
+  [2.493 s, 195 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveDM__IsSecureOps ...
+  [2.788 s, 178 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Subjs ...
+  [3.390 s, 77 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Subjs ...
+  [39.998 s, 48 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__PropertiesOfSubDevIDs__TDs ...
+  [4.664 s, 34 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__PropertiesOfSubDevIDs__TDs ...
+  [2.790 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__PropertiesOfSubDevIDs__FDs ...
+  [2.304 s, 32 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__PropertiesOfSubDevIDs__FDs ...
+  [2.546 s, 7 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__PropertiesOfSubDevIDs__DOs ...
+  [2.387 s, 32 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__PropertiesOfSubDevIDs__DOs ...
+  [2.551 s, 7 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__ObjsOwnedByDevsInWSEqualToOnesOwnedByDevsInNewWS__Inner ...
+  [2.714 s, 19 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__ObjsOwnedByDevsInWSEqualToOnesOwnedByDevsInNewWS__Inner ...
+  [53.600 s, 11 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__ObjsOwnedByDevsInWSEqualToOnesOwnedByDevsInNewWS__HCodedTDs ...
+  [3.260 s, 21 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__ObjsOwnedByDevsInWSEqualToOnesOwnedByDevsInNewWS__HCodedTDs ...
+  [3.098 s, 36 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__ObjsOwnedByDevsInWSEqualToOnesOwnedByDevsInNewWS ...
+  [2.354 s, 12 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__ObjsOwnedByDevsInWSEqualToOnesOwnedByDevsInNewWS ...
+  [2.749 s, 67 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.P__WSD__DevActivate__Multi__P__DevActivate__ModificationToState__ForDev0 ...
+  [2.827 s, 21 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__P__WSD__DevActivate__Multi__P__DevActivate__ModificationToState__ForDev0__Prove ...
+  [2.410 s, 14 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__P__WSD__DevActivate__Multi__P__DevActivate__ModificationToState__ForDev0__Prove ...
+  [2.726 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__ObjsOwnedByDevsInWSEqualToOnesOwnedByDevsInNewWS__TDsFDsDOs ...
+  [2.980 s, 23 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__ObjsOwnedByDevsInWSEqualToOnesOwnedByDevsInNewWS__TDsFDsDOs ...
+  [52.544 s, 85 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__Private ...
+  [3.181 s, 6 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__Private ...
+  [2.265 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property3 ...
+  [3.923 s, 86 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property3 ...
+  [3.251 s, 310 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.P__Lemma__WSD__DevActivate__Multi__ProveDM__IsSecureOps__Inner__Preconditions ...
+  [2.481 s, 53 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveDM__IsSecureOps__Inner__Wrapper ...
+  [3.103 s, 126 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveDM__IsSecureOps__Inner__Wrapper ...
+  [488.401 s, 141 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveDM__IsSecureOps__Inner ...
+  [2.871 s, 135 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveDM__IsSecureOps__Inner ...
+  [41.677 s, 364 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveDM__IsSecureOps__TDs ...
+  [2.796 s, 98 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveDM__IsSecureOps__TDs ...
+  [25.891 s, 24 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveDM__IsSecureOps__FDs ...
+  [2.487 s, 98 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveDM__IsSecureOps__FDs ...
+  [18.201 s, 24 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveDM__IsSecureOps__DOs ...
+  [2.478 s, 98 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveDM__IsSecureOps__DOs ...
+  [21.257 s, 24 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__DevIDsLargerThan1__NextReturnTrue__ProveNumOfOpsAndDevIDs ...
+  [2.043 s, 1 proof obligation]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__DevIDsLargerThan1__NextReturnTrue__ProveNumOfOpsAndDevIDs ...
+  [2.293 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Sub__TD ...
+  [6.705 s, 93 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Sub__TD ...
+  [8.586 s, 198 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Sub__FD ...
+  [6.033 s, 93 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Sub__FD ...
+  [3.138 s, 190 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Sub__DO ...
+  [5.164 s, 92 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Sub__DO ...
+  [3.165 s, 187 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ApplyP__DevActivate__ModificationToState__TDs ...
+  [2.616 s, 17 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ApplyP__DevActivate__ModificationToState__TDs ...
+  [2.443 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ApplyP__DevActivate__ModificationToState__TDIDs ...
+  [1.902 s, 14 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ApplyP__DevActivate__ModificationToState__TDIDs ...
+  [2.076 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ApplyP__DevActivate__ModificationToState__HCodedTDs ...
+  [2.048 s, 17 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ApplyP__DevActivate__ModificationToState__HCodedTDs ...
+  [2.121 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ApplyP__DevActivate__ModificationToState__FDs ...
+  [2.362 s, 17 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ApplyP__DevActivate__ModificationToState__FDs ...
+  [2.781 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ApplyP__DevActivate__ModificationToState__FDIDs ...
+  [1.889 s, 13 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ApplyP__DevActivate__ModificationToState__FDIDs ...
+  [1.899 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ApplyP__DevActivate__ModificationToState__DOs ...
+  [2.370 s, 17 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ApplyP__DevActivate__ModificationToState__DOs ...
+  [2.343 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ApplyP__DevActivate__ModificationToState__DOIDs ...
+  [1.904 s, 13 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ApplyP__DevActivate__ModificationToState__DOIDs ...
+  [1.978 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property1 ...
+  [2.474 s, 84 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property1 ...
+  [9.350 s, 178 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2 ...
+  [2.143 s, 86 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2 ...
+  [2.016 s, 108 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__DevIDsLargerThan1__ProvePreConditionsForNextRun ...
+  [1.903 s, 10 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__DevIDsLargerThan1__ProvePreConditionsForNextRun ...
+  [1.987 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__DevIDsLargerThan1__ProveP__WSD__DevActivate__Multi__P__DevActivate__ModificationToState__ForDev0 ...
+  [1.899 s, 24 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__DevIDsLargerThan1__ProveP__WSD__DevActivate__Multi__P__DevActivate__ModificationToState__ForDev0 ...
+  [2.380 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Inner ...
+  [3.541 s, 97 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Inner ...
+  [2.124 s, 376 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Inner__TDs ...
+  [1.969 s, 81 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Inner__TDs ...
+  [21.018 s, 268 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Inner__HCodedTDs ...
+  [2.386 s, 81 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Inner__HCodedTDs ...
+  [8.289 s, 264 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Inner__FDs ...
+  [2.518 s, 80 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Inner__FDs ...
+  [2.986 s, 262 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Inner__DOs ...
+  [1.984 s, 80 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Inner__DOs ...
+  [2.970 s, 262 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Dev0__TDs ...
+  [1.984 s, 83 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Dev0__TDs ...
+  [2.412 s, 102 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Dev0__TDs__Inner ...
+  [2.268 s, 103 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Dev0__TDs__Inner ...
+  [83.670 s, 91 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Dev0__HCodedTDs ...
+  [2.705 s, 89 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Dev0__HCodedTDs ...
+  [2.009 s, 100 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Dev0__HCodedTDs__Inner ...
+  [2.284 s, 103 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Dev0__HCodedTDs__Inner ...
+  [59.161 s, 92 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Dev0__FDs ...
+  [2.132 s, 89 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Dev0__FDs ...
+  [2.005 s, 100 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Dev0__DOs ...
+  [1.919 s, 89 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Dev0__DOs ...
+  [2.470 s, 100 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Dev0__FDs__Inner ...
+  [2.234 s, 103 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Dev0__FDs__Inner ...
+  [36.033 s, 86 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Dev0__DOs__Inner ...
+  [2.376 s, 103 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSD__DevActivate__Multi__ProveProperty11__Property2__Dev0__DOs__Inner ...
+  [36.170 s, 86 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DevActivate__Multi__SetPlus__Property ...
+  [1.963 s, 12 proof obligations]  verified
+
+Dafny program verifier finished with 130 verified, 0 errors
+
+Statistics
+----------
+Call graph width (max)   1444
+Datatypes                  32
+Functions (total)         514
+Functions recursive        10
+Methods (total)           893
+Methods ghost             833
+Methods recursive          10
+Module height (max)         0
+Modules                     1

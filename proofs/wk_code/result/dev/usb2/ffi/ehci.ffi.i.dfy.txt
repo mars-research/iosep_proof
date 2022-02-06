@@ -1,0 +1,191 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/ffi/ehci.ffi.i.dfy
+dev\usb2\ffi\..\..\..\ins\util\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\ins\util\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.5006598 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__activate__ResultStateIsValidMState ...
+  [6.522 s, 87 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__activate__ResultStateIsValidMState ...
+  [8.039 s, 243 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__activate__ResultStateIsValidState ...
+  [4.099 s, 87 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__activate__ResultStateIsValidState ...
+  [9.516 s, 1221 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__activate__ResultStateIsValidMState__AndSecureEEHCIMemState ...
+  [4.242 s, 140 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__activate__ResultStateIsValidMState__AndSecureEEHCIMemState ...
+  [8.765 s, 253 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__activate__ResultState__Prove__WK__SecureObjsAddrs__MemSeparation ...
+  [4.903 s, 285 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__activate__ResultState__Prove__WK__SecureObjsAddrs__MemSeparation ...
+  [7.640 s, 126 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__deactivate__ResultState__Prove__WK__SecureObjsAddrs__MemSeparation ...
+  [3.203 s, 355 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__deactivate__ResultState__Prove__WK__SecureObjsAddrs__MemSeparation ...
+  [5.244 s, 126 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__deactivate__ResultStateIsValidMState ...
+  [2.954 s, 157 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__deactivate__ResultStateIsValidMState ...
+  [6.251 s, 226 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__deactivate__ResultStateIsValidState ...
+  [3.009 s, 157 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__deactivate__ResultStateIsValidState ...
+  [4.701 s, 1225 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__deactivate__ResultStateIsValidMState__AndSecureEEHCIMemState ...
+  [2.994 s, 210 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__deactivate__ResultStateIsValidMState__AndSecureEEHCIMemState ...
+  [4.944 s, 236 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__HoldIfEEHCIActivate ...
+  [3.568 s, 172 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__HoldIfEEHCIActivate ...
+  [8.153 s, 56 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__HoldIfEEHCIDeactivate ...
+  [2.921 s, 197 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__HoldIfEEHCIDeactivate ...
+  [3.007 s, 55 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__find__ref__to__usbtd__ResultStateIsValidMState ...
+  [3.363 s, 24 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__find__ref__to__usbtd__ResultStateIsValidMState ...
+  [2.816 s, 108 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__find__ref__to__usbtd__ResultStateIsValidState ...
+  [4.500 s, 24 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__find__ref__to__usbtd__ResultStateIsValidState ...
+  [3.142 s, 781 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__eehci__find__ref__to__usbtd__property ...
+  [3.122 s, 100 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__eehci__find__ref__to__usbtd__property ...
+  [2.491 s, 16 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__deactivate__globals__relationship__PreserveEECHI__DoNotRefAnyUSBTD ...
+  [2.686 s, 17 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__deactivate__globals__relationship__PreserveEECHI__DoNotRefAnyUSBTD ...
+  [2.858 s, 15 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__activate__PreserveSubjPIDs ...
+  [4.445 s, 183 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__activate__PreserveSubjPIDs ...
+  [9.452 s, 640 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__deactivate__PreserveSubjPIDs ...
+  [3.107 s, 253 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__deactivate__PreserveSubjPIDs ...
+  [9.889 s, 504 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__activate__globals__relationship__Property ...
+  [2.698 s, 15 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__activate__globals__relationship__Property ...
+  [8.202 s, 28 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__pEHCI__ActivateInOS__ResultStateIsValidState ...
+  [3.037 s, 147 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__pEHCI__ActivateInOS__ResultStateIsValidState ...
+  [4.345 s, 793 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__pehci__activate__in__os__ResultState__Prove__WK__SecureObjsAddrs__MemSeparation ...
+  [2.943 s, 392 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__pehci__activate__in__os__ResultState__Prove__WK__SecureObjsAddrs__MemSeparation ...
+  [62.770 s, 1251 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__activate__globals__only__g__eechi__mem__changed ...
+  [4.015 s, 82 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__activate__globals__only__g__eechi__mem__changed ...
+  [7.822 s, 62 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__deactivate__globals__only__g__eechi__mem__changed ...
+  [2.994 s, 152 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__deactivate__globals__only__g__eechi__mem__changed ...
+  [2.901 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__activate__stack__and__globals__PreseveOtherEEHCIMemSlots ...
+  [5.128 s, 100 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__activate__stack__and__globals__PreseveOtherEEHCIMemSlots ...
+  [11.096 s, 99 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__activate__stack__and__globals__ProveNewEEHCIIDWordIsWritten ...
+  [6.224 s, 104 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__activate__stack__and__globals__ProveNewEEHCIIDWordIsWritten ...
+  [5.766 s, 26 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__eehci__activate__PreserveSubjPIDsOfEEHCIs ...
+  [4.401 s, 183 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__eehci__activate__PreserveSubjPIDsOfEEHCIs ...
+  [9.034 s, 703 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__pehci__activate__in__os__stack__and__statevars__Properties ...
+  [3.134 s, 160 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__pehci__activate__in__os__stack__and__statevars__Properties ...
+  [17.522 s, 18 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__pehci__activate__in__os__ResultState__Prove__WK__SecureObjsAddrs__MemSeparation__InnerProveWimpDrvDOHaveUnchangedPIDAndValidMemRegion ...
+  [3.330 s, 491 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__pehci__activate__in__os__ResultState__Prove__WK__SecureObjsAddrs__MemSeparation__InnerProveWimpDrvDOHaveUnchangedPIDAndValidMemRegion ...
+  [4.544 s, 495 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ffi__pehci__activate__in__os__ResultState__Prove__WK__SecureObjsAddrs__MemSeparation__InnerProveOtherOSObjPIDsAreUnchanged ...
+  [3.552 s, 641 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ffi__pehci__activate__in__os__ResultState__Prove__WK__SecureObjsAddrs__MemSeparation__InnerProveOtherOSObjPIDsAreUnchanged ...
+  [54.302 s, 387 proof obligations]  verified
+
+Dafny program verifier finished with 54 verified, 0 errors

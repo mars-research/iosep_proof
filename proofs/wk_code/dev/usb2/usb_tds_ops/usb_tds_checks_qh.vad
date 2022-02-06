@@ -1,0 +1,960 @@
+include "usb_tds_checks.vad"
+include "../usb_pdev_utils.vad"
+
+/*********************** Method Forward Declarations ********************/
+procedure _usbtd_verify_qh32_step1()
+    extern;
+procedure _usbtd_verify_qh32_step2()
+    extern;
+procedure _usbtd_verify_qh32_step3()
+    extern;
+procedure _usbtd_verify_qh32_step4()
+    extern;   
+procedure _usbtd_verify_qh32_step1_to_step4()
+    extern;
+
+
+
+
+/*********************** Public Functions ********************/
+// Verify the configuration of 32bit QH
+// [Assumption][From <_usbtd_verify_qh32_step4>] No matter how "Total Bytes to Transfer" and "Current Offset" is 
+// configured, accesses always target to memory region referred by "Buffer Pointer 1 - 5"
+// Input: (td_slot:word) at esp + 1 * ARCH_WORD_BYTES, (drv_id:word) at esp
+// <td_slot> is the slot id of USB TD in <g_usbtd_map_mem>. [TODO] We do not need to check the pair (drv_id, wimpdrv_slot), this info is not need for the security proof
+// Output: (ret:word/bool) at esp
+// [NOTE] Needs 800s to verify
+procedure usbtd_verify_qh32() {:timeLimitMultiplier 90}
+    reads
+        globals; flags;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            7 * ARCH_WORD_BYTES +                      // For local variables
+            16 * ARCH_WORD_BYTES +                  // For <_usbtd_verify_qh32_step1_to_step4> 
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +                              
+            FFI_USBTD_Qh32_ParseDataBufPtrs_ReturnWords * ARCH_WORD_BYTES +  
+            3 * ARCH_WORD_BYTES;                    // For <_usbtd_verify_qh32_step1_to_step4>'s input and output params
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let td_slot := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, esp);
+
+        ret == TRUE ==> (usbtd_map_valid_slot_id(td_slot));
+            // Properties needed by the following properties
+    ensures
+        let td_slot := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, esp);
+
+        ret == TRUE ==> (
+            let drv_slot := usbtd_map_get_wimpdrv_slotid(old(globals), td_slot) in
+            0 <= drv_slot < WimpDrv_Info_ENTRIES
+        );
+            // Properties needed by the following properties
+    ensures
+        let td_slot := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, esp);
+
+        (ret == TRUE) ==> (
+            let drv_slot := usbtd_map_get_wimpdrv_slotid(old(globals), td_slot) in
+            WK_ValidPMemRegion(wimpdrv_do_get_paddr_base(old(globals), drv_slot), wimpdrv_do_get_paddr_end(old(globals), drv_slot))
+        );
+            // Properties needed by the following properties
+    ensures
+        let drv_id := stack_get_val(old(mem), old(esp));
+        let td_slot := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, esp);
+        
+        (ret == TRUE) ==> (
+            let drv_slot := usbtd_map_get_wimpdrv_slotid(old(globals), td_slot) in
+            let drv_pid := wimpdrv_get_pid(old(globals), drv_slot).v in
+
+            WK_USBTD_Map_SecureGlobalVarValues_qh32(old(globals), td_slot)
+                // Property: If return true, then the QH is verified/secure
+        );
+    ensures
+        globals == old(globals);
+            // Property: global variables are unchanged
+    ensures
+        esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+    ensures
+        let stack_params_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_params_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);     
+
+    let tmp1 @= esi;
+    let tmp2 @= edi;
+    let drv_slot @= ebx;
+    let ret @= eax;
+    PUSH_Reg1ToReg6();
+
+    MOV_ToReg(ret, const(TRUE));
+
+    let drv_id := stack_get_val(old(mem), old(esp));
+    let td_slot := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+
+    // 1. Check the QH
+    Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);               // tmp1 := ebp + 2 * ARCH_WORD_BYTES := td_slot
+    usbtd_check_td_slot_id(tmp1, ret);
+
+    if(ret == const(TRUE))
+    {
+        // 2. Check <ID>
+        Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);               // tmp1 := ebp + 2 * ARCH_WORD_BYTES := td_slot
+        PUSH(tmp1);
+        usbtd_get_id();
+        Load(tmp1, esp, 0);                                 // tmp1 := usbtd_get_id(tmp1);
+        POP_VOID(1 * ARCH_WORD_BYTES);
+        let globals1 := globals;
+        assert globals1 == old(globals);
+
+        if(tmp1 != const(USBTD_ID_INVALID))
+        {
+            // 2. Check <drv_slot>
+            Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);               // tmp1 := ebp + 2 * ARCH_WORD_BYTES := td_slot
+            PUSH(tmp1);
+            usbtd_get_wimpdrv_slotid();
+            Load(drv_slot, esp, 0);                             // drv_slot := usbtd_get_wimpdrv_slotid(tmp1);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            wimpdrv_check_slotid(drv_slot, ret);
+            let globals2 := globals;
+            assert globals2 == old(globals);
+
+            if(ret == const(TRUE))
+            {
+                // 3. Get the update flag of the wimp driver
+                Load(tmp2, ebp, 1 * ARCH_WORD_BYTES);                   // tmp2 := ebp + 2 * ARCH_WORD_BYTES := drv_id
+                PUSH(tmp2);
+                PUSH(drv_slot);
+                wimpdrv_ops_get_updateflag();
+                Load(tmp1, esp, 0);                                     // tmp1 := ret
+                Load(tmp2, esp, ARCH_WORD_BYTES);                       // tmp2 := flag
+                POP_VOID(2 * ARCH_WORD_BYTES);
+                let globals3 := globals;
+                assert globals3 == old(globals);
+
+                if(tmp1 == const(TRUE))
+                {
+                    if(tmp2 == const(WimpDrv_Slot_UpdateFlag_Complete))
+                    {
+                        Load(tmp2, ebp, 2 * ARCH_WORD_BYTES);                   // tmp2 := ebp + 3 * ARCH_WORD_BYTES := td_slot
+                        PUSH(tmp2);
+                        Load(tmp2, ebp, 1 * ARCH_WORD_BYTES);                   // tmp2 := ebp + 2 * ARCH_WORD_BYTES := drv_id
+                        PUSH(tmp2);
+                        PUSH(drv_slot);
+                        _usbtd_verify_qh32_step1_to_step4();
+                        Load(tmp1, esp, 0);                                     // tmp1 := ret
+                        POP_VOID(3 * ARCH_WORD_BYTES);
+                        let globals4 := globals;
+                        assert globals4 == old(globals);
+
+                        if(tmp1 == const(TRUE))
+                        {
+                            // Check if the USBTD has the functionality to modify any USBPDevs' USB addresses
+                            Load(tmp2, ebp, 2 * ARCH_WORD_BYTES);                   // tmp2 := ebp + 3 * ARCH_WORD_BYTES := td_slot
+                            PUSH(tmp2);
+                            CALL_USBTD_CheckNotModifyUSBPDevAddrs();
+                            let globals5 := globals;
+                            Load(tmp1, esp, 0);                                     // tmp1 := ret
+                            POP_VOID(1 * ARCH_WORD_BYTES);
+
+                            if(tmp1 == const(TRUE))
+                            {
+                                assert Is_USBTD_NotModifyUSBPDevsAddrs(globals5, td_slot);
+                                assert Is_USBTD_NotModifyUSBPDevsAddrs(old(globals), td_slot);
+
+                                Store(ebp, ARCH_WORD_BYTES, const(TRUE));      // return TRUE
+                            }
+                            else
+                            {
+                                Store(ebp, ARCH_WORD_BYTES, const(FALSE));      // return FALSE
+                            }
+                        }
+                        else
+                        {
+                            Store(ebp, ARCH_WORD_BYTES, const(FALSE));      // return FALSE
+                        }
+                    }
+                    else
+                    {
+                        Store(ebp, ARCH_WORD_BYTES, const(FALSE));      // return FALSE
+                    }
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));      // return FALSE
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));      // return FALSE
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));      // return FALSE
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));      // return FALSE
+    }
+    
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+
+
+
+/*********************** Private Methods ********************/
+// Verify the configuration of 32bit QH - Step 1: Check if the given TD is the partition <drv_pid> 
+// Input: (td_slot:word) at esp + 1 * ARCH_WORD_BYTES, (drv_pid:word/WS_PartitionID) at esp
+// <td_slot> is the slot of USB TD in <g_usbtd_map_mem>
+// Output: (ret:word/bool) at esp
+procedure _usbtd_verify_qh32_step1()
+    reads
+        globals; flags;
+    modifies
+        esp; ebp; mem;
+        eax; edx; esi; edi; 
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            3 * ARCH_WORD_BYTES +               // For local variables
+            6 * ARCH_WORD_BYTES +               // For <usbtd_get_td_pid>
+            1 * ARCH_WORD_BYTES;                // For params of <usbtd_get_td_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let td_slot := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        usbtd_map_valid_slot_id(td_slot);
+        // Requirement: The USB QH referred by <td_slot> must be stored in <g_usbtd_map_mem>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let drv_pid := stack_get_val(old(mem), old(esp));
+        let td_slot := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, esp);
+
+        ret == TRUE ==> p__usbtd_verify_qh32_step1_OnSuccessCheck(old(globals), drv_pid, td_slot);
+            // Property 1: If return true, then the given TD must be in the partition <drv_pid>
+    ensures
+        esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        eax == old(eax); edx == old(edx);
+    ensures
+        let stack_params_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_params_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    reveal p__usbtd_verify_qh32_step1_OnSuccessCheck;
+
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                    // Because we have return value on stack, need ebp now
+    // <drv_pid> now at ebp + ARCH_WORD_BYTES,  
+    // <td_slot> now at ebp + 2 * ARCH_WORD_BYTES
+
+    let tmp1 @= edi;
+    let tmp2 @= esi;
+    PUSH_TwoRegs(tmp1, tmp2);
+
+
+    Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);                   // tmp1 := ebp + 2 * ARCH_WORD_BYTES := td_slot
+    Load(tmp2, ebp, 1 * ARCH_WORD_BYTES);                   // tmp2 := ebp + 1 * ARCH_WORD_BYTES := drv_pid
+
+    PUSH(tmp1);
+    usbtd_get_td_pid();
+    Load(tmp1, esp, 0);                                     // tmp1 := <pid> of the td_slot
+    POP_VOID(1 * ARCH_WORD_BYTES);
+
+    if(tmp1 == tmp2)
+    {
+        if(tmp2 != const(PID_INVALID))
+        {
+            if(tmp2 != const(PID_RESERVED_OS_PARTITION))
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(TRUE));                  // return TRUE
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                 // return FALSE
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                 // return FALSE
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                 // return FALSE
+    }
+
+
+    POP_TwoRegs(tmp1, tmp2);
+    POP_OneReg(ebp);
+}
+
+// Verify the configuration of 32bit QH - Step 2: Check pointers to the next USB TDs
+// Input: (td_slot:word) at esp + 1 * ARCH_WORD_BYTES, (drv_pid:word/WS_PartitionID) at esp
+// <td_slot> is the slot of USB TD in <g_usbtd_map_mem>
+// Output: (ret:word/bool) at esp
+// [NOTE] Needs 130s to verify
+procedure _usbtd_verify_qh32_step2() {:timeLimitMultiplier 20}
+    reads
+        globals; flags;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            10 * ARCH_WORD_BYTES +                      // For local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +            // For <CALL_USBTD_QH32_ParseBufPointers>                  
+            FFI_USBTD_Qh32_ParseDataBufPtrs_ReturnWords * ARCH_WORD_BYTES;  // For <CALL_USBTD_QH32_ParseBufPointers>'s return value
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let td_slot := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        usbtd_map_valid_slot_id(td_slot);
+        // Requirement: The USB QH referred by <td_slot> must be stored in <g_usbtd_map_mem>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let drv_pid := stack_get_val(old(mem), old(esp));
+        let td_slot := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, esp);
+
+        ret == TRUE ==> p__usbtd_verify_qh32_step2_OnSuccessCheck(old(globals), drv_pid, td_slot);
+            // Property 1: If return true, then the <next_qh>, <next_qtd> pointers and <alt_next_qtd> pointers must 
+            // point USB TDs (if any) in the same partition
+    ensures
+        esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+    ensures
+        let stack_params_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_params_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    reveal p_ffi_usbtd_qh32_parseTDPtrs_retval;
+    reveal p__usbtd_verify_qh32_step2_OnSuccessCheck;
+
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+    // <drv_pid> now at ebp + ARCH_WORD_BYTES,  
+    // <td_slot> now at ebp + 2 * ARCH_WORD_BYTES
+
+    let tmp1 @= esi;
+    let tmp2 @= edi;
+    let tmp3 @= edx;
+    let tmp5 @= ebx;
+    let ret @= eax;
+    PUSH_Reg1ToReg6();                                      // Save registers Reg1 - Reg6
+
+
+    // Parse the USB TD at <td_slot>
+    Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);                   // tmp1 := ebp + 2 * ARCH_WORD_BYTES := td_slot
+    let td_slot := tmp1;
+
+    PUSH_VOID((FFI_USBTD_Qh32_ParseTDPtrs_ReturnWords - 1) * ARCH_WORD_BYTES); // Allocate stack for return values
+    PUSH(tmp1);
+    CALL_USBTD_QH32_ParseTDPointers();
+
+    // Before finishing the cleanup of <CALL_USBTD_QH32_ParseTDPointers>, let's check first.
+    MOV_ToReg(ret, const(TRUE));                            // Init ret here, otherwise get overwritten by CALL_USBTD_QH32_ParseTDPointers
+    Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);                   // tmp1 := ebp + 1 * ARCH_WORD_BYTES := drv_pid
+    let drv_pid := tmp1;
+
+    // 2. Check "Alt Next qTD Pointer" contains a valid USB TD paddr, and points to the USB TD in the same partition
+    Load(tmp2, esp, 3 * ARCH_WORD_BYTES);                   // tmp2 := alt_next_qtd_p_Tflag
+    Load(tmp3, esp, 0);                                     // tmp3 := alt_next_qtd_slot
+    usbtd_verify_td32_check_next_slot_and_tflag(tmp1, tmp2, tmp3, tmp5);
+    if(tmp5 != const(TRUE))
+    {
+        MOV_ToReg(ret, const(FALSE));
+    }
+
+    // 3. Check "Next qTD Pointer" contains a valid USB TD paddr, and points to the USB TD in the same partition
+    Load(tmp2, esp, 4 * ARCH_WORD_BYTES);                   // tmp2 := next_qtd_p_Tflag
+    Load(tmp3, esp, ARCH_WORD_BYTES);                       // tmp3 := next_qtd_slot
+    usbtd_verify_td32_check_next_slot_and_tflag(tmp1, tmp2, tmp3, tmp5);
+    if(tmp5 != const(TRUE))
+    {
+        MOV_ToReg(ret, const(FALSE));
+    }
+
+    // 4. Check "Next Horizontal Link Pointer" contains a valid USB TD paddr, and points to the USB TD in the same partition
+    Load(tmp2, esp, 5 * ARCH_WORD_BYTES);                   // tmp2 := next_qh_p_Tflag
+    Load(tmp3, esp, 2 * ARCH_WORD_BYTES);                   // tmp3 := next_qh_slot
+    usbtd_verify_td32_check_next_slot_and_tflag(tmp1, tmp2, tmp3, tmp5);
+    if(tmp5 != const(TRUE))
+    {
+        MOV_ToReg(ret, const(FALSE));
+    }
+
+    // Cleanup <CALL_USBTD_QH32_ParseTDPtrs>
+    POP_VOID(FFI_USBTD_Qh32_ParseTDPtrs_ReturnWords * ARCH_WORD_BYTES);
+
+    // 5. Summary
+    if(ret == const(TRUE))
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(TRUE));                  // return TRUE
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                 // return FALSE
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Verify the configuration of 32bit QH - Step 3: Check the target USB peripheral device
+// Input: (td_slot:word) at esp
+// <td_slot> is the slot of USB TD in <g_usbtd_map_mem>
+// Output: (ret:word/bool) at esp
+// [NOTE] Needs 500s to verify
+procedure _usbtd_verify_qh32_step3() {:timeLimitMultiplier 60}
+    reads
+        globals; flags;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            7 * ARCH_WORD_BYTES +                      // For local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +            // For <CALL_USBTD_QH32_ParseTargetUSBDevID>                  
+            FFI_USBTD_Qh32_ParseTargetUSBDevID_StackParamsWords * ARCH_WORD_BYTES;  // For <CALL_USBTD_QH32_ParseTargetUSBDevID>'s return value
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let td_slot := stack_get_val(old(mem), old(esp));
+        usbtd_map_valid_slot_id(td_slot);
+        // Requirement: The USB QH referred by <td_slot> must be stored in <g_usbtd_map_mem>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let td_slot := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, esp);
+        let pdev_slot := usbtd_map_get_usbpdev_slotid(old(globals), td_slot);
+
+        ret == TRUE ==> usbpdev_valid_slot_id(pdev_slot);
+        ret == TRUE ==> p__usbtd_verify_qh32_step3_OnSuccessCheck(old(globals), td_slot, pdev_slot);
+            // Property 1: If return true, then the target USB peripheral device (USBPDev) is in the same partition with 
+            // the TD
+    ensures
+        esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+    ensures
+        let stack_params_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_params_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal p_ffi_usbtd_qh32_parseTargetUSBDevID_retval;
+    reveal p__usbtd_verify_qh32_step3_OnSuccessCheck;
+
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+    // <td_slot> now at ebp + ARCH_WORD_BYTES,  
+
+    let tmp1 @= esi;
+    let cur_ret @= edi;
+    let tmp2 @= edx;
+    let tmp3 @= ecx;
+    let tmp4 @= ebx;
+    let tmp5 @= eax;
+    PUSH_Reg1ToReg6();                                      // Save registers Reg1 - Reg6
+
+    // Parse the USB TD at <td_slot> to get the target USBPDev 
+    Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);                   // tmp1 := ebp + 2 * ARCH_WORD_BYTES := td_slot
+    let td_slot := tmp1;
+
+    PUSH_VOID((FFI_USBTD_Qh32_ParseTargetUSBDevID_ReturnWords - 1) * ARCH_WORD_BYTES); // Allocate stack for return values
+    PUSH(tmp1);
+    CALL_USBTD_QH32_ParseTargetUSBDevID();
+    Load(cur_ret, esp, 0);
+    Load(tmp2, esp, ARCH_WORD_BYTES);                       // tmp2 := dev_addr_low
+    Load(tmp3, esp, 2 * ARCH_WORD_BYTES);                   // tmp3 := dev_addr_high
+    POP_VOID(FFI_USBTD_Qh32_ParseTargetUSBDevID_ReturnWords * ARCH_WORD_BYTES);
+    let dev_addr_high := tmp3;
+    let dev_addr_low := tmp2;
+    let dev_addr_raw := UInt64_FromTwoUInt32s(dev_addr_high, dev_addr_low);
+
+    if(cur_ret == const(TRUE))
+    {
+        assert usbtd_qh32_can_parse_TargetUSBDevID_from_global(globals, td_slot);
+
+        // Check dev_addr is not empty USBPDev addr
+        usbpdev_is_empty_addr(tmp3, tmp2, tmp1);
+
+        if(tmp1 == const(FALSE))
+        {
+            let empty_addr_raw := UInt64_FromTwoUInt32s(WimpUSBPDev_ADDR_EMPTY_HIGH, WimpUSBPDev_ADDR_EMPTY_LOW);
+            Lemma_USBPDevAddr_NonEmptyAddrRawParseToNonEmptyAddr(dev_addr_raw);
+            assert usb_parse_usbpdev_addr(dev_addr_raw) != usb_parse_usbpdev_addr(empty_addr_raw);
+
+            // Check if (usbdev_id, usbdev_slot) matches
+            Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);                   // tmp1 := ebp + 2 * ARCH_WORD_BYTES := td_slot
+            PUSH(tmp1);
+            usbtd_get_usbpdev_slotid();
+            Load(tmp1, esp, 0);                                 // tmp1 := usbtd_get_usbpdev_slotid(tmp1);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            usbpdev_check_slot_id(tmp1, tmp5);
+            if(tmp5 == const(TRUE))
+            {
+                PUSH_VOID(1 * ARCH_WORD_BYTES);
+                PUSH(tmp1);
+                usbpdev_get_id();
+                Load(tmp4, esp, 0);                                 // tmp4 := find_dev_addr_low
+                Load(tmp5, esp, ARCH_WORD_BYTES);                   // tmp5 := find_dev_addr_high
+                POP_VOID(2 * ARCH_WORD_BYTES);
+
+                if(tmp2 == tmp4)
+                {
+                    if(tmp3 == tmp5)
+                    {
+                        MOV_ToReg(tmp4, tmp1);                      // tmp4 is the usbpdev_slot
+
+                        // Check the <update_flag> of the USBPDev slot
+                        PUSH(tmp4);
+                        usbpdev_get_update_flag();
+                        Load(tmp3, esp, 0);                             // tmp3 := <update_flag> of the usbpdev_slot
+                        POP_VOID(1 * ARCH_WORD_BYTES);
+
+                        if(tmp3 == const(WimpUSBPDev_Slot_UpdateFlag_Complete))
+                        {
+                            // Get the PID of the usbpdev_slot
+                            PUSH(tmp4);
+                            usbpdev_get_pid();
+                            Load(tmp3, esp, 0);                         // tmp3 := pid of the usbpdev_slot
+                            POP_VOID(1 * ARCH_WORD_BYTES);
+
+                            // Get the PID of the TD slot
+                            //// Load the input param td_slot again, because CALL_USBTD_QH32_ParseTargetUSBDevID modifies Reg1 - Reg6
+                            Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);           
+                            PUSH(tmp1);
+                            usbtd_get_td_pid();
+                            Load(tmp2, esp, 0);                         // tmp2 := pid of the TD slot 
+                            POP_VOID(1 * ARCH_WORD_BYTES);
+
+                            if(tmp2 == tmp3)
+                            {
+                                Store(ebp, ARCH_WORD_BYTES, const(TRUE));   // return TRUE
+                            }
+                            else
+                            {
+                                Store(ebp, ARCH_WORD_BYTES, const(FALSE));   // return FALSE
+                            }
+                        }
+                        else
+                        {
+                            Store(ebp, ARCH_WORD_BYTES, const(FALSE));   // return FALSE
+                        }
+                    }
+                    else
+                    {
+                        Store(ebp, ARCH_WORD_BYTES, const(FALSE));   // return FALSE
+                    }
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));   // return FALSE
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));   // return FALSE
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));   // return FALSE
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));   // return FALSE
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Verify the configuration of 32bit QH - Step 4: Check "Buffer Pointer 1 - 5" points to the driver (drv_id)'s DO
+// Input: (td_slot:word) at esp + 2 * ARCH_WORD_BYTES, (drv_id:word) at esp + ARCH_WORD_BYTES, (drv_slot:word) at esp
+// <td_slot> is the slot of USB TD in <g_usbtd_map_mem>
+// Output: (ret:word/bool) at esp
+// [NOTE] Needs 220s to verify
+procedure _usbtd_verify_qh32_step4() {:timeLimitMultiplier 30}
+    reads
+        globals; flags;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            7 * ARCH_WORD_BYTES +                      // For local variables
+            2 * ARCH_WORD_BYTES +                      // <CALL_USBTD_QH32_ParseBufPointers> get invoked after pushing two words
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +            // For <CALL_USBTD_QH32_ParseBufPointers>                  
+            FFI_USBTD_Qh32_ParseDataBufPtrs_ReturnWords * ARCH_WORD_BYTES;  // For <CALL_USBTD_QH32_ParseBufPointers>'s return value
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let drv_slot := stack_get_val(old(mem), old(esp));
+        
+        0 <= drv_slot < WimpDrv_Info_ENTRIES;
+        wimpdrv_do_get_flag(old(globals), drv_slot) == WimpDrv_Slot_UpdateFlag_Complete;
+            // Requirement: The wimp driver must not be in the middle of updating its fields
+    requires
+        let td_slot := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        usbtd_map_valid_slot_id(td_slot);
+        // Requirement: The USB QH referred by <td_slot> must be stored in <g_usbtd_map_mem>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let drv_slot := stack_get_val(old(mem), old(esp));
+        let wimpdrv_do_pbase := wimpdrv_do_get_paddr_base(old(globals), drv_slot);
+        let wimpdrv_do_pend := wimpdrv_do_get_paddr_end(old(globals), drv_slot);
+        let ret:word := stack_get_val(mem, esp);
+
+        ret == TRUE ==> (wimpdrv_do_pbase <= wimpdrv_do_pend);
+    ensures
+        let drv_slot := stack_get_val(old(mem), old(esp));
+        let drv_id := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let td_slot := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, esp);
+
+        ret == TRUE ==> p__usbtd_verify_qh32_step4_OnSuccessCheck(old(globals), drv_slot, td_slot);
+            // Property 1: If return true, then the buffer pointers must point to the DO in the given wimp driver
+    ensures
+        esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+    ensures
+        let stack_params_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_params_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal p_ffi_usbtd_qh32_parseDataBufPtrs_retval;
+    reveal p__usbtd_verify_qh32_step4_OnSuccessCheck;
+
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now 
+    // <td_slot> now at ebp + 3 * ARCH_WORD_BYTES
+
+    let tmp1 @= esi;
+    let tmp2 @= edi;
+    let tmp3 @= edx;
+    let tmp4 @= ecx;
+    let tmp5 @= ebx;
+    let ret @= eax;
+    PUSH_Reg1ToReg6();                                      // Save registers Reg1 - Reg6
+
+    MOV_ToReg(ret, const(TRUE));                            // Init ret here, otherwise get overwritten by CALL_USBTD_QH32_ParseBufPointers
+
+    // [Assumption] No matter how "Total Bytes to Transfer" and "Current Offset" is configured, accesses always target
+    // to memory region referred by "Buffer Pointer 1 - 5"
+
+    //// 4.1 Get the physical memory range of WimpDrv's DO
+    PUSH_VOID(1 * ARCH_WORD_BYTES);
+    Load(tmp4, ebp, 2 * ARCH_WORD_BYTES);                   // tmp4 := ebp + 2 * ARCH_WORD_BYTES := drv_id
+    PUSH(tmp4);
+    let drv_id := tmp4;
+    Load(tmp4, ebp, 1 * ARCH_WORD_BYTES);                   // tmp4 := ebp + 1 * ARCH_WORD_BYTES := drv_slot
+    PUSH(tmp4);
+    let drv_slot := tmp4;
+    wimpdrv_ops_get_do_paddr_region();                      // ret, do_pbase, do_pend := wimpdrv_ops_get_do_paddr_region();
+    Load(tmp3, esp, 0);                                     // tmp3 := ret
+    Load(tmp4, esp, 2 * ARCH_WORD_BYTES);                   // tmp4 := do_pend
+    Load(tmp5, esp, ARCH_WORD_BYTES);                       // tmp5 := do_pbase
+    POP_VOID(3 * ARCH_WORD_BYTES);
+
+    if(tmp3 == const(TRUE))
+    {
+        PUSH(tmp4);
+        PUSH(tmp5);
+
+        //// 4.2 Parse the USB TD at <td_slot>
+        Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);                   // tmp1 := ebp + 3 * ARCH_WORD_BYTES := td_slot
+        let td_slot := tmp1;
+
+        PUSH_VOID((FFI_USBTD_Qh32_ParseDataBufPtrs_ReturnWords - 1) * ARCH_WORD_BYTES); // Allocate stack for return values
+        PUSH(tmp1);
+        CALL_USBTD_QH32_ParseBufPointers();
+        Load(tmp1, esp, 0);                                     // tmp1 := BufPointer0_paddr_base
+        Load(tmp2, esp, 1 * ARCH_WORD_BYTES);                   // tmp2 := BufPointer1_paddr_base
+        Load(tmp3, esp, 2 * ARCH_WORD_BYTES);                   // tmp3 := BufPointer2_paddr_base
+        Load(tmp4, esp, 3 * ARCH_WORD_BYTES);                   // tmp4 := BufPointer3_paddr_base
+        Load(tmp5, esp, 4 * ARCH_WORD_BYTES);                   // tmp5 := BufPointer4_paddr_base
+        POP_VOID(FFI_USBTD_Qh32_ParseDataBufPtrs_ReturnWords * ARCH_WORD_BYTES);
+
+        //// Invoke usbtd_verify_td32_Check5BufPAddrRange
+        PUSH(tmp5);
+        PUSH(tmp4);
+        PUSH(tmp3);
+        PUSH(tmp2);
+        PUSH(tmp1);
+        usbtd_verify_td32_Check5BufPAddrRange();
+        Load(tmp3, esp, 0);                                     // tmp3 := ret
+        POP_VOID(7 * ARCH_WORD_BYTES);
+
+        if(tmp3 == const(TRUE))
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(TRUE));               // return TRUE
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));              // return FALSE
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                  // return FALSE
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Input: (td_slot:word) at esp + 2 * ARCH_WORD_BYTES, (drv_id:word) at esp + ARCH_WORD_BYTES, (drv_slot:word) at esp
+// <td_slot> is the slot id of USB TD in <g_usbtd_map_mem>
+// Output: (ret:word/bool) at esp
+// [NOTE] Needs 350s to verify
+procedure _usbtd_verify_qh32_step1_to_step4() {:timeLimitMultiplier 40}
+    reads
+        globals; flags;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                      // For local variables
+            9 * ARCH_WORD_BYTES +                  // For <_usbtd_verify_qh32_step4> 
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +                              
+            FFI_USBTD_Qh32_ParseDataBufPtrs_ReturnWords * ARCH_WORD_BYTES +  
+            3 * ARCH_WORD_BYTES;                    // For <_usbtd_verify_qh32_step4>'s input and output params
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let td_slot := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        usbtd_map_valid_slot_id(td_slot);
+        // Requirement: The USB QH referred by <td_slot> must be stored in <g_usbtd_map_mem>
+    requires
+        let drv_slot := stack_get_val(old(mem), old(esp));
+        
+        0 <= drv_slot < WimpDrv_Info_ENTRIES;
+        wimpdrv_do_get_flag(old(globals), drv_slot) == WimpDrv_Slot_UpdateFlag_Complete;
+            // Requirement: The wimp driver must not be in the middle of updating its fields
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let drv_slot := stack_get_val(old(mem), old(esp));
+        let td_slot := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, esp);
+
+        (ret == TRUE) ==> (
+            WK_ValidPMemRegion(wimpdrv_do_get_paddr_base(old(globals), drv_slot), wimpdrv_do_get_paddr_end(old(globals), drv_slot))
+        );
+            // Properties needed by the following properties
+    ensures
+        let drv_slot := stack_get_val(old(mem), old(esp));
+        let drv_id := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let td_slot := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, esp);
+
+        (ret == TRUE) ==> (
+            let drv_pid := wimpdrv_get_pid(old(globals), drv_slot).v in
+            let pdev_slot := usbtd_map_get_usbpdev_slotid(old(globals), td_slot) in
+
+            usbpdev_valid_slot_id(pdev_slot) &&
+
+            p__usbtd_verify_qh32_step1_OnSuccessCheck(old(globals), drv_pid, td_slot) &&
+                // Property 1: If return true, the given TD is the partition <drv_pid>
+            p__usbtd_verify_qh32_step2_OnSuccessCheck(old(globals), drv_pid, td_slot) &&
+                // Property 2: If return true, then the <next_qh>, <next_qtd> pointers and <alt_next_qtd> pointers must 
+                // point USB TDs (if any) in the same partition
+            p__usbtd_verify_qh32_step3_OnSuccessCheck(old(globals), td_slot, pdev_slot) &&
+                // Property 3: If return true, then the target USB peripheral device (USBPDev) is in the same partition with 
+                // the TD
+            p__usbtd_verify_qh32_step4_OnSuccessCheck(old(globals), drv_slot, td_slot)
+                // Property 4: If return true, then the buffer pointers must point to the DO in the given wimp driver
+        );     
+    ensures
+        esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+    ensures
+        let stack_params_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_params_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);  
+
+    let tmp1 @= esi;
+    let tmp2 @= edi;
+    let ret @= eax;
+    PUSH_TwoRegs(tmp1, tmp2);
+    PUSH_OneReg(ret);
+
+    MOV_ToReg(ret, const(TRUE));
+
+    let drv_slot := stack_get_val(old(mem), old(esp));
+    let drv_id := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+    let td_slot := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+
+
+    // 2. Get PID of the wimp driver
+    Load(tmp2, ebp, 2 * ARCH_WORD_BYTES);                   // tmp1 := ebp + 2 * ARCH_WORD_BYTES := drv_id
+    PUSH(tmp2);
+    Load(tmp2, ebp, 1 * ARCH_WORD_BYTES);                   // tmp1 := ebp + 1 * ARCH_WORD_BYTES := drv_slot
+    PUSH(tmp2);
+    wimpdrv_ops_get_pid();
+    Load(tmp1, esp, 0);                                     // tmp1 := ret
+    Load(tmp2, esp, ARCH_WORD_BYTES);                       // tmp2 := pid
+    POP_VOID(2 * ARCH_WORD_BYTES);
+
+    if(tmp1 == const(TRUE))
+    {
+        //// Call <_usbtd_verify_qtd32_step1>
+        Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);               // tmp1 := ebp + 3 * ARCH_WORD_BYTES := td_slot
+        PUSH(tmp1);
+        PUSH(tmp2);
+        _usbtd_verify_qh32_step1();
+        Load(tmp1, esp, 0);                                 // tmp1 := ret
+        POP_VOID(2 * ARCH_WORD_BYTES);
+
+        if(tmp1 == const(TRUE))
+        {
+            //// Call <_usbtd_verify_qh32_step2>
+            Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);               // tmp1 := ebp + 3 * ARCH_WORD_BYTES := td_slot
+            PUSH(tmp1);
+            PUSH(tmp2);
+            _usbtd_verify_qh32_step2();
+            Load(tmp1, esp, 0);                                 // tmp1 := ret
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            if(tmp1 == const(TRUE))
+            {
+                //// Call <_usbtd_verify_qh32_step3>
+                Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);               // tmp1 := ebp + 3 * ARCH_WORD_BYTES := td_slot
+                PUSH(tmp1);
+                _usbtd_verify_qh32_step3();
+                Load(tmp1, esp, 0);                                 // tmp1 := ret
+                POP_VOID(1 * ARCH_WORD_BYTES);
+
+                if(tmp1 == const(TRUE))
+                {
+                    //// Call <_usbtd_verify_qh32_step4>
+                    Load(tmp2, ebp, 3 * ARCH_WORD_BYTES);           // tmp2 := ebp + 3 * ARCH_WORD_BYTES := td_slot
+                    PUSH(tmp2);
+                    Load(tmp2, ebp, 2 * ARCH_WORD_BYTES);           // tmp2 := ebp + 2 * ARCH_WORD_BYTES := drv_id
+                    PUSH(tmp2);
+                    Load(tmp2, ebp, 1 * ARCH_WORD_BYTES);           // tmp2 := ebp + 1 * ARCH_WORD_BYTES := drv_slot
+                    PUSH(tmp2);
+                    _usbtd_verify_qh32_step4();
+                    Load(tmp1, esp, 0);                             // tmp1 := ret
+                    POP_VOID(3 * ARCH_WORD_BYTES);
+
+                    if(tmp1 == const(TRUE))
+                    {
+                        Store(ebp, ARCH_WORD_BYTES, const(TRUE));   // return TRUE
+
+                        // Prove properties
+                        assert tmp2 == drv_slot;
+
+                        let wimpdrv_do_pbase := wimpdrv_do_get_paddr_base(old(globals), drv_slot);
+                        let wimpdrv_do_pend := wimpdrv_do_get_paddr_end(old(globals), drv_slot);
+
+                        assert wimpdrv_do_pbase <= wimpdrv_do_pend;
+                        assert p__usbtd_verify_qh32_step4_OnSuccessCheck(old(globals), drv_slot, td_slot);
+                    }
+                    else
+                    {
+                        Store(ebp, ARCH_WORD_BYTES, const(FALSE));      // return FALSE
+                    }
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));      // return FALSE
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));      // return FALSE
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));      // return FALSE
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));      // return FALSE
+    }
+
+    POP_OneReg(ret);
+    POP_TwoRegs(tmp1, tmp2);
+    POP_OneReg(ebp);
+}

@@ -1,0 +1,135 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing mm/wk_globals.dfy
+mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.1057184 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.G__EEHCI__MEM__SZ ...
+  [1.561 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.G__USBTDs__MAP__MEM__SZ ...
+  [0.749 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.G__WimpUSBPDev__DevList__SZ ...
+  [0.860 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.G__PID__Counter__SZ ...
+  [0.679 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.G__USBTD__Counter__SZ ...
+  [0.784 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.G__WK__Temp__USBTD__SZ ...
+  [0.720 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__GlobalDecls ...
+  [0.942 s, 15 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AddressOfGlobal ...
+  [0.877 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__ValidGlobalVars__Decls ...
+  [0.853 s, 12 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DistinctGlobals ...
+  [1.064 s, 132 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__Globals__Separate__Mem ...
+  [1.263 s, 498 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.global__read__uint32 ...
+  [0.811 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.global__write__at__vaddr32 ...
+  [0.759 s, 24 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.global__read__at__vaddr32 ...
+  [0.845 s, 11 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.is__gvar__exist ...
+  [0.713 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.ValidGlobalDecls ...
+  [0.744 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.is__gvar__valid__vaddr ...
+  [0.776 s, 7 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.is__gvar__valid__addr ...
+  [0.826 s, 5 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ValidGlobalOffset ...
+  [0.860 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.global__non__scratchpad__vars__are__unchanged ...
+  [0.952 s, 90 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.global__non__scratchpad__vars__except__counters__are__unchanged ...
+  [0.870 s, 74 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.gvar__get__size ...
+  [0.827 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.gvar__read__fullval ...
+  [0.858 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.gvar__read__word__byoffset ...
+  [0.823 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.gvar__read__word__byaddr ...
+  [1.163 s, 15 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.global__read__fullval ...
+  [0.865 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.global__read__word ...
+  [2.968 s, 12 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.global__read__word__byoffset ...
+  [0.855 s, 9 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.global__write__word ...
+  [1.923 s, 22 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.global__write__uint64 ...
+  [0.833 s, 39 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.global__read__uint64 ...
+  [0.794 s, 17 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.globals__other__gvar__unchanged ...
+  [0.683 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.globals__other__gvar__unchanged__2vars ...
+  [0.864 s, 11 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__pbase ...
+  [0.816 s, 12 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__pend ...
+  [1.001 s, 4 proof obligations]  verified
+
+Verifying Impl$$_module.__default.lemma__DistinctGlobals ...
+  [0.952 s, 79 proof obligations]  verified
+
+Dafny program verifier finished with 36 verified, 0 errors

@@ -1,0 +1,89 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/usb_tds_ops/usb_tds_checks_qh.gen.dfy
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [1.6176717 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__verify__qh32 ...
+  [7.043 s, 207 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__verify__qh32 ...
+  [9.352 s, 1505 proof obligations]  verified
+Linearising   [1.6176724 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__verify__qh32 ...
+  [894.637 s, 6759 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code____usbtd__verify__qh32__step1 ...
+  [7.780 s, 76 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma____usbtd__verify__qh32__step1 ...
+  [5.718 s, 546 proof obligations]  verified
+Linearising   [0.6971363 s]
+
+Verifying Impl$$_module.__default.va__lemma____usbtd__verify__qh32__step1 ...
+  [58.491 s, 2204 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code____usbtd__verify__qh32__step2 ...
+  [3.964 s, 127 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma____usbtd__verify__qh32__step2 ...
+  [8.734 s, 554 proof obligations]  verified
+Linearising   [1.1977959 s]
+
+Verifying Impl$$_module.__default.va__lemma____usbtd__verify__qh32__step2 ...
+  [268.351 s, 3658 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code____usbtd__verify__qh32__step3 ...
+  [7.857 s, 203 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma____usbtd__verify__qh32__step3 ...
+  [8.925 s, 571 proof obligations]  verified
+Linearising   [2.114344 s]
+
+Verifying Impl$$_module.__default.va__lemma____usbtd__verify__qh32__step3 ...
+  [891.440 s, 6542 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code____usbtd__verify__qh32__step4 ...
+  [8.071 s, 129 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma____usbtd__verify__qh32__step4 ...
+  [10.552 s, 1067 proof obligations]  verified
+Linearising   [1.4381555 s]
+
+Verifying Impl$$_module.__default.va__lemma____usbtd__verify__qh32__step4 ...
+  [618.358 s, 4646 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code____usbtd__verify__qh32__step1__to__step4 ...
+  [7.665 s, 189 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma____usbtd__verify__qh32__step1__to__step4 ...
+  [11.415 s, 1517 proof obligations]  verified
+Linearising   [2.006632 s]
+
+Verifying Impl$$_module.__default.va__lemma____usbtd__verify__qh32__step1__to__step4 ...
+  [841.774 s, 6456 proof obligations]  verified
+
+Dafny program verifier finished with 18 verified, 0 errors

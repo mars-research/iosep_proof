@@ -1,0 +1,29 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing utils/common/Seq.dfy
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0598394 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.SeqSlice ...
+  [0.458 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.SeqDrop ...
+  [0.110 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.SeqRepeat ...
+  [0.095 s, 11 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.MapSeqToSeq ...
+  [0.129 s, 22 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.IMapSeqToSeq ...
+  [0.131 s, 16 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.SeqOfNumbersInRightExclusiveRange ...
+  [0.130 s, 7 proof obligations]  verified
+
+Dafny program verifier finished with 6 verified, 0 errors

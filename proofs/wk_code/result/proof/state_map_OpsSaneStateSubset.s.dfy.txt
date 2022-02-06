@@ -1,0 +1,152 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing proof/state_map_OpsSaneStateSubset.s.dfy
+proof\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.1436153 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState ...
+  [5.429 s, 223 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.F__WSM__MapState__AlwaysExistTDsToAllStates ...
+  [3.394 s, 85 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__F__WSM__MapState__AlwaysExistTDsToAllStates__Property ...
+  [3.294 s, 170 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.K__IsValidState__TDsToAllStates ...
+  [3.192 s, 5 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState__Subjs ...
+  [3.606 s, 104 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState__Objs ...
+  [3.114 s, 599 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState__PIDs ...
+  [3.041 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState__OSPID ...
+  [2.954 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapWSParititonID__ToAbstractPartitionID ...
+  [3.184 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__CalcWSParititonID__FromAbstractPartitionID ...
+  [2.926 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState__Drvs__ToSubjs ...
+  [3.308 s, 162 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState__Devs__ToSubjs ...
+  [3.850 s, 222 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapWimpDrvs__ToAbstractSubjs ...
+  [3.534 s, 110 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapOSDrvs__ToAbstractSubjs ...
+  [3.121 s, 114 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapEEHCIs__ToAbstractSubjs ...
+  [3.559 s, 116 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapUSBPDevices__ToAbstractSubjs ...
+  [3.880 s, 116 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapOSDevs__ToAbstractSubjs ...
+  [3.212 s, 116 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState__TDsToAbstractTDs__PickActiveNonHCodedTDs ...
+  [3.337 s, 279 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState__TDsToAbstractTDs__PickInactiveNonHCodedTDs ...
+  [3.792 s, 279 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState__TDsToAbstractTDs__PickHCodedTDs ...
+  [4.849 s, 179 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState__GatherAllAbstractTDs ...
+  [8.686 s, 560 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapStateToAbstractTDs__ForOSTDs ...
+  [2.919 s, 115 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapStateToAbstractTDs__ForUSBTDs ...
+  [3.183 s, 278 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapStateToAbstractTDs__ForEEHCIHCodedTDs ...
+  [2.972 s, 114 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapStateToAbstractTDs__ForEEHCIOtherTDs ...
+  [3.034 s, 380 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapStateToAbstractTDs__ForUSBPDev ...
+  [3.485 s, 114 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__eEHCI__USBTDRegVal__ToTDVal ...
+  [2.931 s, 22 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__eEHCI__GetUSBTDRegVal__GivenIDOfEEHCIOtherTDs ...
+  [3.280 s, 198 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__usbtd__reg__offset__to__id ...
+  [3.026 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSM__eEHCI__GetUSBTDRegVal__GivenIDOfEEHCIOtherTDs__ProveUSBTDRegOffsetInRange ...
+  [3.423 s, 1 proof obligation]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSM__eEHCI__GetUSBTDRegVal__GivenIDOfEEHCIOtherTDs__ProveUSBTDRegOffsetInRange ...
+  [2.730 s, 8 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState__FDsToAbstractFDs__PickActiveFDs ...
+  [3.244 s, 276 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState__FDsToAbstractFDs__PickInactiveFDs ...
+  [3.160 s, 276 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState__GatherAllAbstractFDs ...
+  [17.053 s, 414 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapStateToAbstractFDs__ForEEHCIFDs ...
+  [3.140 s, 161 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapStateToAbstractFDs__ForFDsInUSBTD ...
+  [2.981 s, 161 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState__DOsToAbstractDOs__PickActiveDOs ...
+  [3.941 s, 276 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState__DOsToAbstractDOs__PickInactiveDOs ...
+  [3.303 s, 276 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapState__GatherAllAbstractDOs ...
+  [24.913 s, 475 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapStateToAbstractDOs__ForEEHCIDOs ...
+  [3.225 s, 161 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__MapStateToAbstractDOs__ForDOsInUSBTD ...
+  [2.877 s, 161 proof obligations]  verified
+
+Dafny program verifier finished with 41 verified, 0 errors

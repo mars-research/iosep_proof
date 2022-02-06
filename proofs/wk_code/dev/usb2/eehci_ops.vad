@@ -1,0 +1,911 @@
+include "eehci_ops_impl.vad"
+include {:verbatim} "../../transition_constraints.s.dfy"
+include {:verbatim} "../../proof/wkapi_commutative_diagram.i.dfy"
+
+// Activate the given eEHCI
+// Input params on stack: (new_pid:word/uint32) at esp
+// Return params on stack: (eehci_slot:word) at esp + 3 * ARCH_WORD_BYTES, (eehci_handle:word) at esp + 2 * ARCH_WORD_BYTES, 
+// (eehci_id:word) at esp + ARCH_WORD_BYTES, (ret:word) at esp
+procedure EEHCI_Activate()
+    reads
+        flags;
+    modifies
+        mem; globals;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         // For <CALL_EEHCI_Activate>
+            FFI_EEHCI_Activate_ReturnWords * ARCH_WORD_BYTES;                     // For params of <CALL_EEHCI_Activate>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 4 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Stack space for function parameters
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 3 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 3 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 4 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 4 * ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let new_pid:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+        let eehci_idword:word := stack_get_val(mem, old(esp) + 1 * ARCH_WORD_BYTES);
+        let eehci_handle:word := stack_get_val(mem, old(esp) + 2 * ARCH_WORD_BYTES);
+        let eehci_slot:word := stack_get_val(mem, old(esp) + 3 * ARCH_WORD_BYTES);
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        WK_EEHCI_Activate_CommutativeDiagram_Property(old(this), dm, dm', new_pid, eehci_idword, ret);
+            // Prove the commutative diagram
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+    ensures
+        let stack_retval_space := 4 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    EEHCI_Activate_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 4 * ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions_IfOSSubjsObjsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_IfUSBTDsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s, s');
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    let ret:word := stack_get_val(mem, old(esp));
+    ghost if (ret == TRUE)
+    {
+        let new_pid:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+        let eehci_idword:word := stack_get_val(mem, old(esp) + 1 * ARCH_WORD_BYTES);
+        let eehci_handle:word := stack_get_val(mem, old(esp) + 2 * ARCH_WORD_BYTES);
+        let eehci_slot:word := stack_get_val(mem, old(esp) + 3 * ARCH_WORD_BYTES);
+
+        let dm := WSM_MapSecureState(s);
+        Lemma_EEHCI_Activate_ProveCommutativeDiagram(s, dm, eehci_slot, new_pid, eehci_idword, eehci_handle, s');
+        let dm' := WSM_MapSecureState(this);
+        assert WK_EEHCI_Activate_CommutativeDiagram_Property(old(this), dm, dm', new_pid, eehci_idword, ret);
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}
+
+// Deactivate the given eEHCI
+// Input params on stack: (eehci_slot:word) at esp
+// Return params on stack: (ret:word) at esp
+procedure EEHCI_Deactivate()
+    reads
+        flags;
+    modifies
+        mem; globals;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         // For <CALL_EEHCI_Deactivate>
+            FFI_EEHCI_Deactivate_StackParamsWords * ARCH_WORD_BYTES;               // For params of <CALL_EEHCI_Deactivate>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Stack space for function parameters
+    requires
+        let eehci_slot:word := stack_get_val(old(mem), old(esp));
+        (   eehci_valid_slot_id(eehci_slot) &&
+            pids_is_existing_wimp_pid(old(globals), eehci_info_get_pid(old(globals), eehci_slot).v)
+        )
+            ==> (
+                let eehci_idword := eehci_mem_get_eehci_id(old(globals), eehci_slot) in 
+                let eehci_id:Dev_ID := Map_EEHCIIDWord_ToDevID(this.subjects, this.objects, this.id_mappings, eehci_idword) in 
+                this.subjects.eehcis?[eehci_id]
+            );
+            // Requirement: If the eEHCI is active in the record, then the corresponding <dev_id> must exist in 
+            // <eehcis>
+            // [TODO][Issue 31] It is better to move this pre-condition into ValidState SIs
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 1 * ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let eehci_slot:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        WK_EEHCI_Deactivate_CommutativeDiagram_Property(old(this), dm, dm', eehci_slot, ret);
+            // Prove the commutative diagram
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    EEHCI_Deactivate_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 1 * ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions_IfOSSubjsObjsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_IfUSBTDsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s, s');
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    let ret:word := stack_get_val(mem, old(esp));
+    ghost if (ret == TRUE)
+    {
+        let eehci_slot:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+
+        let dm := WSM_MapSecureState(s);
+        Lemma_EEHCI_Deactivate_ProveCommutativeDiagram(s, dm, eehci_slot, s');
+        let dm' := WSM_MapSecureState(this);
+        assert WK_EEHCI_Deactivate_CommutativeDiagram_Property(old(this), dm, dm', eehci_slot, ret);
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}
+
+// Wimp driver reads the <config> register of the given eEHCI
+// Input params on stack: (eehci_slot:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (wimpdrv_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp, (val:word/uint32) at esp + 1 * ARCH_WORD_BYTES,
+procedure WimpDrv_Read_eEHCI_Config()
+    reads
+        flags; globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            19 * ARCH_WORD_BYTES +                   // For <pids_is_existing_wimp_pid>
+            2 * ARCH_WORD_BYTES;                     // For params of <pids_is_existing_wimp_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Stack space for function parameters
+    requires
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+
+        wimpdrv_valid_slot_id(wimpdrv_slot)
+            ==> wimpdrv_do_get_flag(globals, wimpdrv_slot) == WimpDrv_Slot_UpdateFlag_Complete;
+        wimpdrv_valid_slot_id(wimpdrv_slot)
+            ==> (
+                let wimpdrv_idword := wimpdrv_get_id_word(globals, wimpdrv_slot) in
+                wimpdrv_idword != WimpDrv_ID_RESERVED_EMPTY &&
+                (let wimpdrv_id:Drv_ID := WimpDrv_IDWord_ToDrvID(this.subjects, this.objects, this.id_mappings, wimpdrv_idword) in
+                 this.subjects.wimp_drvs?[wimpdrv_id])
+            );
+            // Requirement: The wimp driver issuing the access must exist in the system
+        eehci_valid_slot_id(eehci_slot)
+            ==> (
+                let eehci_idword := eehci_mem_get_eehci_id(globals, eehci_slot) in 
+                eehci_idword != eEHCI_ID_INVALID &&
+                (let eehci_id:Dev_ID := Map_EEHCIIDWord_ToDevID(this.subjects, this.objects, this.id_mappings, eehci_idword) in 
+                 this.subjects.eehcis?[eehci_id])
+            );
+            // Requirement: the eEHCI being accessed must be active and exist in the system
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 2 * ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_v:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        isUInt32(G_EEHCI_Mem_ENTRY_EECHI_Config_BytesOffset);
+        WK_WimpDrv_ReadEEHCIFDsDOs_CommutativeDiagram_Property(old(this), dm, dm', 
+            wimpdrv_slot, eehci_slot, G_EEHCI_Mem_ENTRY_EECHI_Config_BytesOffset, ret);
+            // Prove the commutative diagram
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    WimpDrv_Read_eEHCI_Config_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 2 * ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions_IfOSSubjsObjsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_IfUSBTDsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s, s');
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    let ret:word := stack_get_val(mem, old(esp));
+    ghost if (ret == TRUE)
+    {
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_v:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+
+        let dm := WSM_MapSecureState(s);
+        Lemma_eehci_slot_offset_AlwaysValidGEEHCIMemAddr(eehci_slot, G_EEHCI_Mem_ENTRY_EECHI_Config_BytesOffset);
+        Lemma_WimpDrvReadEEHCIFDDO_ProveCommutativeDiagram(s, dm, wimpdrv_slot, eehci_slot, G_EEHCI_Mem_ENTRY_EECHI_Config_BytesOffset, s');
+        let dm' := WSM_MapSecureState(this);
+        assert WK_WimpDrv_ReadEEHCIFDsDOs_CommutativeDiagram_Property(old(this), dm, dm', 
+            wimpdrv_slot, eehci_slot, G_EEHCI_Mem_ENTRY_EECHI_Config_BytesOffset, ret);
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}
+
+// Wimp driver writes the <config> register of the given eEHCI
+// Input params on stack: (new_v:word/uint32) at esp + 2 * ARCH_WORD_BYTES,
+// (eehci_slot:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (wimpdrv_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp
+procedure WimpDrv_Write_eEHCI_Config()
+    reads
+        flags;
+    modifies
+        mem; globals;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            19 * ARCH_WORD_BYTES +                   // For <pids_is_existing_wimp_pid>
+            2 * ARCH_WORD_BYTES;                     // For params of <pids_is_existing_wimp_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Stack space for function parameters
+    requires
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+
+        wimpdrv_valid_slot_id(wimpdrv_slot)
+            ==> wimpdrv_do_get_flag(globals, wimpdrv_slot) == WimpDrv_Slot_UpdateFlag_Complete;
+        wimpdrv_valid_slot_id(wimpdrv_slot)
+            ==> (
+                let wimpdrv_idword := wimpdrv_get_id_word(globals, wimpdrv_slot) in
+                wimpdrv_idword != WimpDrv_ID_RESERVED_EMPTY &&
+                (let wimpdrv_id:Drv_ID := WimpDrv_IDWord_ToDrvID(this.subjects, this.objects, this.id_mappings, wimpdrv_idword) in
+                 this.subjects.wimp_drvs?[wimpdrv_id])
+            );
+            // Requirement: The wimp driver issuing the access must exist in the system
+        eehci_valid_slot_id(eehci_slot)
+            ==> (
+                let eehci_idword := eehci_mem_get_eehci_id(globals, eehci_slot) in 
+                eehci_idword != eEHCI_ID_INVALID &&
+                (let eehci_id:Dev_ID := Map_EEHCIIDWord_ToDevID(this.subjects, this.objects, this.id_mappings, eehci_idword) in 
+                 this.subjects.eehcis?[eehci_id])
+            );
+            // Requirement: the eEHCI being accessed must be active and exist in the system
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 2 * ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_v:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        isUInt32(G_EEHCI_Mem_ENTRY_EECHI_Config_BytesOffset);
+        WK_WimpDrv_WriteEEHCIFDsDOs_CommutativeDiagram_Property(old(this), dm, dm', 
+            wimpdrv_slot, eehci_slot, G_EEHCI_Mem_ENTRY_EECHI_Config_BytesOffset, new_v, ret);
+            // Prove the commutative diagram
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    WimpDrv_Write_eEHCI_Config_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 2 * ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions_IfOSSubjsObjsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_IfUSBTDsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s, s');
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    let ret:word := stack_get_val(mem, old(esp));
+    ghost if (ret == TRUE)
+    {
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_v:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+
+        let dm := WSM_MapSecureState(s);
+        Lemma_eehci_slot_offset_AlwaysValidGEEHCIMemAddr(eehci_slot, G_EEHCI_Mem_ENTRY_EECHI_Config_BytesOffset);
+        Lemma_WimpDrvWriteEEHCIFDDO_ProveCommutativeDiagram(s, dm, wimpdrv_slot, eehci_slot, G_EEHCI_Mem_ENTRY_EECHI_Config_BytesOffset, new_v, s');
+        let dm' := WSM_MapSecureState(this);
+        assert WK_WimpDrv_WriteEEHCIFDsDOs_CommutativeDiagram_Property(old(this), dm, dm', 
+            wimpdrv_slot, eehci_slot, G_EEHCI_Mem_ENTRY_EECHI_Config_BytesOffset, new_v, ret);
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}
+
+// Wimp driver reads the <status> register of the given eEHCI
+// Input params on stack: (eehci_slot:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (wimpdrv_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp, (val:word/uint32) at esp + 1 * ARCH_WORD_BYTES,
+procedure WimpDrv_Read_eEHCI_Status()
+    reads
+        flags; globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            19 * ARCH_WORD_BYTES +                   // For <pids_is_existing_wimp_pid>
+            2 * ARCH_WORD_BYTES;                     // For params of <pids_is_existing_wimp_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Stack space for function parameters
+    requires
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+
+        wimpdrv_valid_slot_id(wimpdrv_slot)
+            ==> wimpdrv_do_get_flag(globals, wimpdrv_slot) == WimpDrv_Slot_UpdateFlag_Complete;
+        wimpdrv_valid_slot_id(wimpdrv_slot)
+            ==> (
+                let wimpdrv_idword := wimpdrv_get_id_word(globals, wimpdrv_slot) in
+                wimpdrv_idword != WimpDrv_ID_RESERVED_EMPTY &&
+                (let wimpdrv_id:Drv_ID := WimpDrv_IDWord_ToDrvID(this.subjects, this.objects, this.id_mappings, wimpdrv_idword) in
+                 this.subjects.wimp_drvs?[wimpdrv_id])
+            );
+            // Requirement: The wimp driver issuing the access must exist in the system
+        eehci_valid_slot_id(eehci_slot)
+            ==> (
+                let eehci_idword := eehci_mem_get_eehci_id(globals, eehci_slot) in 
+                eehci_idword != eEHCI_ID_INVALID &&
+                (let eehci_id:Dev_ID := Map_EEHCIIDWord_ToDevID(this.subjects, this.objects, this.id_mappings, eehci_idword) in 
+                 this.subjects.eehcis?[eehci_id])
+            );
+            // Requirement: the eEHCI being accessed must be active and exist in the system
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 2 * ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_v:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        isUInt32(G_EEHCI_Mem_ENTRY_EECHI_Status_BytesOffset);
+        WK_WimpDrv_ReadEEHCIFDsDOs_CommutativeDiagram_Property(old(this), dm, dm', 
+            wimpdrv_slot, eehci_slot, G_EEHCI_Mem_ENTRY_EECHI_Status_BytesOffset, ret);
+            // Prove the commutative diagram
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    WimpDrv_Read_eEHCI_Status_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 2 * ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions_IfOSSubjsObjsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_IfUSBTDsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s, s');
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    let ret:word := stack_get_val(mem, old(esp));
+    ghost if (ret == TRUE)
+    {
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_v:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+
+        let dm := WSM_MapSecureState(s);
+        Lemma_eehci_slot_offset_AlwaysValidGEEHCIMemAddr(eehci_slot, G_EEHCI_Mem_ENTRY_EECHI_Status_BytesOffset);
+        Lemma_WimpDrvReadEEHCIFDDO_ProveCommutativeDiagram(s, dm, wimpdrv_slot, eehci_slot, G_EEHCI_Mem_ENTRY_EECHI_Status_BytesOffset, s');
+        let dm' := WSM_MapSecureState(this);
+        assert WK_WimpDrv_ReadEEHCIFDsDOs_CommutativeDiagram_Property(old(this), dm, dm', 
+            wimpdrv_slot, eehci_slot, G_EEHCI_Mem_ENTRY_EECHI_Status_BytesOffset, ret);
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}
+
+// Wimp driver writes the <status> register of the given eEHCI
+// Input params on stack: (new_v:word/uint32) at esp + 2 * ARCH_WORD_BYTES,
+// (eehci_slot:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (wimpdrv_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp
+procedure WimpDrv_Write_eEHCI_Status()
+    reads
+        flags;
+    modifies
+        mem; globals;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            19 * ARCH_WORD_BYTES +                   // For <pids_is_existing_wimp_pid>
+            2 * ARCH_WORD_BYTES;                     // For params of <pids_is_existing_wimp_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Stack space for function parameters
+    requires
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+
+        wimpdrv_valid_slot_id(wimpdrv_slot)
+            ==> wimpdrv_do_get_flag(globals, wimpdrv_slot) == WimpDrv_Slot_UpdateFlag_Complete;
+        wimpdrv_valid_slot_id(wimpdrv_slot)
+            ==> (
+                let wimpdrv_idword := wimpdrv_get_id_word(globals, wimpdrv_slot) in
+                wimpdrv_idword != WimpDrv_ID_RESERVED_EMPTY &&
+                (let wimpdrv_id:Drv_ID := WimpDrv_IDWord_ToDrvID(this.subjects, this.objects, this.id_mappings, wimpdrv_idword) in
+                 this.subjects.wimp_drvs?[wimpdrv_id])
+            );
+            // Requirement: The wimp driver issuing the access must exist in the system
+        eehci_valid_slot_id(eehci_slot)
+            ==> (
+                let eehci_idword := eehci_mem_get_eehci_id(globals, eehci_slot) in 
+                eehci_idword != eEHCI_ID_INVALID &&
+                (let eehci_id:Dev_ID := Map_EEHCIIDWord_ToDevID(this.subjects, this.objects, this.id_mappings, eehci_idword) in 
+                 this.subjects.eehcis?[eehci_id])
+            );
+            // Requirement: the eEHCI being accessed must be active and exist in the system
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 2 * ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_v:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        isUInt32(G_EEHCI_Mem_ENTRY_EECHI_Status_BytesOffset);
+        WK_WimpDrv_WriteEEHCIFDsDOs_CommutativeDiagram_Property(old(this), dm, dm', 
+            wimpdrv_slot, eehci_slot, G_EEHCI_Mem_ENTRY_EECHI_Status_BytesOffset, new_v, ret);
+            // Prove the commutative diagram
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    WimpDrv_Write_eEHCI_Status_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 2 * ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions_IfOSSubjsObjsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_IfUSBTDsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s, s');
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    let ret:word := stack_get_val(mem, old(esp));
+    ghost if (ret == TRUE)
+    {
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_v:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+
+        let dm := WSM_MapSecureState(s);
+        Lemma_eehci_slot_offset_AlwaysValidGEEHCIMemAddr(eehci_slot, G_EEHCI_Mem_ENTRY_EECHI_Status_BytesOffset);
+        Lemma_WimpDrvWriteEEHCIFDDO_ProveCommutativeDiagram(s, dm, wimpdrv_slot, eehci_slot, G_EEHCI_Mem_ENTRY_EECHI_Status_BytesOffset, new_v, s');
+        let dm' := WSM_MapSecureState(this);
+        assert WK_WimpDrv_WriteEEHCIFDsDOs_CommutativeDiagram_Property(old(this), dm, dm', 
+            wimpdrv_slot, eehci_slot, G_EEHCI_Mem_ENTRY_EECHI_Status_BytesOffset, new_v, ret);
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}
+
+// Wimp driver reads the <usbtd_reg> register of the given eEHCI
+// Input params on stack: (usbtd_reg_slot:word/uint32) at esp + 2 * ARCH_WORD_BYTES, 
+// (eehci_slot:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (wimpdrv_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp, (val:word/uint32) at esp + 1 * ARCH_WORD_BYTES,
+procedure WimpDrv_Read_eEHCI_USBTDReg()
+    reads
+        flags; globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            19 * ARCH_WORD_BYTES +                   // For <pids_is_existing_wimp_pid>
+            2 * ARCH_WORD_BYTES;                     // For params of <pids_is_existing_wimp_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Stack space for function parameters
+    requires
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+
+        wimpdrv_valid_slot_id(wimpdrv_slot)
+            ==> wimpdrv_do_get_flag(globals, wimpdrv_slot) == WimpDrv_Slot_UpdateFlag_Complete;
+        wimpdrv_valid_slot_id(wimpdrv_slot)
+            ==> (
+                let wimpdrv_idword := wimpdrv_get_id_word(globals, wimpdrv_slot) in
+                wimpdrv_idword != WimpDrv_ID_RESERVED_EMPTY &&
+                (let wimpdrv_id:Drv_ID := WimpDrv_IDWord_ToDrvID(this.subjects, this.objects, this.id_mappings, wimpdrv_idword) in
+                 this.subjects.wimp_drvs?[wimpdrv_id])
+            );
+            // Requirement: The wimp driver issuing the access must exist in the system
+        eehci_valid_slot_id(eehci_slot)
+            ==> (
+                let eehci_idword := eehci_mem_get_eehci_id(globals, eehci_slot) in 
+                eehci_idword != eEHCI_ID_INVALID &&
+                (let eehci_id:Dev_ID := Map_EEHCIIDWord_ToDevID(this.subjects, this.objects, this.id_mappings, eehci_idword) in 
+                 this.subjects.eehcis?[eehci_id])
+            );
+            // Requirement: the eEHCI being accessed must be active and exist in the system
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 3 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 3 * ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let usbtd_reg_slot:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        WK_WimpDrv_ReadEEHCIUSBTDReg_CommutativeDiagram_Property(old(this), dm, dm', 
+            wimpdrv_slot, eehci_slot, usbtd_reg_slot, ret);
+            // Prove the commutative diagram
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    WimpDrv_Read_eEHCI_USBTDReg_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 3 * ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions_IfOSSubjsObjsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_IfUSBTDsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s, s');
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    let ret:word := stack_get_val(mem, old(esp));
+    ghost if (ret == TRUE)
+    {
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let usbtd_reg_slot:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+
+        let dm := WSM_MapSecureState(s);
+        Lemma_WimpDrvWriteEEHCIUSBTDReg_ProveCommutativeDiagram_ProvePreConditions(eehci_slot, usbtd_reg_slot);
+        Lemma_WimpDrvReadEEHCIUSBTDReg_ProveCommutativeDiagram(s, dm, wimpdrv_slot, eehci_slot, usbtd_reg_slot, s');
+        let dm' := WSM_MapSecureState(this);
+        assert WK_WimpDrv_ReadEEHCIUSBTDReg_CommutativeDiagram_Property(old(this), dm, dm', 
+            wimpdrv_slot, eehci_slot, usbtd_reg_slot, ret);
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}
+
+// Wimp driver writes the <usbtd_reg> register of the given eEHCI
+// Input params on stack: (new_v:word/uint32) at esp + 3 * ARCH_WORD_BYTES, (usbtd_reg_id:word/uint32) at esp + 2 * ARCH_WORD_BYTES
+// (eehci_slot:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (wimpdrv_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp
+procedure WimpDrv_Write_eEHCI_USBTDReg()
+    reads
+        flags;
+    modifies
+        mem; globals;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            20 * ARCH_WORD_BYTES +                   // For <_WimpDrv_Write_eEHCI_USBTDReg_check_new_value>
+            2 * ARCH_WORD_BYTES;                     // For params of <_WimpDrv_Write_eEHCI_USBTDReg_check_new_value>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 4 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Stack space for function parameters
+    requires
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+
+        wimpdrv_valid_slot_id(wimpdrv_slot)
+            ==> wimpdrv_do_get_flag(globals, wimpdrv_slot) == WimpDrv_Slot_UpdateFlag_Complete;
+        wimpdrv_valid_slot_id(wimpdrv_slot)
+            ==> (
+                let wimpdrv_idword := wimpdrv_get_id_word(globals, wimpdrv_slot) in
+                wimpdrv_idword != WimpDrv_ID_RESERVED_EMPTY &&
+                (let wimpdrv_id:Drv_ID := WimpDrv_IDWord_ToDrvID(this.subjects, this.objects, this.id_mappings, wimpdrv_idword) in
+                 this.subjects.wimp_drvs?[wimpdrv_id])
+            );
+            // Requirement: The wimp driver issuing the access must exist in the system
+        eehci_valid_slot_id(eehci_slot)
+            ==> (
+                let eehci_idword := eehci_mem_get_eehci_id(globals, eehci_slot) in 
+                eehci_idword != eEHCI_ID_INVALID &&
+                (let eehci_id:Dev_ID := Map_EEHCIIDWord_ToDevID(this.subjects, this.objects, this.id_mappings, eehci_idword) in 
+                 this.subjects.eehcis?[eehci_id])
+            );
+            // Requirement: the eEHCI being accessed must be active and exist in the system
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 3 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 3 * ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let usbtd_reg_id:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_v:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        WK_WimpDrv_WriteEEHCIUSBTDReg_CommutativeDiagram_Property(old(this), dm, this, dm', 
+            wimpdrv_slot, eehci_slot, usbtd_reg_id, new_v, ret);
+            // Prove the commutative diagram
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    WimpDrv_Write_eEHCI_USBTDReg_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 3 * ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions_IfOSSubjsObjsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_IfUSBTDsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s, s');
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    let ret:word := stack_get_val(mem, old(esp));
+    ghost if (ret == TRUE)
+    {
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let usbtd_reg_id:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_v:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+
+        let dm := WSM_MapSecureState(s);
+        Lemma_WimpDrvWriteEEHCIUSBTDReg_ProveCommutativeDiagram_ProvePreConditions(eehci_slot, usbtd_reg_id);
+        Lemma_WimpDrvWriteEEHCIUSBTDReg_ProveCommutativeDiagram(s, dm, wimpdrv_slot, eehci_slot, usbtd_reg_id, new_v, s');
+        let dm' := WSM_MapSecureState(this);
+        assert WK_WimpDrv_WriteEEHCIUSBTDReg_CommutativeDiagram_Property(old(this), dm, this, dm', 
+            wimpdrv_slot, eehci_slot, usbtd_reg_id, new_v, ret);
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}

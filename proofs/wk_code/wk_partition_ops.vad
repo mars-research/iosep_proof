@@ -1,0 +1,190 @@
+include {:verbatim} "wk_partition_ops_utils.s.dfy"
+include "partition_id_ops.vad"
+include "wk_partition_ops_impl.vad"
+include "dev/usb2/eehci_info.vad"
+include "dev/usb2/usb_pdev_utils.vad"
+include "dev/usb2/usb_tds_utils.vad"
+include "drv/drv_ops_utils.vad"
+include {:verbatim} "transition_constraints.s.dfy"
+include {:verbatim} "proof/wkapi_commutative_diagram.i.dfy"
+
+/*********************** Public Methods - API ********************/
+// Create an empty partition
+// Input params on stack: None
+// Return params on stack: (new_pid:word) at esp + ARCH_WORD_BYTES, (ret:word) at esp
+procedure WK_EmptyPartitionCreate() returns (ghost pid_slot:word) {:timeLimitMultiplier 5}
+    reads
+        flags;
+    modifies
+        ebp; esp; mem;
+        eax; ebx; ecx; edx; esi; edi;
+    modifies
+        globals;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            13 * ARCH_WORD_BYTES +                  // For pid_existing_find_pid_slot
+            2 * ARCH_WORD_BYTES;                    // For params of pid_existing_find_pid_slot
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space for two words
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space);
+            // The params of the function must be on stack
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let new_pid:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        let dm_new_pid:Partition_ID := WSM_MapWSParititonID_ToAbstractPartitionID(WS_PartitionID(new_pid));
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        WK_EmptyPartitionCreate_CommutativeDiagram_Property(dm, dm', dm_new_pid, ret);
+            // Prove the commutative diagram
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi);
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    pid_slot := WK_EmptyPartitionCreate_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 2 * ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions_IfOSSubjsObjsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_IfUSBTDsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s, s');
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    let ret:word := stack_get_val(mem, old(esp));
+    ghost if (ret == TRUE)
+    {
+        let dm := WSM_MapSecureState(s);
+        let new_pid:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+        Lemma_WK_EmptyPartitionCreate_ProveCommutativeDiagram(s, dm, pid_slot, new_pid, s');
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}
+
+// Destroy an empty partition
+// Input params on stack: (pid:word) at esp
+// Return params on stack: (ret:word) at esp
+procedure WK_EmptyPartitionDestroy() {:timeLimitMultiplier 5}
+    reads
+        flags;
+    modifies
+        ebp; esp; mem;
+        eax; ebx; ecx; edx; esi; edi;
+    modifies
+        globals;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            19 * ARCH_WORD_BYTES +                  // For pids_is_existing_wimp_pid
+            2 * ARCH_WORD_BYTES;                    // For params of pids_is_existing_wimp_pid
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space for two words
+        let stack_params_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space);
+            // The params of the function must be on stack
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let pid:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+
+        let dm_pid:Partition_ID := WSM_MapWSParititonID_ToAbstractPartitionID(WS_PartitionID(pid));
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        WK_EmptyPartitionDestroy_CommutativeDiagram_Property(dm, dm', dm_pid, ret);
+            // Prove the commutative diagram
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi);
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    WK_EmptyPartitionDestroy_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    // Immediate properties from <WK_EmptyPartitionDestroy_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 1 * ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions_IfOSSubjsObjsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_IfUSBTDsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s, s');
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    let ret:word := stack_get_val(mem, old(esp));
+    ghost if (ret == TRUE)
+    {
+        let dm := WSM_MapSecureState(s);
+        let pid:word := stack_get_val(old(mem), old(esp));
+        Lemma_WK_EmptyPartitionDestroy_ProveCommutativeDiagram(s, dm, pid, s');
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}
+
+
+
+

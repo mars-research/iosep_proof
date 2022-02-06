@@ -1,0 +1,134 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/usb_tds_utils.i.dfy
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.2154236 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.Lemma__Is__USBTD__ModifyUSBPDevsAddrs__IfUnrefedUSBTDIsModified__MostFieldsEquality ...
+  [4.877 s, 56 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__Is__USBTD__ModifyUSBPDevsAddrs__IfUnrefedUSBTDIsModified ...
+  [2.962 s, 44 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__Is__USBTD__ModifyUSBPDevsAddrs__IfUnrefedUSBTDIsModified ...
+  [3.611 s, 40 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtd__find__empty__slot__FoundSlotMustNotRefedInAnyEEHCI ...
+  [2.663 s, 15 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtd__find__empty__slot__FoundSlotMustNotRefedInAnyEEHCI ...
+  [2.245 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.usbtds__verifiedtds__do__not__associate__usbtd__qtd32 ...
+  [2.854 s, 57 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.usbtds__verifiedtds__do__not__associate__usbtd__qh32 ...
+  [3.583 s, 82 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.usbtds__verifiedtds__do__not__associate__usbtd ...
+  [2.799 s, 36 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__HoldIfModifyingFlagsOfUSBTDs ...
+  [3.370 s, 141 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__HoldIfModifyingFlagsOfUSBTDs ...
+  [5.750 s, 832 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__HoldIfModifyingInsecureUSBTDAndNotFlags ...
+  [3.000 s, 57 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__HoldIfModifyingInsecureUSBTDAndNotFlags ...
+  [21.867 s, 716 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtds__verifiedtds__do__not__associate__usbtd__HoldIfModifyingUSBTDRemainsInsecure ...
+  [2.827 s, 22 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtds__verifiedtds__do__not__associate__usbtd__HoldIfModifyingUSBTDRemainsInsecure ...
+  [4.534 s, 7 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.P__usbtd__set__id__PreConditionOfIDMappings ...
+  [2.513 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__HoldIfOneUSBTDIsModified__AndModifyingUSBTDKeepsSecureSlotFlag__qtd32 ...
+  [2.877 s, 88 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__HoldIfOneUSBTDIsModified__AndModifyingUSBTDKeepsSecureSlotFlag__qtd32 ...
+  [3.596 s, 238 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__HoldIfOneUSBTDIsModified__AndModifyingUSBTDKeepsSecureSlotFlag__qh32 ...
+  [2.503 s, 104 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__HoldIfOneUSBTDIsModified__AndModifyingUSBTDKeepsSecureSlotFlag__qh32 ...
+  [4.356 s, 361 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__ForOtherUSBTDs__HoldIfOneUSBTDIsModified__AndModifyingUSBTDKeepsSecureSlotFlag__qtd32 ...
+  [3.237 s, 101 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__ForOtherUSBTDs__HoldIfOneUSBTDIsModified__AndModifyingUSBTDKeepsSecureSlotFlag__qtd32 ...
+  [4.893 s, 307 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__ForOtherUSBTDs__HoldIfOneUSBTDIsModified__AndModifyingUSBTDKeepsSecureSlotFlag__qh32 ...
+  [2.974 s, 109 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__ForOtherUSBTDs__HoldIfOneUSBTDIsModified__AndModifyingUSBTDKeepsSecureSlotFlag__qh32 ...
+  [7.829 s, 440 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__HoldIfOneUSBTDIsModified__AndModifyingUSBTDRemoveSecureSlotFlag__qtd32 ...
+  [2.632 s, 104 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__HoldIfOneUSBTDIsModified__AndModifyingUSBTDRemoveSecureSlotFlag__qtd32 ...
+  [4.693 s, 333 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__HoldIfOneUSBTDIsModified__AndModifyingUSBTDRemoveSecureSlotFlag__qh32 ...
+  [2.800 s, 112 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__USBTD__Map__SecureGlobalVarValues__HoldIfOneUSBTDIsModified__AndModifyingUSBTDRemoveSecureSlotFlag__qh32 ...
+  [8.936 s, 469 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__SecureObjsAddrs__MemSeparation__OnObjectModification__IfObjIDsAndOSObjsPIDsAreUnchanged ...
+  [2.781 s, 108 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__SecureObjsAddrs__MemSeparation__OnObjectModification__IfObjIDsAndOSObjsPIDsAreUnchanged ...
+  [29.476 s, 366 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__SecureObjsAddrs__MemSeparation__OnObjectModification__IfObjIDsAndOSObjsPIDsAreUnchanged__OSTDs ...
+  [3.168 s, 361 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__SecureObjsAddrs__MemSeparation__OnObjectModification__IfObjIDsAndOSObjsPIDsAreUnchanged__OSTDs ...
+  [5.006 s, 424 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__SecureObjsAddrs__MemSeparation__OnObjectModification__IfObjIDsAndOSObjsPIDsAreUnchanged__OSFDs ...
+  [2.757 s, 361 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__SecureObjsAddrs__MemSeparation__OnObjectModification__IfObjIDsAndOSObjsPIDsAreUnchanged__OSFDs ...
+  [5.555 s, 424 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__SecureObjsAddrs__MemSeparation__OnObjectModification__IfObjIDsAndOSObjsPIDsAreUnchanged__OSDOs ...
+  [3.032 s, 361 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__SecureObjsAddrs__MemSeparation__OnObjectModification__IfObjIDsAndOSObjsPIDsAreUnchanged__OSDOs ...
+  [5.682 s, 424 proof obligations]  verified
+
+Dafny program verifier finished with 35 verified, 0 errors

@@ -1,0 +1,145 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing ins/x86/ins_eval.s.dfy
+ins\x86\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+ins\x86\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+ins\x86\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+ins\x86\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.5515243 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.WK__evalGlobalUpdate ...
+  [8.410 s, 211 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__evalMemUpdate ...
+  [3.720 s, 134 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.evalOBool ...
+  [2.921 s, 236 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.evalGuard ...
+  [2.476 s, 5 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.EvalShift ...
+  [2.852 s, 12 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.OperandContents ...
+  [3.192 s, 126 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eval__maddr ...
+  [2.892 s, 26 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eval__val__at__maddr ...
+  [3.364 s, 75 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__maddr ...
+  [2.602 s, 15 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__maddr__memread ...
+  [2.766 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__opr ...
+  [2.885 s, 61 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__src__opr ...
+  [2.674 s, 59 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__dst__opr ...
+  [3.726 s, 120 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__opr__bool ...
+  [2.720 s, 60 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__opr__shift ...
+  [2.884 s, 118 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__new__dst__opr__value ...
+  [2.787 s, 65 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__strglobal__word ...
+  [3.005 s, 80 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__physical__EHCIs__must__be__inactive ...
+  [2.996 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__jmp__call__src__opr ...
+  [3.147 s, 1 proof obligation]  verified
+Linearising   [0.9005923 s]
+
+Verifying CheckWellformed$$_module.__default.ValidInstruction ...
+  [12.278 s, 6432 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.evalUpdate ...
+  [3.088 s, 324 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.evalUpdate__tworegs ...
+  [3.001 s, 327 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.evalUpdate__regandmem ...
+  [3.722 s, 269 proof obligations]  verified
+Linearising   [2.5023075 s]
+
+Verifying CheckWellformed$$_module.__default.evalIns_k__wkmstate ...
+  [33.449 s, 11771 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.evalIns_k ...
+  [2.790 s, 71 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.evalIns ...
+  [2.880 s, 5 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.evalBlock ...
+  [3.454 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.evalIfElse ...
+  [3.097 s, 361 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.evalWhile ...
+  [3.093 s, 251 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.evalCode ...
+  [2.579 s, 8 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__STR__global__ResultStateIsValidState ...
+  [4.212 s, 601 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__STR__global__ResultStateIsValidState ...
+  [10.235 s, 655 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__STR__global__ResultStateIsValidState__Prove__WK__ValidOSSubjsObjs__SubjsOwnObjsThenInSamePartition ...
+  [4.996 s, 649 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__STR__global__ResultStateIsValidState__Prove__WK__ValidOSSubjsObjs__SubjsOwnObjsThenInSamePartition ...
+  [30.578 s, 21 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__STR__global__ResultStateIsValidState__Prove__WK__ValidState__DevsActivateCond ...
+  [4.247 s, 648 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__STR__global__ResultStateIsValidState__Prove__WK__ValidState__DevsActivateCond ...
+  [8.917 s, 304 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__STR__global__ResultStateIsValidState__Prove__WK__ValidObjsAddrs__PEHCIs ...
+  [4.385 s, 699 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__STR__global__ResultStateIsValidState__Prove__WK__ValidObjsAddrs__PEHCIs ...
+  [4.980 s, 5 proof obligations]  verified
+
+Dafny program verifier finished with 38 verified, 0 errors

@@ -1,0 +1,20 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing utils/common/uint32_ops.s.dfy
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0738026 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.UInt32AlignedAdd ...
+  [0.524 s, 8 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.UInt32AlignedSub ...
+  [0.097 s, 8 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.UInt32AlignedMul ...
+  [0.102 s, 43 proof obligations]  verified
+
+Dafny program verifier finished with 3 verified, 0 errors

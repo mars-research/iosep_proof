@@ -1,0 +1,47 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/usb_tds_ops/secure_usbtd.i.dfy
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.1166884 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.Lemma__SecureUSBTD__QTD32__DataBuf__RefsOnlyWimpDrvDOAmongAllActiveObjs ...
+  [4.834 s, 125 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__SecureUSBTD__QTD32__DataBuf__RefsOnlyWimpDrvDOAmongAllActiveObjs ...
+  [23.603 s, 508 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__SecureUSBTD__QH32__DataBuf__RefsOnlyWimpDrvDOAmongAllActiveObjs ...
+  [3.048 s, 125 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__SecureUSBTD__QH32__DataBuf__RefsOnlyWimpDrvDOAmongAllActiveObjs ...
+  [15.088 s, 518 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__SecureUSBTD__QTD32__GetAllActiveObjsOverlappedWithDataBufs ...
+  [33.481 s, 331 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__SecureUSBTD__QH32__GetAllActiveObjsOverlappedWithDataBufs ...
+  [41.272 s, 341 proof obligations]  verified
+
+Dafny program verifier finished with 6 verified, 0 errors

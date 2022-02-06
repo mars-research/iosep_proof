@@ -1,0 +1,152 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing Utils_SlimState.dfy
+Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+./utils/Collections.dfy(338,12): Warning: /!\ No terms found to trigger on.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0618346 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.IsValidState__Objects__ActiveObjsMustHaveNonNULLPID ...
+  [0.796 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllSubjsIDsInDrvs ...
+  [0.236 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllSubjsIDsInDevs ...
+  [0.297 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllSubjsIDs ...
+  [0.319 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllTDIDs ...
+  [0.248 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllFDIDs ...
+  [0.216 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllDOIDs ...
+  [0.317 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllObjsIDsInTDs ...
+  [0.283 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllObjsIDsInFDs ...
+  [0.281 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllObjsIDsInDOs ...
+  [0.257 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllObjsIDs ...
+  [0.262 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.TDState__FromState ...
+  [0.250 s, 11 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.IDToDev__SlimState ...
+  [0.256 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.IsSubjID ...
+  [0.306 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.IsObjID ...
+  [0.231 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.DoOwnObj__SlimState ...
+  [0.266 s, 7 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.OwnedTDs__SlimState ...
+  [0.290 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.OwnedFDs__SlimState ...
+  [0.298 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.OwnedDOs__SlimState ...
+  [0.267 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.BuildMap__ObjIDsToPIDs ...
+  [0.298 s, 24 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ObjPID__SlimState ...
+  [0.264 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.SubjPID__SlimState ...
+  [0.272 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.SubjPID__DevID__SlimState ...
+  [0.239 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllActiveSubjs__SlimState ...
+  [0.284 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllActiveObjs__SlimState ...
+  [0.303 s, 21 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllActiveDrvs__SlimState ...
+  [0.279 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllActiveDevs__SlimState ...
+  [0.271 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllActiveTDs__SlimState ...
+  [0.304 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllActiveFDs__SlimState ...
+  [0.254 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.AllActiveDOs__SlimState ...
+  [0.259 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ActiveTDsState__SlimState ...
+  [1.256 s, 17 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.BuildMap__ObjIDsToPIDs__ForTDs ...
+  [0.296 s, 12 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.BuildMap__ObjIDsToPIDs__ForFDs ...
+  [0.328 s, 9 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.BuildMap__ObjIDsToPIDs__ForDOs ...
+  [0.245 s, 9 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__AllActiveTDs__SlimState__TDsAreAlsoActiveObjs ...
+  [0.256 s, 4 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__AllActiveTDs__SlimState__TDsAreAlsoActiveObjs ...
+  [0.276 s, 5 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__SameSubjectsOwnSameObjectsInSuccessiveStates ...
+  [0.311 s, 14 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__SameSubjectsOwnSameObjectsInSuccessiveStates ...
+  [0.296 s, 1 proof obligation]  verified
+
+Verifying Impl$$_module.__default.Lemma__SameIDsIffSameInternalIDs ...
+  [0.333 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__AllActiveObjs__SlimState__Property ...
+  [0.349 s, 12 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__AllActiveObjs__SlimState__Property ...
+  [0.272 s, 32 proof obligations]  verified
+
+Dafny program verifier finished with 41 verified, 0 errors
+
+Statistics
+----------
+Call graph width (max)    108
+Datatypes                  23
+Functions (total)          50
+Functions recursive         3
+Methods (total)            34
+Methods ghost              33
+Methods recursive           1
+Module height (max)         0
+Modules                     1

@@ -1,0 +1,221 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing proof/state_map_OpsSaneStateSubset.i.dfy
+proof\..\..\WK_Design\..\DetailedModel\../Abstract/Model.dfy(2123,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\../Abstract/Model.dfy(2184,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1677,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1685,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2493,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2501,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3159,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3151,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3274,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3282,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2162,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2267,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2303,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2375,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\./BuildCAS/ReachableTDsStates.dfy(2147,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2138,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2146,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2547,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2555,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2652,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2644,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(239,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(333,24): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(950,20): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.4777216 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState ...
+  [9.995 s, 84 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState ...
+  [5.624 s, 471 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__SubjsObjsPIDs ...
+  [6.074 s, 84 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__SubjsObjsPIDs ...
+  [5.474 s, 118 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsSecureState__SI2AndSI3 ...
+  [5.279 s, 89 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsSecureState__SI2AndSI3 ...
+  [5.469 s, 333 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSMStateMapping__EquivilantObjOwnership ...
+  [4.883 s, 86 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSMStateMapping__EquivilantObjOwnership ...
+  [17.159 s, 278 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSMStateMapping__EquivilantObjsOwnedByDevs ...
+  [5.503 s, 90 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSMStateMapping__EquivilantObjsOwnedByDevs ...
+  [26.355 s, 277 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSMStateMapping__EquivilantObjIDsAndPIDs ...
+  [5.771 s, 135 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSMStateMapping__EquivilantObjIDsAndPIDs ...
+  [66.055 s, 94 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSMStateMapping__EquivilantSubjIDsAndPIDs ...
+  [6.542 s, 133 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSMStateMapping__EquivilantSubjIDsAndPIDs ...
+  [48.469 s, 8 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSMStateMapping__EquivilantBuildMap__DevsToHCodedTDVals ...
+  [5.676 s, 95 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSMStateMapping__EquivilantBuildMap__DevsToHCodedTDVals ...
+  [14.095 s, 487 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSM__eEHCI__GetUSBTDRegVal__GivenIDOfEEHCIOtherTDs__ProveSameResultIfOnlyTempGVarsCountersRegsAndStacksAreChanged ...
+  [6.622 s, 214 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSM__USBTD__CalcTDVal__ProveSameResultIfOnlyTempGVarsCountersRegsAndStacksAreChanged ...
+  [5.252 s, 172 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WSMStateMapping__ProveIsValidState__Objects__UniqueObjIDs ...
+  [5.255 s, 84 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WSMStateMapping__ProveIsValidState__Objects__UniqueObjIDs ...
+  [45.657 s, 681 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Subjects ...
+  [5.244 s, 84 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Subjects ...
+  [11.575 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects ...
+  [5.222 s, 85 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects ...
+  [5.929 s, 551 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Partitions ...
+  [5.374 s, 84 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Partitions ...
+  [5.396 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__SubjsOwnObjsThenInSamePartition ...
+  [6.655 s, 92 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__SubjsOwnObjsThenInSamePartition ...
+  [5.853 s, 338 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__DevsActivateCond ...
+  [5.104 s, 84 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__DevsActivateCond ...
+  [10.122 s, 8 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsSecureState__SI2 ...
+  [6.370 s, 88 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsSecureState__SI2 ...
+  [15.065 s, 480 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsSecureState__SI3 ...
+  [5.380 s, 85 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsSecureState__SI3 ...
+  [40.836 s, 495 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__21And22 ...
+  [5.123 s, 84 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__21And22 ...
+  [11.314 s, 177 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__23 ...
+  [5.290 s, 86 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__23 ...
+  [14.326 s, 238 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__24 ...
+  [5.258 s, 86 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__24 ...
+  [27.888 s, 269 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__25 ...
+  [4.960 s, 84 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__25 ...
+  [5.479 s, 180 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__26And27And28 ...
+  [5.438 s, 90 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__26And27And28 ...
+  [23.140 s, 260 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__29And210 ...
+  [5.934 s, 84 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__29And210 ...
+  [30.448 s, 680 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.K__IsValidState__SubjsOwnObjsThenInSamePartition__Opaque ...
+  [4.972 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.P__DM__IsValidState__Objects__25__InnerDevs ...
+  [5.484 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.P__DM__IsValidState__Objects__25__InnerDrvs ...
+  [6.089 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.K__ValidState__Objects__Property25 ...
+  [5.125 s, 12 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.K__ValidState__Objects__Property26And27And28 ...
+  [5.459 s, 31 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__25__InnerDrvs ...
+  [4.862 s, 84 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__25__InnerDrvs ...
+  [28.292 s, 275 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__25__InnerDevs ...
+  [6.063 s, 84 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__25__InnerDevs ...
+  [21.414 s, 288 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidWSMState__MapToDMState__FulfillDM__IsValidState__Objects__25__Summary ...
+  [5.037 s, 18 proof obligations]  verified
+
+Dafny program verifier finished with 56 verified, 0 errors

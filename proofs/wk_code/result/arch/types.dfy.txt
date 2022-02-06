@@ -1,0 +1,10 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing arch/types.dfy
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0109707 s]
+
+Dafny program verifier finished with 0 verified, 0 errors

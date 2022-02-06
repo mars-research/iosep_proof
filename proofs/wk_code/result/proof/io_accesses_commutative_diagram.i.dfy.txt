@@ -1,0 +1,143 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing proof/io_accesses_commutative_diagram.i.dfy
+proof\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\../Abstract/Model.dfy(2123,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\../Abstract/Model.dfy(2184,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1677,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1685,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2493,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2501,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3159,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3151,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3274,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3282,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2162,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2267,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2303,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2375,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\./BuildCAS/ReachableTDsStates.dfy(2147,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2138,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2146,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2547,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2555,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2652,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2644,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(239,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(333,24): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(950,20): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.3829751 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDrvRead__ProveCommutativeDiagram ...
+  [10.524 s, 242 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDrvRead__ProveCommutativeDiagram ...
+  [61.116 s, 539 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DevRead__ProveCommutativeDiagram ...
+  [6.528 s, 290 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DevRead__ProveCommutativeDiagram ...
+  [70.185 s, 468 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDrvWrite__ProveCommutativeDiagram ...
+  [6.853 s, 747 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDrvWrite__ProveCommutativeDiagram ...
+  [26.994 s, 947 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDevWrite__ProveCommutativeDiagram ...
+  [5.953 s, 590 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDevWrite__ProveCommutativeDiagram ...
+  [14.227 s, 534 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WimpDrvRead__ProveCommutativeDiagram ...
+  [10.186 s, 244 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WimpDrvRead__ProveCommutativeDiagram ...
+  [110.205 s, 631 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WimpDrvWriteOwnDO__ProveCommutativeDiagram ...
+  [11.237 s, 641 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WimpDrvWriteOwnDO__ProveCommutativeDiagram ...
+  [14.281 s, 579 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__USBPDevWrite__ProveCommutativeDiagram ...
+  [5.839 s, 443 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__USBPDevWrite__ProveCommutativeDiagram ...
+  [13.310 s, 988 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__EEHCIWriteWriteOwnDO__ProveCommutativeDiagram ...
+  [7.171 s, 821 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__EEHCIWriteWriteOwnDO__ProveCommutativeDiagram ...
+  [6.502 s, 790 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__EEHCIWriteUSBPDevObjs__ProveCommutativeDiagram ...
+  [5.957 s, 652 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__EEHCIWriteUSBPDevObjs__ProveCommutativeDiagram ...
+  [6.467 s, 572 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__EEHCIWriteWimpDrvDO__ProveCommutativeDiagram ...
+  [6.332 s, 651 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__EEHCIWriteWimpDrvDO__ProveCommutativeDiagram ...
+  [7.095 s, 570 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__USBPDevWrite__ProveCommutativeDiagram__FDsAndDOsMustInActiveSet ...
+  [5.581 s, 135 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__USBPDevWrite__ProveCommutativeDiagram__FDsAndDOsMustInActiveSet ...
+  [6.315 s, 399 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__EEHCIvWriteOwnDO__ProveCommutativeDiagram__DOsMustInActiveSet ...
+  [5.595 s, 134 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__EEHCIvWriteOwnDO__ProveCommutativeDiagram__DOsMustInActiveSet ...
+  [7.075 s, 201 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDrvDevWrite__ProveOperationMapping ...
+  [5.968 s, 174 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDrvDevWrite__ProveOperationMapping ...
+  [5.466 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WimpDrvWriteOwnDO__ProveOperationMapping ...
+  [5.849 s, 172 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WimpDrvWriteOwnDO__ProveOperationMapping ...
+  [5.498 s, 92 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__USBPDevWrite__ProveOperationMapping ...
+  [6.758 s, 173 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__EEHCIWriteOwnDO__ProveOperationMapping ...
+  [6.579 s, 231 proof obligations]  verified
+
+Dafny program verifier finished with 30 verified, 0 errors

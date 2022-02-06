@@ -1,0 +1,14 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing utils/common/types.i.dfy
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.065823 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying Impl$$_module.__default.Lemma__NTimesUInt32IsStillAligned ...
+  [0.433 s, 33 proof obligations]  verified
+
+Dafny program verifier finished with 1 verified, 0 errors

@@ -1,0 +1,17 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing ins/util/ffi.s.dfy
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0678196 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.ffi__preserve__sp__and__bp ...
+  [0.799 s, 8 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__preserve__old__stack ...
+  [0.295 s, 18 proof obligations]  verified
+
+Dafny program verifier finished with 2 verified, 0 errors

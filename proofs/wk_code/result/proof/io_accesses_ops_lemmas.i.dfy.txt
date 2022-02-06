@@ -1,0 +1,368 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing proof/io_accesses_ops_lemmas.i.dfy
+proof\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\../Abstract/Model.dfy(2123,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\../Abstract/Model.dfy(2184,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1677,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1685,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2493,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2501,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3159,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3151,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3274,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3282,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2162,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2267,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2303,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2375,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\./BuildCAS/ReachableTDsStates.dfy(2147,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2138,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2146,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2547,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2555,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2652,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2644,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(239,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(333,24): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(950,20): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.7898874 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.OSDrvWrite__ByPAddr__InnerFunc__Modification1 ...
+  [18.876 s, 959 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.OSDrvWrite__ByPIO__InnerFunc__Modification1 ...
+  [15.386 s, 956 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.OSDrvWrite__ByObjIDs__InnerFunc__Modification1 ...
+  [41.730 s, 914 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DrvDevRead__HCodedTDsAreNotInParams ...
+  [5.323 s, 86 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DrvDevRead__HCodedTDsAreNotInParams ...
+  [6.306 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDrvRead__ProveSubjsObjsInSamePartition ...
+  [11.533 s, 184 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDrvRead__ProveSubjsObjsInSamePartition ...
+  [114.317 s, 334 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDrvRead__ProveDM__DrvDevRead__ChkSubjAndObjsAreInSamePartition ...
+  [11.414 s, 238 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDrvRead__ProveDM__DrvDevRead__ChkSubjAndObjsAreInSamePartition ...
+  [6.857 s, 574 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDrvRead__ProveDM__DrvWrite__ChkDrvAndObjsAreInSamePartition ...
+  [9.074 s, 142 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDrvRead__ProveDM__DrvWrite__ChkDrvAndObjsAreInSamePartition ...
+  [31.414 s, 178 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__DevRead__Properties ...
+  [5.662 s, 89 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__DevRead__Properties ...
+  [7.125 s, 111 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDrvWrite__ProveDM__DrvWrite__ChkDrvAndObjsAreInSamePartition ...
+  [6.225 s, 238 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDrvWrite__ProveDM__DrvWrite__ChkDrvAndObjsAreInSamePartition ...
+  [6.906 s, 574 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDrvAccess__ProveWS__OSDrvAccess__ChkDrvAndObjsAreInSamePartition ...
+  [5.684 s, 247 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDrvAccess__ProveWS__OSDrvAccess__ChkDrvAndObjsAreInSamePartition ...
+  [6.534 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDrvWrite__ProveDM__DrvWrite__ChkDrvAndObjsAreInSamePartition__Inner ...
+  [10.913 s, 142 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDrvWrite__ProveDM__DrvWrite__ChkDrvAndObjsAreInSamePartition__Inner ...
+  [30.482 s, 178 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDrvWrite__ByPAddr__ProveAccessedObjsAreOSObjects ...
+  [5.693 s, 197 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDrvWrite__ByPAddr__ProveAccessedObjsAreOSObjects ...
+  [6.457 s, 54 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDrvWrite__ByPIO__ProveAccessedObjsAreOSObjects ...
+  [5.637 s, 196 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDrvWrite__ByPIO__ProveAccessedObjsAreOSObjects ...
+  [7.531 s, 54 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDrvWrite__ByObjIDs__ProveAccessedObjsAreOSObjects ...
+  [5.683 s, 195 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDrvWrite__ByObjIDs__ProveAccessedObjsAreOSObjects ...
+  [6.518 s, 54 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidState__ProveP__WimpObjs__HaveNoPIOAddr ...
+  [5.078 s, 46 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidState__ProveP__WimpObjs__HaveNoPIOAddr ...
+  [8.408 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidState__ProveP__PEHCIsObjs__HaveNoPIOAddr ...
+  [6.590 s, 49 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidState__ProveP__PEHCIsObjs__HaveNoPIOAddr ...
+  [6.947 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.OSDevWrite__ByPAddr__InnerFunc ...
+  [108.609 s, 1246 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.OSDevWrite__ByPIO__InnerFunc ...
+  [111.132 s, 1243 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.OSNonUSBPDevWrite__ByObjIDs__InnerFunc ...
+  [385.878 s, 1241 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WimpDrvRead__ByPAddr__EquivilantReadObjs ...
+  [5.149 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WimpDrvAccess__ProveWS__WimpDrvAccess__ChkDrvAndObjsAreInSamePartition ...
+  [4.008 s, 389 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WimpDrvAccess__ProveWS__WimpDrvAccess__ChkDrvAndObjsAreInSamePartition ...
+  [3.844 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WimpDrvRead__ProveSubjsObjsInSamePartition ...
+  [8.658 s, 186 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WimpDrvRead__ProveSubjsObjsInSamePartition ...
+  [57.291 s, 281 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WimpDrvWrite__ProveDM__DrvWrite__ChkDrvAndObjsAreInSamePartition ...
+  [7.906 s, 480 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WimpDrvWrite__ProveDM__DrvWrite__ChkDrvAndObjsAreInSamePartition ...
+  [4.084 s, 258 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WimpDrvWrite__ProveDM__DrvWrite__ChkDrvAndObjsAreInSamePartition__Inner ...
+  [6.905 s, 139 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WimpDrvWrite__ProveDM__DrvWrite__ChkDrvAndObjsAreInSamePartition__Inner ...
+  [8.573 s, 177 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WimpDrvWrite__ProveWimpDrvAndItsDOInSamePartition ...
+  [4.034 s, 98 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WimpDrvWrite__ProveWimpDrvAndItsDOInSamePartition ...
+  [4.745 s, 54 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__EEHCIWriteUSBPDev__ProveP__EEHCIWriteUSBPDevObjs ...
+  [4.131 s, 140 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__EEHCIWriteUSBPDev__ProveP__EEHCIWriteUSBPDevObjs ...
+  [12.367 s, 177 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__EEHCIWriteWimpDrvDO__ProveP__EEHCIWriteWimpDrvDO ...
+  [4.170 s, 137 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__EEHCIWriteWimpDrvDO__ProveP__EEHCIWriteWimpDrvDO ...
+  [7.979 s, 175 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DevRead__ProveSubjsObjsInSamePartition ...
+  [26.114 s, 142 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DevRead__ProveSubjsObjsInSamePartition ...
+  [279.003 s, 278 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDevWrite__ByPAddr__ProveAccessedObjsAreOSObjects ...
+  [7.546 s, 148 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDevWrite__ByPAddr__ProveAccessedObjsAreOSObjects ...
+  [4.362 s, 54 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDevWrite__ByPIO__ProveAccessedObjsAreOSObjects ...
+  [3.930 s, 147 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDevWrite__ByPIO__ProveAccessedObjsAreOSObjects ...
+  [4.248 s, 54 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSNonUSBPDevWrite__ByObjIDs__ProveAccessedObjsAreOSObjects ...
+  [3.912 s, 147 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSNonUSBPDevWrite__ByObjIDs__ProveAccessedObjsAreOSObjects ...
+  [4.665 s, 53 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDevAccess__ObjsToBeAccessedMustBeInOSParition ...
+  [6.931 s, 240 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDevAccess__ObjsToBeAccessedMustBeInOSParition ...
+  [9.126 s, 89 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDevWrite__WriteObjsMustInSystemAndNotHCodedTDs ...
+  [3.852 s, 135 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDevWrite__WriteObjsMustInSystemAndNotHCodedTDs ...
+  [74.194 s, 577 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDevWrite__WriteObjsMustInSystemAndNotHCodedTDs__Property1 ...
+  [4.523 s, 85 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDevWrite__WriteObjsMustInSystemAndNotHCodedTDs__Property1 ...
+  [17.118 s, 89 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDrvDevWrite__ProveSanityOfNewState__AllExceptSI1 ...
+  [3.908 s, 8 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDrvDevWrite__ProveSanityOfNewState__AllExceptSI1 ...
+  [6.464 s, 545 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDevWrite__ByPAddr__ProveSanityOfNewState__SI1 ...
+  [11.665 s, 647 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDevWrite__ByPAddr__ProveSanityOfNewState__SI1 ...
+  [8.784 s, 334 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSDevWrite__ByPIO__ProveSanityOfNewState__SI1 ...
+  [13.104 s, 644 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSDevWrite__ByPIO__ProveSanityOfNewState__SI1 ...
+  [8.851 s, 333 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OSNonUSBPDevWrite__ByObjIDs__ProveSanityOfNewState__SI1 ...
+  [128.608 s, 647 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OSNonUSBPDevWrite__ByObjIDs__ProveSanityOfNewState__SI1 ...
+  [9.335 s, 333 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__USBPDevRead__ByObjID__Summary ...
+  [3.990 s, 128 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__USBPDevRead__ByObjID__Summary ...
+  [6.348 s, 55 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__USBPDevAccess__ProveSubjAndItsObjsInSamePartition ...
+  [3.918 s, 196 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__USBPDevAccess__ProveSubjAndItsObjsInSamePartition ...
+  [18.624 s, 117 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__USBPDevObjsUpdate__ProveSanityOfNewState ...
+  [5.843 s, 422 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__EEHCIWriteStatusReg__ProveSanityOfNewState ...
+  [3.783 s, 3 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__EEHCIWriteStatusReg__ProveSanityOfNewState ...
+  [7.256 s, 1221 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__EEHCIAccessOwnObjs__ProveSubjAndItsObjsInSamePartition ...
+  [4.544 s, 98 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__EEHCIAccessOwnObjs__ProveSubjAndItsObjsInSamePartition ...
+  [20.427 s, 61 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WimpDrvDOUpdate__ProveSanityOfNewState ...
+  [5.781 s, 422 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__EEHCIReadWriteObjs__ByPAddr__ProveAccessWimpDrvDOsInSamePartitionOnly__ShowExistence ...
+  [3.843 s, 102 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__EEHCIReadWriteObjs__ByPAddr__ProveAccessWimpDrvDOsInSamePartitionOnly__ShowExistence ...
+  [3.800 s, 87 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__EEHCIReadWriteObjs__ByPAddr__ProveAccessWimpDrvDOsInSamePartitionOnly ...
+  [4.596 s, 102 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__EEHCIReadWriteObjs__ByPAddr__ProveAccessWimpDrvDOsInSamePartitionOnly ...
+  [6.652 s, 228 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WimpDrvReadWriteObjs__ByPAddr__ProveAccessOwnDO ...
+  [3.812 s, 20 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WimpDrvReadWriteObjs__ByPAddr__ProveAccessOwnDO ...
+  [3.812 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WimpDrvReadWriteObjs__ByPAddr__ProveFlagIsCompleteAndRecordedPIDIsNotInvalid ...
+  [3.889 s, 154 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WimpDrvReadWriteObjs__ByPAddr__ProveFlagIsCompleteAndRecordedPIDIsNotInvalid ...
+  [3.912 s, 159 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidObjs__OnObjectModification__IfObjIDsAreUnchanged ...
+  [4.697 s, 7 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidObjs__OnObjectModification__IfObjIDsAreUnchanged ...
+  [14.179 s, 38 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidOSSubjsObjs__SubjsOwnObjsThenInSamePartition__OnObjectModification__IfObjIDsAreUnchanged ...
+  [4.248 s, 196 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidOSSubjsObjs__SubjsOwnObjsThenInSamePartition__OnObjectModification__IfObjIDsAreUnchanged ...
+  [4.527 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidObjAddrs__WimpDrv__DOPAddrs__OnObjectModification__IfObjIDsAreUnchanged ...
+  [3.841 s, 24 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidObjAddrs__WimpDrv__DOPAddrs__OnObjectModification__IfObjIDsAreUnchanged ...
+  [3.939 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidGVarValues__ActiveUSBPDevs__OnObjectModification__IfObjIDsAndPIDsAreUnchanged ...
+  [4.940 s, 190 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidGVarValues__ActiveUSBPDevs__OnObjectModification__IfObjIDsAndPIDsAreUnchanged ...
+  [3.833 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__DevRead__DevAndReadObjsAreInSamePartition ...
+  [3.935 s, 89 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__DevRead__DevAndReadObjsAreInSamePartition ...
+  [3.933 s, 162 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__DevRead__ReadObjsMustInSystemAndNotHCodedTDs ...
+  [3.835 s, 80 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__DevRead__ReadObjsMustInSystemAndNotHCodedTDs ...
+  [5.633 s, 234 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__DevRead__DevAndReadObjsAreInSamePartition__TDs ...
+  [3.815 s, 83 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__DevRead__DevAndReadObjsAreInSamePartition__TDs ...
+  [30.505 s, 210 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__DevRead__DevAndReadObjsAreInSamePartition__FDs ...
+  [3.885 s, 83 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__DevRead__DevAndReadObjsAreInSamePartition__FDs ...
+  [56.915 s, 284 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__DevRead__DevAndReadObjsAreInSamePartition__DOs ...
+  [4.003 s, 83 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__DevRead__DevAndReadObjsAreInSamePartition__DOs ...
+  [54.739 s, 284 proof obligations]  verified
+
+Dafny program verifier finished with 105 verified, 0 errors

@@ -1,0 +1,1744 @@
+include "../ins/x86/ins_wrapper.vad"
+include {:verbatim} "drv.s.dfy"
+include {:verbatim} "public/wimpdrv_util_predicates.s.dfy"
+include {:verbatim} "../dev/usb2/eehci_info.i.dfy"
+include {:verbatim} "../dev/usb2/usb_tds.i.dfy"
+include {:verbatim} "../dev/usb2/usb_pdev.i.dfy"
+include {:verbatim} "drv.i.dfy"
+
+/*********************** Method Forward Declarations ********************/
+procedure _wimpdrv_slot_get_id_pid()
+    extern;
+procedure _wimpdrv_update_slot_pid_to_invalid()
+    extern;
+procedure _wimpdrv_update_slot_pid_to_valid()
+    extern;
+
+
+
+
+/*********************** Public Methods ********************/
+// Check if the given <slot_id> fulfills 0 <= slot_id < WimpDrv_Info_ENTRIES
+procedure wimpdrv_check_slotid(
+    in slot_id:reg,
+    out ret:reg
+)
+    reads
+        mem; flags;
+    requires
+        @slot_id != @ret; @ret == Reg1;
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        ret == TRUE ==> (0 <= slot_id < WimpDrv_Info_ENTRIES);
+    ensures
+        old(mem) == mem;
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    if(slot_id >= const(0))
+    {
+        if(slot_id < const(WimpDrv_Info_ENTRIES))
+        {
+            MOV_ToReg(ret, const(TRUE));
+        }
+        else
+        {
+            MOV_ToReg(ret, const(FALSE));
+        }
+    }
+    else
+    {
+        MOV_ToReg(ret, const(FALSE));
+    }
+}
+
+// Return the base and end paddr of the wimpdrv's DO
+// Input params on stack: (wimpdrv_id:word/uint32) at esp + ARCH_WORD_BYTES, (slot:word/uint32) at esp
+// Return params on stack: (do_pend:paddr) at esp + 2 * ARCH_WORD_BYTES, (do_pbase:paddr) at esp + ARCH_WORD_BYTES,
+// (ret:word/bool) at esp
+// [NOTE] Needs 60s to verify
+procedure wimpdrv_ops_get_do_paddr_region() {:timeLimitMultiplier 5}
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        eax; ecx; edx; esi; edi;                    // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            6 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+
+        0 <= slot < WimpDrv_Info_ENTRIES;
+            // Requirement: <slot> must be valid in <g_wimpdrvs_info>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+        let out_do_pbase:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+        let out_do_pend:word := stack_get_val(mem, old(esp) + 2 * ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> (
+            (wimpdrv_do_get_paddr_base(old(globals), slot) == out_do_pbase) &&
+            (wimpdrv_do_get_paddr_end(old(globals), slot) == out_do_pend)
+        );
+            // Property 1: The globals are read as expected
+    ensures
+        eax == old(eax); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi);  // temp registers are correctly restored
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := 3 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= esi;
+    let tmp1 @= edx;
+    let tmp2 @= edi;
+    let in_drv_id @= ecx;
+    let tmp_val @= eax;
+    PUSH_TwoRegs(base, tmp1);
+    PUSH_TwoRegs(tmp2, in_drv_id);
+    PUSH_OneReg(tmp_val);
+
+    LDRglobaladdr_ToReg(base, G_WimpDrvs_Info());
+
+    Load(tmp2, ebp, ARCH_WORD_BYTES);                               // tmp2 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp2;
+    Lemma_NatMul_Ineq_4var(slot, WimpDrv_Info_ENTRY_SZ, WimpDrv_Info_ENTRIES, WimpDrv_Info_ENTRY_SZ);
+    assert isUInt32(slot * WimpDrv_Info_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp2, const(WimpDrv_Info_ENTRY_SZ));       // tmp2 := slot * WimpDrv_Info_ENTRY_SZ
+
+    // Prove <slot> results in valid vaddr of the global variable
+    Lemma_wimpdrv_info_slot_in_range_must_be_valid_vaddr(base, slot);
+
+    // Check WimpDrv_ID
+    MOV_ToReg(tmp1, tmp2);
+    ADD(tmp1, const(G_WimpDrv_Info_ENTRY_DrvIDWord_BytesOffset));        // tmp1 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_DrvIDWord_BytesOffset
+    LDRglobal(tmp_val, G_WimpDrvs_Info(), base, tmp1);               // Load tmp_val with drv ID of the slot
+    Load(in_drv_id, ebp, 2 * ARCH_WORD_BYTES);                       // in_drv_id := ebp + 2 * ARCH_WORD_BYTES := wimpdrv_id
+    if(tmp_val == in_drv_id)
+    {
+        MOV_ToReg(tmp1, tmp2);
+        ADD(tmp1, const(G_WimpDrv_Info_ENTRY_DO_PBase_BytesOffset));        // tmp1 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_DO_PBase_BytesOffset
+        LDRglobal(tmp_val, G_WimpDrvs_Info(), base, tmp1);               
+        Store(ebp, 2 * ARCH_WORD_BYTES, tmp_val);
+
+        MOV_ToReg(tmp1, tmp2);
+        ADD(tmp1, const(G_WimpDrv_Info_ENTRY_DO_PEnd_BytesOffset));        // tmp1 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_DO_PEnd_BytesOffset
+        LDRglobal(tmp_val, G_WimpDrvs_Info(), base, tmp1);               
+        Store(ebp, 3 * ARCH_WORD_BYTES, tmp_val);
+
+        Store(ebp, ARCH_WORD_BYTES, const(TRUE));
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+    }
+
+    POP_OneReg(tmp_val);
+    POP_TwoRegs(tmp2, in_drv_id);
+    POP_TwoRegs(base, tmp1);
+
+    POP_OneReg(ebp);
+}
+
+// Return the base and end paddr of the wimpdrv's DO
+// Input params on stack: (slot:word/uint32) at esp
+// Return params on stack: (do_pbase:paddr) at esp, (do_pend:paddr) at esp + 1 * ARCH_WORD_BYTES
+procedure wimpdrv_ops_get_do_paddr_region_no_check()
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        eax; ecx; edx; esi; edi;                    // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            5 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+
+        0 <= slot < WimpDrv_Info_ENTRIES;
+            // Requirement: <slot> must be valid in <g_wimpdrvs_info>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let out_do_pbase:word := stack_get_val(mem, old(esp));
+        let out_do_pend:word := stack_get_val(mem, old(esp) + 1 * ARCH_WORD_BYTES);
+
+        (wimpdrv_do_get_paddr_base(old(globals), slot) == out_do_pbase);
+        (wimpdrv_do_get_paddr_end(old(globals), slot) == out_do_pend);
+            // Property 1: The globals are read as expected
+    ensures
+        eax == old(eax); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi);  // temp registers are correctly restored
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= esi;
+    let tmp1 @= edx;
+    let tmp2 @= edi;
+    let tmp_val @= eax;
+    PUSH_TwoRegs(base, tmp1);
+    PUSH_TwoRegs(tmp_val, tmp2);
+
+    LDRglobaladdr_ToReg(base, G_WimpDrvs_Info());
+
+    Load(tmp2, ebp, ARCH_WORD_BYTES);                               // tmp2 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp2;
+    Lemma_NatMul_Ineq_4var(slot, WimpDrv_Info_ENTRY_SZ, WimpDrv_Info_ENTRIES, WimpDrv_Info_ENTRY_SZ);
+    assert isUInt32(slot * WimpDrv_Info_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp2, const(WimpDrv_Info_ENTRY_SZ));       // tmp2 := slot * WimpDrv_Info_ENTRY_SZ
+
+    // Prove <slot> results in valid vaddr of the global variable
+    Lemma_wimpdrv_info_slot_in_range_must_be_valid_vaddr(base, slot);
+
+    MOV_ToReg(tmp1, tmp2);
+    ADD(tmp1, const(G_WimpDrv_Info_ENTRY_DO_PBase_BytesOffset));        // tmp1 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_DO_PBase_BytesOffset
+    LDRglobal(tmp_val, G_WimpDrvs_Info(), base, tmp1);               
+    Store(ebp, 1 * ARCH_WORD_BYTES, tmp_val);
+
+    MOV_ToReg(tmp1, tmp2);
+    ADD(tmp1, const(G_WimpDrv_Info_ENTRY_DO_PEnd_BytesOffset));        // tmp1 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_DO_PEnd_BytesOffset
+    LDRglobal(tmp_val, G_WimpDrvs_Info(), base, tmp1);               
+    Store(ebp, 2 * ARCH_WORD_BYTES, tmp_val);
+
+
+    POP_TwoRegs(tmp_val, tmp2);
+    POP_TwoRegs(base, tmp1);
+
+    POP_OneReg(ebp);
+}
+
+// Return the PID of the wimpdrv
+// Input params on stack: (wimpdrv_id:word/uint32) at esp + ARCH_WORD_BYTES, (slot:word/uint32) at esp
+// Return params on stack:  (pid:word/WS_PartitionID) at esp + ARCH_WORD_BYTES, (ret:word/bool) at esp
+// [NOTE] Needs 30s to verify
+procedure wimpdrv_ops_get_pid() {:timeLimitMultiplier 3}
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        eax; ecx; edx; esi; edi;                    // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            6 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+
+        0 <= slot < WimpDrv_Info_ENTRIES;
+            // Requirement: <slot> must be valid in <g_wimpdrvs_info>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+        let out_pid:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> (wimpdrv_get_pid(old(globals), slot) == WS_PartitionID(out_pid));
+            // Property 1: The globals are read as expected
+    ensures
+        eax == old(eax); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi);  // temp registers are correctly restored
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= esi;
+    let tmp1 @= edx;
+    let tmp2 @= edi;
+    let in_drv_id @= ecx;
+    let tmp_val @= eax;
+    PUSH_TwoRegs(base, tmp1);
+    PUSH_TwoRegs(tmp2, in_drv_id);
+    PUSH_OneReg(tmp_val);
+
+    LDRglobaladdr_ToReg(base, G_WimpDrvs_Info());
+
+    Load(tmp2, ebp, ARCH_WORD_BYTES);                               // tmp2 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp2;
+    Lemma_NatMul_Ineq_4var(slot, WimpDrv_Info_ENTRY_SZ, WimpDrv_Info_ENTRIES, WimpDrv_Info_ENTRY_SZ);
+    assert isUInt32(slot * WimpDrv_Info_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp2, const(WimpDrv_Info_ENTRY_SZ));       // tmp2 := slot * WimpDrv_Info_ENTRY_SZ
+
+    // Prove <slot> results in valid vaddr of the global variable
+    Lemma_wimpdrv_info_slot_in_range_must_be_valid_vaddr(base, slot);
+
+    // Check WimpDrv_ID
+    MOV_ToReg(tmp1, tmp2);
+    ADD(tmp1, const(G_WimpDrv_Info_ENTRY_DrvIDWord_BytesOffset));        // tmp1 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_DrvIDWord_BytesOffset
+    LDRglobal(tmp_val, G_WimpDrvs_Info(), base, tmp1);               // Load tmp_val with drv ID of the slot
+    Load(in_drv_id, ebp, 2 * ARCH_WORD_BYTES);                       // in_drv_id := ebp + 2 * ARCH_WORD_BYTES := wimpdrv_id
+    if(tmp_val == in_drv_id)
+    {
+        MOV_ToReg(tmp1, tmp2);
+        ADD(tmp1, const(G_WimpDrv_Info_ENTRY_PID_BytesOffset));        // tmp1 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_PID_BytesOffset
+        LDRglobal(tmp_val, G_WimpDrvs_Info(), base, tmp1);               
+        Store(ebp, 2 * ARCH_WORD_BYTES, tmp_val);
+
+        Store(ebp, ARCH_WORD_BYTES, const(TRUE));
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+    }
+
+    POP_OneReg(tmp_val);
+    POP_TwoRegs(tmp2, in_drv_id);
+    POP_TwoRegs(base, tmp1);
+
+    POP_OneReg(ebp);
+}
+
+// Return the ID of the wimpdrv
+// Input params on stack: (slot:word/uint32) at esp
+// Return params on stack: (id:word) at esp
+procedure wimpdrv_ops_get_id()
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        eax; ecx; edx; esi; edi;                    // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            6 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+
+        0 <= slot < WimpDrv_Info_ENTRIES;
+            // Requirement: <slot> must be valid in <g_wimpdrvs_info>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let out_id:word := stack_get_val(mem, old(esp));
+
+        wimpdrv_get_id_word(old(globals), slot) == out_id;
+            // Property 1: The globals are read as expected
+    ensures
+        eax == old(eax); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi);  // temp registers are correctly restored
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= esi;
+    let tmp1 @= edx;
+    let tmp2 @= edi;
+    let in_drv_id @= ecx;
+    let tmp_val @= eax;
+    PUSH_TwoRegs(base, tmp1);
+    PUSH_TwoRegs(tmp2, in_drv_id);
+    PUSH_OneReg(tmp_val);
+
+    LDRglobaladdr_ToReg(base, G_WimpDrvs_Info());
+
+    Load(tmp2, ebp, ARCH_WORD_BYTES);                               // tmp2 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp2;
+    Lemma_NatMul_Ineq_4var(slot, WimpDrv_Info_ENTRY_SZ, WimpDrv_Info_ENTRIES, WimpDrv_Info_ENTRY_SZ);
+    assert isUInt32(slot * WimpDrv_Info_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp2, const(WimpDrv_Info_ENTRY_SZ));       // tmp2 := slot * WimpDrv_Info_ENTRY_SZ
+
+    // Prove <slot> results in valid vaddr of the global variable
+    Lemma_wimpdrv_info_slot_in_range_must_be_valid_vaddr(base, slot);
+
+    MOV_ToReg(tmp1, tmp2);
+    ADD(tmp1, const(G_WimpDrv_Info_ENTRY_DrvIDWord_BytesOffset));        // tmp1 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_DrvIDWord_BytesOffset
+    LDRglobal(tmp_val, G_WimpDrvs_Info(), base, tmp1);               
+    Store(ebp, 1 * ARCH_WORD_BYTES, tmp_val);
+
+    POP_OneReg(tmp_val);
+    POP_TwoRegs(tmp2, in_drv_id);
+    POP_TwoRegs(base, tmp1);
+
+    POP_OneReg(ebp);
+}
+
+// Return the PID of the wimpdrv
+// Input params on stack: (slot:word/uint32) at esp
+// Return params on stack: (pid:word/WS_PartitionID) at esp
+procedure wimpdrv_ops_get_pid_nocheck()
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        eax; ecx; edx; esi; edi;                    // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            6 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+
+        0 <= slot < WimpDrv_Info_ENTRIES;
+            // Requirement: <slot> must be valid in <g_wimpdrvs_info>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let out_pid:word := stack_get_val(mem, old(esp));
+
+        wimpdrv_get_pid(old(globals), slot) == WS_PartitionID(out_pid);
+            // Property 1: The globals are read as expected
+    ensures
+        eax == old(eax); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi);  // temp registers are correctly restored
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= esi;
+    let tmp1 @= edx;
+    let tmp2 @= edi;
+    let in_drv_id @= ecx;
+    let tmp_val @= eax;
+    PUSH_TwoRegs(base, tmp1);
+    PUSH_TwoRegs(tmp2, in_drv_id);
+    PUSH_OneReg(tmp_val);
+
+    LDRglobaladdr_ToReg(base, G_WimpDrvs_Info());
+
+    Load(tmp2, ebp, ARCH_WORD_BYTES);                               // tmp2 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp2;
+    Lemma_NatMul_Ineq_4var(slot, WimpDrv_Info_ENTRY_SZ, WimpDrv_Info_ENTRIES, WimpDrv_Info_ENTRY_SZ);
+    assert isUInt32(slot * WimpDrv_Info_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp2, const(WimpDrv_Info_ENTRY_SZ));       // tmp2 := slot * WimpDrv_Info_ENTRY_SZ
+
+    // Prove <slot> results in valid vaddr of the global variable
+    Lemma_wimpdrv_info_slot_in_range_must_be_valid_vaddr(base, slot);
+
+
+    MOV_ToReg(tmp1, tmp2);
+    ADD(tmp1, const(G_WimpDrv_Info_ENTRY_PID_BytesOffset));        // tmp1 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_PID_BytesOffset
+    LDRglobal(tmp_val, G_WimpDrvs_Info(), base, tmp1);               
+    Store(ebp, 1 * ARCH_WORD_BYTES, tmp_val);
+
+    POP_OneReg(tmp_val);
+    POP_TwoRegs(tmp2, in_drv_id);
+    POP_TwoRegs(base, tmp1);
+
+    POP_OneReg(ebp);
+}
+
+// Return the update flag of the wimpdrv
+// Input params on stack: (wimpdrv_id:word/uint32) at esp + ARCH_WORD_BYTES, (slot:word/uint32) at esp
+// Return params on stack:  (ret:word/bool) at esp, (flag:word/WS_PartitionID) at esp + ARCH_WORD_BYTES, 
+// [NOTE] Needs 30s to verify
+procedure wimpdrv_ops_get_updateflag() {:timeLimitMultiplier 3}
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        eax; ecx; edx; esi; edi;                    // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            6 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+
+        0 <= slot < WimpDrv_Info_ENTRIES;
+            // Requirement: <slot> must be valid in <g_wimpdrvs_info>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+        let out_flag:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> (wimpdrv_do_get_flag(old(globals), slot) == out_flag);
+            // Property 1: The globals are read as expected
+    ensures
+        eax == old(eax); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi);  // temp registers are correctly restored
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= esi;
+    let tmp1 @= edx;
+    let tmp2 @= edi;
+    let in_drv_id @= ecx;
+    let tmp_val @= eax;
+    PUSH_TwoRegs(base, tmp1);
+    PUSH_TwoRegs(tmp2, in_drv_id);
+    PUSH_OneReg(tmp_val);
+
+    LDRglobaladdr_ToReg(base, G_WimpDrvs_Info());
+
+    Load(tmp2, ebp, ARCH_WORD_BYTES);                               // tmp2 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp2;
+    Lemma_NatMul_Ineq_4var(slot, WimpDrv_Info_ENTRY_SZ, WimpDrv_Info_ENTRIES, WimpDrv_Info_ENTRY_SZ);
+    assert isUInt32(slot * WimpDrv_Info_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp2, const(WimpDrv_Info_ENTRY_SZ));       // tmp2 := slot * WimpDrv_Info_ENTRY_SZ
+
+    // Prove <slot> results in valid vaddr of the global variable
+    Lemma_wimpdrv_info_slot_in_range_must_be_valid_vaddr(base, slot);
+
+    // Check WimpDrv_ID
+    MOV_ToReg(tmp1, tmp2);
+    ADD(tmp1, const(G_WimpDrv_Info_ENTRY_DrvIDWord_BytesOffset));        // tmp1 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_DrvIDWord_BytesOffset
+    LDRglobal(tmp_val, G_WimpDrvs_Info(), base, tmp1);               // Load tmp_val with drv ID of the slot
+    Load(in_drv_id, ebp, 2 * ARCH_WORD_BYTES);                       // in_drv_id := ebp + 2 * ARCH_WORD_BYTES := wimpdrv_id
+    if(tmp_val == in_drv_id)
+    {
+        MOV_ToReg(tmp1, tmp2);
+        ADD(tmp1, const(G_WimpDrv_Info_ENTRY_AccessFlag_BytesOffset));        // tmp1 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_AccessFlag_BytesOffset
+        LDRglobal(tmp_val, G_WimpDrvs_Info(), base, tmp1);               
+        Store(ebp, 2 * ARCH_WORD_BYTES, tmp_val);
+
+        Store(ebp, ARCH_WORD_BYTES, const(TRUE));
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+    }
+
+    POP_OneReg(tmp_val);
+    POP_TwoRegs(tmp2, in_drv_id);
+    POP_TwoRegs(base, tmp1);
+
+    POP_OneReg(ebp);
+}
+
+// Return the update flag of the wimpdrv
+// Input params on stack: (slot:word/uint32) at esp
+// Return params on stack: (flag:word/WS_PartitionID) at esp
+procedure wimpdrv_ops_get_updateflag_nocheck()
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        eax; ecx; edx; esi; edi;                    // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            6 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+
+        0 <= slot < WimpDrv_Info_ENTRIES;
+            // Requirement: <slot> must be valid in <g_wimpdrvs_info>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let out_flag:word := stack_get_val(mem, old(esp));
+
+        wimpdrv_do_get_flag(old(globals), slot) == out_flag;
+            // Property 1: The globals are read as expected
+    ensures
+        eax == old(eax); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi);  // temp registers are correctly restored
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= esi;
+    let tmp1 @= edx;
+    let tmp2 @= edi;
+    let in_drv_id @= ecx;
+    let tmp_val @= eax;
+    PUSH_TwoRegs(base, tmp1);
+    PUSH_TwoRegs(tmp2, in_drv_id);
+    PUSH_OneReg(tmp_val);
+
+    LDRglobaladdr_ToReg(base, G_WimpDrvs_Info());
+
+    Load(tmp2, ebp, ARCH_WORD_BYTES);                               // tmp2 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp2;
+    Lemma_NatMul_Ineq_4var(slot, WimpDrv_Info_ENTRY_SZ, WimpDrv_Info_ENTRIES, WimpDrv_Info_ENTRY_SZ);
+    assert isUInt32(slot * WimpDrv_Info_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp2, const(WimpDrv_Info_ENTRY_SZ));       // tmp2 := slot * WimpDrv_Info_ENTRY_SZ
+
+    // Prove <slot> results in valid vaddr of the global variable
+    Lemma_wimpdrv_info_slot_in_range_must_be_valid_vaddr(base, slot);
+
+
+    MOV_ToReg(tmp1, tmp2);
+    ADD(tmp1, const(G_WimpDrv_Info_ENTRY_AccessFlag_BytesOffset));        // tmp1 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_AccessFlag_BytesOffset
+    LDRglobal(tmp_val, G_WimpDrvs_Info(), base, tmp1);               
+    Store(ebp, 1 * ARCH_WORD_BYTES, tmp_val);
+
+    POP_OneReg(tmp_val);
+    POP_TwoRegs(tmp2, in_drv_id);
+    POP_TwoRegs(base, tmp1);
+
+    POP_OneReg(ebp);
+}
+
+// Find WimpDrv in the given partition
+// If no slot is found, return WimpDrv_SlotID_EMPTY and false.
+// Input params on stack: (pid:word/uint32) at esp
+// Return params on stack: (result_slot:word) at esp + ARCH_WORD_BYTES, (ret:word) at esp
+// [NOTE] Needs 50s to verify
+procedure wimpdrv_find_slot_in_partition() {:timeLimitMultiplier 5}
+    modifies
+        esp; ebp; mem;
+        eax; ebx; ecx; edx; esi; edi;               // Local variables
+    reads
+        globals; flags;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            7 * ARCH_WORD_BYTES +                   // For local variables
+            1 * ARCH_WORD_BYTES +                   // For params of wimpdrv_ops_get_pid_nocheck
+            8 * ARCH_WORD_BYTES;                    // For wimpdrv_ops_get_pid_nocheck
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space);
+            // The params of the function must be on stack
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let pid:word := stack_get_val(old(mem), old(esp));
+        let result_slot:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> wimpdrv_valid_slot_id(result_slot);
+        (ret == TRUE) ==> wimpdrv_get_pid(old(globals), result_slot) == WS_PartitionID(pid);
+        (ret == FALSE) ==> (
+                forall (i:word) (wimpdrv_valid_slot_id(i)
+                    ==> wimpdrv_get_pid(old(globals), i) != WS_PartitionID(pid))
+            );
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); 
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+        globals == old(globals);
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let pid @= edi;
+    let i @= eax;
+    let found_slot @= ecx;
+    let tmp_v @= ebx;
+    let run @= edx;
+    PUSH_Reg1ToReg6();
+
+
+    let begin_state := this;
+    let orig_ebp := ebp;
+    Load(pid, ebp, ARCH_WORD_BYTES);                            // Load <pid>
+    let in_pid := pid;
+ 
+    MOV_ToReg(i, 0);                                                        // uint32 i = 0
+    MOV_ToReg(run, const(TRUE));                                            // bool run = TRUE
+
+    PUSH(i);
+    wimpdrv_ops_get_pid_nocheck();
+    Load(tmp_v, esp, 0);
+    POP_VOID(1 * ARCH_WORD_BYTES);
+
+    if(tmp_v == pid)
+    {
+        MOV_ToReg(run, const(FALSE));
+        MOV_ToReg(found_slot, const(TRUE));
+    }
+    else
+    {
+        MOV_ToReg(run, const(TRUE));
+        MOV_ToReg(found_slot, const(FALSE));
+    }
+
+    while (run == const(TRUE))
+        invariant
+            0 <= i <= WimpDrv_Info_ENTRIES;
+            run == TRUE ==> (0 <= i < WimpDrv_Info_ENTRIES);
+
+            run == TRUE ==> found_slot == FALSE;
+            tmp_v != in_pid ==> found_slot == FALSE;
+            found_slot == FALSE ==> (forall (j:uint32) (0 <= j < i && wimpdrv_valid_slot_id(j)
+                                ==> wimpdrv_get_pid(old(globals), j) != WS_PartitionID(in_pid))
+                        );
+            (run != TRUE && found_slot == FALSE) ==> (forall (j:uint32) (wimpdrv_valid_slot_id(j)
+                                ==> wimpdrv_get_pid(old(globals), j) != WS_PartitionID(in_pid))
+                        );
+                // Invariant relates to found_slot == FALSE
+                
+            run != TRUE ==> (tmp_v == in_pid || i == WimpDrv_Info_ENTRIES-1);
+                // Invariant: When using this schema of while-loop, one has to describe the definition of run != TRUE
+            run != TRUE && tmp_v == in_pid
+                ==> (
+                        wimpdrv_valid_slot_id(i) &&
+                        wimpdrv_get_pid(old(globals), i) == WS_PartitionID(in_pid)
+                    );
+                // Invariant: When found the slot, its PID must be <in_pid>
+
+            esp == old(esp) - 7 * ARCH_WORD_BYTES;
+            stack_under_sp_is_unchanged(begin_state.wk_mstate.m, this.wk_mstate.m, esp);
+                // Invariant: Earlier stack are unchanged in this while-loop
+
+            esi == old(esi);
+            ebp == orig_ebp;
+            pid == in_pid;
+                // Invariant: Registers used by sub-functions are not modified
+
+            globals == old(globals);
+            state_equal_except_mstate(old(this), this);
+        decreases
+            (WimpDrv_Info_ENTRIES - i), run;
+    {
+        PUSH(i);
+        wimpdrv_ops_get_pid_nocheck();
+        Load(tmp_v, esp, 0);
+        POP_VOID(1 * ARCH_WORD_BYTES);
+
+        if(tmp_v == pid)                               // Stop conditions of while-loop
+        {
+            MOV_ToReg(run, const(FALSE));
+            MOV_ToReg(found_slot, const(TRUE));
+        }  
+        else if(i == const(WimpDrv_Info_ENTRIES - 1))                       //// i + 1 == WimpDrv_Info_ENTRIES
+        {
+            MOV_ToReg(run, const(FALSE));
+            MOV_ToReg(found_slot, const(FALSE));
+        }
+        else                                                            // Add 1 when there is next run
+        {
+            ADD(i, 1);                                                          // i += 1
+            MOV_ToReg(run, const(TRUE));
+            MOV_ToReg(found_slot, const(FALSE));
+        }
+    }
+
+    // Out of while-loop
+    if(tmp_v == pid)
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(TRUE));
+        Store(ebp, 2 * ARCH_WORD_BYTES, i);
+    }
+    else
+    {
+        assert i == WimpDrv_Info_ENTRIES - 1;
+        assert found_slot == FALSE;
+
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(WimpDrv_SlotID_EMPTY));
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+
+
+
+/*********************** Private Methods ********************/
+// Return the <wimpdrv_id> and <pid> at the slot
+// Input params on stack: (slot:word/uint32) at esp
+// Return params on stack: (wimpdrv_id:word/uint32) at esp + ARCH_WORD_BYTES, (pid:WS_PartitionID/uint32) at esp
+// [NOTE] Needs 20s to verify
+procedure _wimpdrv_slot_get_id_pid() {:timeLimitMultiplier 3}
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        edx; edi; eax;                                     // Local variables
+        esi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            5 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+
+        0 <= slot < WimpDrv_Info_ENTRIES;
+            // Requirement: <slot> must be valid in <g_wimpdrvs_info>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let wimpdrv_id:uint32 := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+        let pid:uint32 := stack_get_val(mem, old(esp));
+
+        wimpdrv_get_id_word(old(globals), slot) == wimpdrv_id;
+        wimpdrv_get_pid(old(globals), slot) == WS_PartitionID(pid);
+            // Property 1: The globals are read as expected
+    ensures
+        eax == old(eax); edx == old(edx); edi == old(edi); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        esi == old(esi);
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= esi;
+    let tmp1 @= edx;
+    let tmp2 @= edi;
+    let tmp_val @= eax;
+    PUSH_TwoRegs(base, tmp1);
+    PUSH_TwoRegs(tmp2, tmp_val);
+
+    LDRglobaladdr_ToReg(base, G_WimpDrvs_Info());
+
+    Load(tmp2, ebp, ARCH_WORD_BYTES);                               // tmp2 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp2;
+    Lemma_NatMul_Ineq_4var(slot, WimpDrv_Info_ENTRY_SZ, WimpDrv_Info_ENTRIES, WimpDrv_Info_ENTRY_SZ);
+    assert isUInt32(slot * WimpDrv_Info_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp2, const(WimpDrv_Info_ENTRY_SZ));       // tmp2 := slot * WimpDrv_Info_ENTRY_SZ
+    MOV_ToReg(tmp1, tmp2);
+    ADD(tmp1, const(G_WimpDrv_Info_ENTRY_DrvIDWord_BytesOffset));        // tmp1 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_DrvIDWord_BytesOffset
+    ADD(tmp2, const(G_WimpDrv_Info_ENTRY_PID_BytesOffset));        // tmp2 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_PID_BytesOffset
+
+    // Prove <slot> results in valid vaddr of the global variable
+    Lemma_wimpdrv_info_slot_in_range_must_be_valid_vaddr(base, slot);
+
+    // Read and store uint32 <wimpdrv_id> at esp + ARCH_WORD_BYTES
+    LDRglobal(tmp_val, G_WimpDrvs_Info(), base, tmp1);
+    Store(ebp, 2 * ARCH_WORD_BYTES, tmp_val);           // [NOTE] ebp == old_esp - ARCH_WORD_BYTES;
+
+    // Read and store uint32 <pid> at esp
+    LDRglobal(tmp_val, G_WimpDrvs_Info(), base, tmp2);
+    Store(ebp, ARCH_WORD_BYTES, tmp_val);              // [NOTE] ebp == old_esp - ARCH_WORD_BYTES;
+
+
+    POP_TwoRegs(tmp2, tmp_val);
+    POP_TwoRegs(base, tmp1);
+
+    POP_OneReg(ebp);
+}
+
+// Overwritten the wimp driver info at <slot> with new values. The new PID must be PID_INVALID.
+// Input params on stack: (new_do_pend:paddr) at esp + 4 * ARCH_WORD_BYTES, 
+// (new_do_pbase:word/uint32) at esp + 3 * ARCH_WORD_BYTES, (new_pid:word/uint32) at esp + 2 * ARCH_WORD_BYTES, 
+// (new_wimpdrv_id:word/uint32) at esp + ARCH_WORD_BYTES, (slot:word/uint32) at esp
+// Return params on stack: None
+// [NOTE] Needs 300s to verify
+procedure _wimpdrv_update_slot_pid_to_invalid() {:timeLimitMultiplier 40}
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        ecx; edx; edi;                                       // Local variables
+        esi; eax;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            5 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For STRglobal_WordOffset
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            5 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+
+        wimpdrv_valid_slot_id(slot);
+        usbtds_verifiedtds_do_not_associate_wimpdrv(globals, slot);
+            // Requirement: The WimpDrv at <slot> is not associate with any USB TD
+    requires
+        let new_wimpdrv_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_pid:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_do_pbase:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let new_do_pend:word := stack_get_val(old(mem), old(esp) + 4 * ARCH_WORD_BYTES);
+
+        new_pid == PID_INVALID;
+            // <new_pid> must be either PID_INVALID
+        WK_ValidPMemRegion(new_do_pbase, new_do_pend);
+            // Requirement: the new values must be valid
+        new_wimpdrv_id == WimpDrv_ID_RESERVED_EMPTY ==> new_pid == PID_INVALID;
+            // Requirement: If new_wimpdrv_id is empty, then new_pid must be invalid
+        new_wimpdrv_id == WimpDrv_ID_RESERVED_EMPTY;
+    requires
+        let new_wimpdrv_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let slot:word := stack_get_val(old(mem), old(esp));
+
+        forall (i:uint32) (wimpdrv_valid_slot_id(i) && i != slot &&
+                wimpdrv_get_id_word(globals, i) != WimpDrv_ID_RESERVED_EMPTY
+            ==> wimpdrv_get_id_word(globals, i) != new_wimpdrv_id);
+            // Requirement: The <new_wimpdrv_id> must be unique after update
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let unregistered_drv_idword := wimpdrv_get_id_word(globals, slot);
+        unregistered_drv_idword != WimpDrv_ID_RESERVED_EMPTY;
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let unregistered_drv_idword := wimpdrv_get_id_word(globals, slot);
+        let unregistered_drv_id := WimpDrv_IDWord_ToDrvID(this.subjects, this.objects, this.id_mappings, unregistered_drv_idword);
+
+        wimpdrv_get_pid(globals, slot) != WS_PartitionID(PID_INVALID);
+            // Requirement: The unregistered wimp driver must be active before
+        WSM_IsWimpDrvID(this.subjects, unregistered_drv_id);
+            // Requirement: As <this.subjects> and <this.objects> have given all wimp drivers to be loaded and their DO's
+            // information, <unregistered_drv_id> must map to some wimp driver's ID
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let new_wimpdrv_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_pid:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_do_pbase:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let new_do_pend:word := stack_get_val(old(mem), old(esp) + 4 * ARCH_WORD_BYTES);
+
+        wimpdrv_info_newvalue(old(globals), globals, slot, new_wimpdrv_id, new_pid, new_do_pbase, new_do_pend, WimpDrv_Slot_UpdateFlag_Complete);
+            // Property 1: The globals are modified as expected
+    ensures
+        ecx == old(ecx); edx == old(edx); edi == old(edi); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+        esi == old(esi); eax == old(eax);
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal p_wimpdrv_slot_equal;
+    reveal usbtds_verifiedtds_do_not_associate_wimpdrv;
+
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp2 @= edi;
+    let tmp3 @= esi;
+    let new_val @= ecx;
+    PUSH_TwoRegs(base, tmp2);
+    PUSH_TwoRegs(tmp3, new_val);
+    let orig_esp := esp;
+
+
+    LDRglobaladdr_ToReg(base, G_WimpDrvs_Info());
+
+    Load(tmp2, ebp, ARCH_WORD_BYTES);                               // tmp2 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp2;
+    Lemma_NatMul_Ineq_4var(slot, WimpDrv_Info_ENTRY_SZ, WimpDrv_Info_ENTRIES, WimpDrv_Info_ENTRY_SZ);
+    assert isUInt32(slot * WimpDrv_Info_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp2, const(WimpDrv_Info_ENTRY_SZ));       // tmp2 := slot * WimpDrv_Info_ENTRY_SZ
+
+
+    assert globals == old(globals);
+    // 1. Update flag to be WimpDrv_Slot_UpdateFlag_Updating
+    MOV_ToReg(tmp3, tmp2);
+    ADD(tmp3, const(G_WimpDrv_Info_ENTRY_AccessFlag_BytesOffset));          // tmp3 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_AccessFlag_BytesOffset
+
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr1 := base + tmp3;
+    let new_globals1 := global_write_word(globals, G_WimpDrvs_Info(), tmp_addr1, WimpDrv_Slot_UpdateFlag_Updating);
+    let new_this1 := this.(wk_mstate := this.wk_mstate.(globals := new_globals1));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+
+    Lemma_WimpDrv_PreserveOtherSlotsIfModifyingOneSlot(globals, new_globals1, slot, G_WimpDrv_Info_ENTRY_AccessFlag_BytesOffset, WimpDrv_Slot_UpdateFlag_Updating);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_IDWords_HoldIfWrittingUpdateFlagField(globals, new_globals1, slot, WimpDrv_Slot_UpdateFlag_Updating);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_HoldIfWrittingUpdateFlagField(globals, new_globals1, slot, WimpDrv_Slot_UpdateFlag_Updating);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_HoldIfWrittingUpdateFlagField_WriteToUpdating(globals, new_globals1, slot);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals1);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(globals, new_globals1);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals1);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals1);
+
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_HoldIfWrittingUpdateFlagField_WriteToUpdating(this, new_this1, new_globals1, slot);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this1);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_WimpDrvs_Info(), tmp_addr1, WimpDrv_Slot_UpdateFlag_Updating);
+
+    //// Write the global variable
+    STRglobal(G_WimpDrvs_Info(), base, tmp3, const(WimpDrv_Slot_UpdateFlag_Updating));
+
+
+    // 2. Store <new_pid>
+    MOV_ToReg(tmp3, tmp2);
+    ADD(tmp3, const(G_WimpDrv_Info_ENTRY_PID_BytesOffset));          // tmp3 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_PID_BytesOffset
+    Load(new_val, ebp, 3 * ARCH_WORD_BYTES);                         // new_val := ebp + 3 * ARCH_WORD_BYTES := new_pid
+    let new_pid := new_val;
+
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr3 := base + tmp3;
+    let new_globals3 := global_write_word(globals, G_WimpDrvs_Info(), tmp_addr3, new_val);
+    let new_this3 := this.(wk_mstate := this.wk_mstate.(globals := new_globals3));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals3);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals3);
+
+    Lemma_WimpDrv_PreserveOtherSlotsIfModifyingOneSlot(globals, new_globals3, slot, G_WimpDrv_Info_ENTRY_PID_BytesOffset, new_val);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_HoldIfWrittingPIDField_NewPIDIsInvalid(globals, new_globals3, slot, new_val);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_HoldIfWrittingPIDField(globals, new_globals3, slot, new_val);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals3);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(globals, new_globals3);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals3);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals3);
+
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_HoldIfWrittingPIDField(this, new_this3, new_globals3, slot, new_val);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this3);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_WimpDrvs_Info(), tmp_addr3, new_val);
+
+    //// Write the global variable
+    STRglobal(G_WimpDrvs_Info(), base, tmp3, new_val);
+
+    
+    // 3. Store <new_wimpdrv_id>
+    MOV_ToReg(tmp3, tmp2);
+    ADD(tmp3, const(G_WimpDrv_Info_ENTRY_DrvIDWord_BytesOffset));        // tmp3 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_DrvIDWord_BytesOffset
+    Load(new_val, ebp, 2 * ARCH_WORD_BYTES);                         // new_val := ebp + 2 * ARCH_WORD_BYTES := new_wimpdrv_id
+    let new_wimpdrv_id := new_val;
+
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr2 := base + tmp3;
+    let new_globals2 := global_write_word(globals, G_WimpDrvs_Info(), tmp_addr2, new_val);
+    let new_this2 := this.(wk_mstate := this.wk_mstate.(globals := new_globals2));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals2);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals2);
+
+    Lemma_WimpDrv_PreserveOtherSlotsIfModifyingOneSlot(globals, new_globals2, slot, G_WimpDrv_Info_ENTRY_DrvIDWord_BytesOffset, new_val);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_HoldIfWrittingDrvIDField_PIDIsAlreadyInvalid(globals, new_globals2, slot, new_val);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_HoldIfWrittingDrvIDField(globals, new_globals2, slot, new_val);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals2);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(globals, new_globals2);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals2);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals2);
+
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_HoldIfWrittingDrvIDField(this, new_this2, new_globals2, slot, new_val);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this2);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_WimpDrvs_Info(), tmp_addr2, new_val);
+
+    //// Write the global variable
+    STRglobal(G_WimpDrvs_Info(), base, tmp3, new_val);
+
+
+    // 4. Store <new_do_pbase>
+    MOV_ToReg(tmp3, tmp2);
+    ADD(tmp3, const(G_WimpDrv_Info_ENTRY_DO_PBase_BytesOffset));     // tmp3 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_DO_PBase_BytesOffset
+    Load(new_val, ebp, 4 * ARCH_WORD_BYTES);                         // new_val := ebp + 4 * ARCH_WORD_BYTES := new_do_pbase
+    let new_do_pbase := new_val;
+
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr4 := base + tmp3;
+    let new_globals4 := global_write_word(globals, G_WimpDrvs_Info(), tmp_addr4, new_val);
+    let new_this4 := this.(wk_mstate := this.wk_mstate.(globals := new_globals4));
+    Lemma_WimpDrv_PreserveOtherSlotsIfModifyingOneSlot(globals, new_globals4, slot, G_WimpDrv_Info_ENTRY_DO_PBase_BytesOffset, new_val);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_HoldIfWrittingDOPAddrBaseField(globals, new_globals4, slot, new_val);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_HoldIfWrittingDOPAddrBaseField_UnderFlagUpdating(globals, new_globals4, slot, new_val);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals4);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(globals, new_globals4);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals4);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals4);
+
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_HoldIfWrittingDOPAddrBaseField(this, new_this4, new_globals4, slot, new_val);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this4);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_WimpDrvs_Info(), tmp_addr4, new_val);
+
+    //// Write the global variable
+    STRglobal(G_WimpDrvs_Info(), base, tmp3, new_val);
+
+
+    // 5. Store <new_do_pend>
+    MOV_ToReg(tmp3, tmp2);
+    ADD(tmp3, const(G_WimpDrv_Info_ENTRY_DO_PEnd_BytesOffset));      // tmp3 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_DO_PEnd_BytesOffset
+    Load(new_val, ebp, 5 * ARCH_WORD_BYTES);                         // new_val := ebp + 5 * ARCH_WORD_BYTES := new_do_pend
+    let new_do_pend := new_val;
+
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr5 := base + tmp3;
+    let new_globals5 := global_write_word(globals, G_WimpDrvs_Info(), tmp_addr5, new_val);
+    let new_this5 := this.(wk_mstate := this.wk_mstate.(globals := new_globals5));
+    Lemma_WimpDrv_PreserveOtherSlotsIfModifyingOneSlot(globals, new_globals5, slot, G_WimpDrv_Info_ENTRY_DO_PEnd_BytesOffset, new_val);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_HoldIfWrittingDOPAddrEndField(globals, new_globals5, slot, new_val);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_HoldIfWrittingDOPAddrEndField_UnderFlagUpdating(globals, new_globals5, slot, new_val);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals5);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(globals, new_globals5);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals5);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals5);
+
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_HoldIfWrittingDOPAddrEndField(this, new_this5, new_globals5, slot, new_val);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this5);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_WimpDrvs_Info(), tmp_addr5, new_val);
+
+    //// Write the global variable
+    STRglobal(G_WimpDrvs_Info(), base, tmp3, new_val);
+
+
+    // 6. Update flag to be WimpDrv_Slot_UpdateFlag_Complete
+    MOV_ToReg(tmp3, tmp2);
+    ADD(tmp3, const(G_WimpDrv_Info_ENTRY_AccessFlag_BytesOffset));          // tmp3 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_AccessFlag_BytesOffset
+
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr6 := base + tmp3;
+    let new_globals6 := global_write_word(globals, G_WimpDrvs_Info(), tmp_addr6, WimpDrv_Slot_UpdateFlag_Complete);
+    let new_this6 := this.(wk_mstate := this.wk_mstate.(globals := new_globals6));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals6);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals6);
+
+    Lemma_WimpDrv_PreserveOtherSlotsIfModifyingOneSlot(globals, new_globals6, slot, G_WimpDrv_Info_ENTRY_AccessFlag_BytesOffset, WimpDrv_Slot_UpdateFlag_Complete);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_IDWords_HoldIfWrittingUpdateFlagField(globals, new_globals6, slot, WimpDrv_Slot_UpdateFlag_Complete);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_HoldIfWrittingUpdateFlagField(globals, new_globals6, slot, WimpDrv_Slot_UpdateFlag_Complete);
+    Lemma__wimpdrv_update_slot_pid_to_invalid_Prove_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_HoldIfWrittingUpdateFlagField_WriteToComplete(globals, new_globals6, slot);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals6);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(globals, new_globals6);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals6);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals6);
+
+    Lemma__wimpdrv_update_slot_pid_to_invalid_Prove_WK_ValidObjAddrs_WimpDrv_DOPAddrs_HoldIfWrittingUpdateFlagField_WriteToComplete(this, new_this6, new_globals6, slot);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this6);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_WimpDrvs_Info(), tmp_addr6, WimpDrv_Slot_UpdateFlag_Complete);
+
+    //// Write the global variable
+    STRglobal(G_WimpDrvs_Info(), base, tmp3, const(WimpDrv_Slot_UpdateFlag_Complete));
+    assert globals == new_globals6;
+
+    //// Prove security properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfModifyingWimpDrvNotAssociatedWithAnyUSBTD(old(globals), globals, slot);
+    Lemma__wimpdrv_update_slot_pid_to_invalid_Prove_WK_SecureObjsAddrs_MemSeparation(old(this), this, slot);
+
+    // Prove Property 1
+    Lemma_WK_WimpDrvs_UpdateAllFieldsMustSatisfy_wimpdrv_info_newvalue2(old(globals), globals, 
+        slot, new_wimpdrv_id, new_pid, new_do_pbase, new_do_pend,
+        new_globals1, new_globals3, new_globals2, new_globals4, new_globals5, new_globals6);
+
+
+    assert esp == orig_esp;
+    POP_TwoRegs(tmp3, new_val);
+    POP_TwoRegs(base, tmp2);
+    POP_OneReg(ebp);
+}
+
+// Overwritten the wimp driver info at <slot> with new values. The new PID must be an existing wimp partition's PID.
+// Input params on stack: (new_do_pend:paddr) at esp + 4 * ARCH_WORD_BYTES, 
+// (new_do_pbase:word/uint32) at esp + 3 * ARCH_WORD_BYTES, (new_pid:word/uint32) at esp + 2 * ARCH_WORD_BYTES, 
+// (new_wimpdrv_id:word/uint32) at esp + ARCH_WORD_BYTES, (slot:word/uint32) at esp
+// Return params on stack: None
+// [NOTE] Needs 400s to verify
+procedure _wimpdrv_update_slot_pid_to_valid() {:timeLimitMultiplier 40}
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        ecx; edx; edi;                                       // Local variables
+        esi; eax;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            5 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For STRglobal_WordOffset
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            5 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+
+        wimpdrv_valid_slot_id(slot);
+        usbtds_verifiedtds_do_not_associate_wimpdrv(globals, slot);
+            // Requirement: The WimpDrv at <slot> is not associate with any USB TD
+    requires
+        let new_wimpdrv_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_pid:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_do_pbase:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let new_do_pend:word := stack_get_val(old(mem), old(esp) + 4 * ARCH_WORD_BYTES);
+
+        pids_parse_g_wimp_pids(globals)?[WS_PartitionID(new_pid)];
+            // <new_pid> must be an existing wimp partition's PID 
+        WK_ValidPMemRegion(new_do_pbase, new_do_pend);
+            // Requirement: the new values must be valid
+        new_wimpdrv_id != WimpDrv_ID_RESERVED_EMPTY;
+            // Requirement: new_wimpdrv_id is not empty
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let new_wimpdrv_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_pid:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_do_pbase:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let new_do_pend:word := stack_get_val(old(mem), old(esp) + 4 * ARCH_WORD_BYTES);
+
+        wimpdrv_registration_info_must_exist(this.subjects, this.objects, this.id_mappings, this.objs_addrs, new_wimpdrv_id, new_do_pbase, new_do_pend);
+            // Requirement: When registering a wimp driver, The given information must match the information in <subjs>,  
+            // <objs>, <id_mappings>, and <objs_addrs>, as they store all wimp drivers that will be activated in the system
+    requires
+        let new_wimpdrv_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let slot:word := stack_get_val(old(mem), old(esp));
+
+        forall (i:uint32) (wimpdrv_valid_slot_id(i) && i != slot &&
+                wimpdrv_get_id_word(globals, i) != WimpDrv_ID_RESERVED_EMPTY
+            ==> wimpdrv_get_id_word(globals, i) != new_wimpdrv_id);
+            // Requirement: The <new_wimpdrv_id> must be unique after update
+        wimpdrv_get_id_word(globals, slot) == WimpDrv_ID_RESERVED_EMPTY;
+            // Requirement: The wimp driver slot must contain WimpDrv_ID_RESERVED_EMPTY before
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let new_pid:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_do_pbase:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let new_do_pend:word := stack_get_val(old(mem), old(esp) + 4 * ARCH_WORD_BYTES);
+        forall (i:uint32) (wimpdrv_valid_slot_id(i) && i != slot && wimpdrv_do_get_flag(globals, i) == WimpDrv_Slot_UpdateFlag_Complete &&
+                wimpdrv_get_pid(globals, i) != WS_PartitionID(PID_INVALID) && new_pid != PID_INVALID
+            ==> !is_mem_region_overlap(wimpdrv_do_get_paddr_base(globals, i), wimpdrv_do_get_paddr_end(globals, i), 
+                    new_do_pbase, new_do_pend));
+            // Requirement: The DO paddr region of the new wimp driver does not overlap with existing submitted wimp drivers.
+            // In other words, DOs of active wimp drivers do not overlap with each other
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let new_wimpdrv_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_pid:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_do_pbase:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let new_do_pend:word := stack_get_val(old(mem), old(esp) + 4 * ARCH_WORD_BYTES);
+
+        wimpdrv_info_newvalue(old(globals), globals, slot, new_wimpdrv_id, new_pid, new_do_pbase, new_do_pend, WimpDrv_Slot_UpdateFlag_Complete);
+            // Property 1: The globals are modified as expected
+    ensures
+        ecx == old(ecx); edx == old(edx); edi == old(edi); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+        esi == old(esi); eax == old(eax);
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal usbtds_verifiedtds_do_not_associate_wimpdrv;
+    
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp2 @= edi;
+    let tmp3 @= esi;
+    let new_val @= ecx;
+    PUSH_TwoRegs(base, tmp2);
+    PUSH_TwoRegs(tmp3, new_val);
+    let orig_esp := esp;
+
+
+    LDRglobaladdr_ToReg(base, G_WimpDrvs_Info());
+
+    Load(tmp2, ebp, ARCH_WORD_BYTES);                               // tmp2 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp2;
+    Lemma_NatMul_Ineq_4var(slot, WimpDrv_Info_ENTRY_SZ, WimpDrv_Info_ENTRIES, WimpDrv_Info_ENTRY_SZ);
+    assert isUInt32(slot * WimpDrv_Info_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp2, const(WimpDrv_Info_ENTRY_SZ));       // tmp2 := slot * WimpDrv_Info_ENTRY_SZ
+
+
+    assert globals == old(globals);
+    // 1. Update flag to be WimpDrv_Slot_UpdateFlag_Updating
+    MOV_ToReg(tmp3, tmp2);
+    ADD(tmp3, const(G_WimpDrv_Info_ENTRY_AccessFlag_BytesOffset));          // tmp3 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_AccessFlag_BytesOffset
+
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr1 := base + tmp3;
+    let new_globals1 := global_write_word(globals, G_WimpDrvs_Info(), tmp_addr1, WimpDrv_Slot_UpdateFlag_Updating);
+    let new_this1 := this.(wk_mstate := this.wk_mstate.(globals := new_globals1));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+
+    Lemma_WimpDrv_PreserveOtherSlotsIfModifyingOneSlot(globals, new_globals1, slot, G_WimpDrv_Info_ENTRY_AccessFlag_BytesOffset, WimpDrv_Slot_UpdateFlag_Updating);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_IDWords_HoldIfWrittingUpdateFlagField(globals, new_globals1, slot, WimpDrv_Slot_UpdateFlag_Updating);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_HoldIfWrittingUpdateFlagField(globals, new_globals1, slot, WimpDrv_Slot_UpdateFlag_Updating);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_HoldIfWrittingUpdateFlagField_WriteToUpdating(globals, new_globals1, slot);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals1);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(globals, new_globals1);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals1);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals1);
+
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_HoldIfWrittingUpdateFlagField_WriteToUpdating(this, new_this1, new_globals1, slot);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this1);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_WimpDrvs_Info(), tmp_addr1, WimpDrv_Slot_UpdateFlag_Updating);
+
+    //// Write the global variable
+    STRglobal(G_WimpDrvs_Info(), base, tmp3, const(WimpDrv_Slot_UpdateFlag_Updating));
+
+    
+    // 2. Store <new_wimpdrv_id>
+    MOV_ToReg(tmp3, tmp2);
+    ADD(tmp3, const(G_WimpDrv_Info_ENTRY_DrvIDWord_BytesOffset));        // tmp3 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_DrvIDWord_BytesOffset
+    Load(new_val, ebp, 2 * ARCH_WORD_BYTES);                         // new_val := ebp + 2 * ARCH_WORD_BYTES := new_wimpdrv_id
+    let new_wimpdrv_id := new_val;
+
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr2 := base + tmp3;
+    let new_globals2 := global_write_word(globals, G_WimpDrvs_Info(), tmp_addr2, new_val);
+    let new_this2 := this.(wk_mstate := this.wk_mstate.(globals := new_globals2));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals2);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals2);
+
+    Lemma_WimpDrv_PreserveOtherSlotsIfModifyingOneSlot(globals, new_globals2, slot, G_WimpDrv_Info_ENTRY_DrvIDWord_BytesOffset, new_val);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_HoldIfWrittingDrvIDField_NonEmptyWimpDrvID(globals, new_globals2, slot, new_val);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_HoldIfWrittingDrvIDField(globals, new_globals2, slot, new_val);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals2);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(globals, new_globals2);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals2);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals2);
+
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_HoldIfWrittingDrvIDField(this, new_this2, new_globals2, slot, new_val);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this2);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_WimpDrvs_Info(), tmp_addr2, new_val);
+
+    //// Write the global variable
+    STRglobal(G_WimpDrvs_Info(), base, tmp3, new_val);
+
+
+    // 3. Store <new_pid>
+    MOV_ToReg(tmp3, tmp2);
+    ADD(tmp3, const(G_WimpDrv_Info_ENTRY_PID_BytesOffset));          // tmp3 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_PID_BytesOffset
+    Load(new_val, ebp, 3 * ARCH_WORD_BYTES);                         // new_val := ebp + 3 * ARCH_WORD_BYTES := new_pid
+    let new_pid := new_val;
+
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr3 := base + tmp3;
+    let new_globals3 := global_write_word(globals, G_WimpDrvs_Info(), tmp_addr3, new_val);
+    let new_this3 := this.(wk_mstate := this.wk_mstate.(globals := new_globals3));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals3);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals3);
+
+    Lemma_WimpDrv_PreserveOtherSlotsIfModifyingOneSlot(globals, new_globals3, slot, G_WimpDrv_Info_ENTRY_PID_BytesOffset, new_val);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_HoldIfWrittingPIDField_WimpDrvAlreadyNotEmpty(globals, new_globals3, slot, new_val);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_HoldIfWrittingPIDField(globals, new_globals3, slot, new_val);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals3);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(globals, new_globals3);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals3);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals3);
+
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_HoldIfWrittingPIDField(this, new_this3, new_globals3, slot, new_val);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this3);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_WimpDrvs_Info(), tmp_addr3, new_val);
+
+    //// Write the global variable
+    STRglobal(G_WimpDrvs_Info(), base, tmp3, new_val);
+
+
+    // 4. Store <new_do_pbase>
+    MOV_ToReg(tmp3, tmp2);
+    ADD(tmp3, const(G_WimpDrv_Info_ENTRY_DO_PBase_BytesOffset));     // tmp3 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_DO_PBase_BytesOffset
+    Load(new_val, ebp, 4 * ARCH_WORD_BYTES);                         // new_val := ebp + 4 * ARCH_WORD_BYTES := new_do_pbase
+    let new_do_pbase := new_val;
+
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr4 := base + tmp3;
+    let new_globals4 := global_write_word(globals, G_WimpDrvs_Info(), tmp_addr4, new_val);
+    let new_this4 := this.(wk_mstate := this.wk_mstate.(globals := new_globals4));
+    Lemma_WimpDrv_PreserveOtherSlotsIfModifyingOneSlot(globals, new_globals4, slot, G_WimpDrv_Info_ENTRY_DO_PBase_BytesOffset, new_val);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_HoldIfWrittingDOPAddrBaseField(globals, new_globals4, slot, new_val);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_HoldIfWrittingDOPAddrBaseField_UnderFlagUpdating(globals, new_globals4, slot, new_val);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals4);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(globals, new_globals4);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals4);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals4);
+
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_HoldIfWrittingDOPAddrBaseField(this, new_this4, new_globals4, slot, new_val);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this4);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_WimpDrvs_Info(), tmp_addr4, new_val);
+
+    //// Write the global variable
+    STRglobal(G_WimpDrvs_Info(), base, tmp3, new_val);
+
+
+    // 5. Store <new_do_pend>
+    MOV_ToReg(tmp3, tmp2);
+    ADD(tmp3, const(G_WimpDrv_Info_ENTRY_DO_PEnd_BytesOffset));      // tmp3 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_DO_PEnd_BytesOffset
+    Load(new_val, ebp, 5 * ARCH_WORD_BYTES);                         // new_val := ebp + 5 * ARCH_WORD_BYTES := new_do_pend
+    let new_do_pend := new_val;
+
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr5 := base + tmp3;
+    let new_globals5 := global_write_word(globals, G_WimpDrvs_Info(), tmp_addr5, new_val);
+    let new_this5 := this.(wk_mstate := this.wk_mstate.(globals := new_globals5));
+    Lemma_WimpDrv_PreserveOtherSlotsIfModifyingOneSlot(globals, new_globals5, slot, G_WimpDrv_Info_ENTRY_DO_PEnd_BytesOffset, new_val);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_HoldIfWrittingDOPAddrEndField(globals, new_globals5, slot, new_val);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_HoldIfWrittingDOPAddrEndField_UnderFlagUpdating(globals, new_globals5, slot, new_val);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals5);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(globals, new_globals5);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals5);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals5);
+
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_HoldIfWrittingDOPAddrEndField(this, new_this5, new_globals5, slot, new_val);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this5);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_WimpDrvs_Info(), tmp_addr5, new_val);
+
+    //// Write the global variable
+    STRglobal(G_WimpDrvs_Info(), base, tmp3, new_val);
+
+
+    // 6. Update flag to be WimpDrv_Slot_UpdateFlag_Complete
+    reveal wimpdrv_registration_info_must_exist;
+    MOV_ToReg(tmp3, tmp2);
+    ADD(tmp3, const(G_WimpDrv_Info_ENTRY_AccessFlag_BytesOffset));          // tmp3 := slot * WimpDrv_Info_ENTRY_SZ + G_WimpDrv_Info_ENTRY_AccessFlag_BytesOffset
+
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr6 := base + tmp3;
+    let new_globals6 := global_write_word(globals, G_WimpDrvs_Info(), tmp_addr6, WimpDrv_Slot_UpdateFlag_Complete);
+    let new_this6 := this.(wk_mstate := this.wk_mstate.(globals := new_globals6));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals6);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals6);
+
+    Lemma_WimpDrv_PreserveOtherSlotsIfModifyingOneSlot(globals, new_globals6, slot, G_WimpDrv_Info_ENTRY_AccessFlag_BytesOffset, WimpDrv_Slot_UpdateFlag_Complete);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_IDWords_HoldIfWrittingUpdateFlagField(globals, new_globals6, slot, WimpDrv_Slot_UpdateFlag_Complete);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_HoldIfWrittingUpdateFlagField(globals, new_globals6, slot, WimpDrv_Slot_UpdateFlag_Complete);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_HoldIfWrittingUpdateFlagField_WriteToComplete(globals, new_globals6, slot);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals6);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(globals, new_globals6);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals6);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals6);
+
+    assert this.objects == old(this).objects;
+    reveal p_wimpdrv_slot_equal;
+    let wimpdrv_idword := wimpdrv_get_id_word(new_globals6, slot);
+    let wimpdrv_id := WimpDrv_IDWord_ToDrvID(old(this).subjects, old(this).objects, old(this).id_mappings, wimpdrv_idword);
+    Lemma_wimpdrv_in_system_ProveItsDOMustBeInSystem(old(this), wimpdrv_id);
+    Lemma__wimpdrv_update_slot_pid_to_valid_Prove_WK_ValidObjAddrs_WimpDrv_DOPAddrs_HoldIfWrittingUpdateFlagField_WriteToComplete(this, new_this6, new_globals6, slot, new_do_pbase, new_do_pend);
+    
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this6);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_WimpDrvs_Info(), tmp_addr6, WimpDrv_Slot_UpdateFlag_Complete);
+
+    //// Write the global variable
+    STRglobal(G_WimpDrvs_Info(), base, tmp3, const(WimpDrv_Slot_UpdateFlag_Complete));
+    assert globals == new_globals6;
+
+    //// Prove security properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfModifyingWimpDrvNotAssociatedWithAnyUSBTD(old(globals), globals, slot);
+    Lemma__wimpdrv_update_slot_pid_to_valid_Prove_WK_SecureObjsAddrs_MemSeparation(old(this), this, slot, new_do_pbase, new_do_pend);
+
+    // Prove Property 1
+    Lemma_WK_WimpDrvs_UpdateAllFieldsMustSatisfy_wimpdrv_info_newvalue1(old(globals), globals, 
+        slot, new_wimpdrv_id, new_pid, new_do_pbase, new_do_pend,
+        new_globals1, new_globals2, new_globals3, new_globals4, new_globals5, new_globals6);
+
+
+    assert esp == orig_esp;
+    POP_TwoRegs(tmp3, new_val);
+    POP_TwoRegs(base, tmp2);
+    POP_OneReg(ebp);
+}
+
+// Find WimpDrv in <g_wimpdrvs_info> by the given <wimpdrv_id>.
+// If no slot is found, return 0 and false. 
+// Input params on stack: (id:word) at esp
+// Return params on stack: (result_slot:word) at esp + ARCH_WORD_BYTES, (ret:word) at esp
+// [NOTE] Needs 60s to verify
+procedure _wimpdrv_find_slot_by_id() {:timeLimitMultiplier 10}
+    modifies
+        esp; ebp; mem;
+        eax; ebx; ecx; edx; esi; edi;               // Local variables
+    reads
+        globals; flags;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            7 * ARCH_WORD_BYTES +                   // For local variables
+            1 * ARCH_WORD_BYTES +                   // For retval of wimpdrv_ops_get_id
+            8 * ARCH_WORD_BYTES;                    // For wimpdrv_ops_get_id
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space);
+            // The params of the function must be on stack
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let id:word := stack_get_val(old(mem), old(esp));
+        let result_slot:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> wimpdrv_valid_slot_id(result_slot);
+        (ret == TRUE) ==> wimpdrv_get_id_word(old(globals), result_slot) == id;
+        (ret == FALSE) ==> (
+                forall (i:word) (wimpdrv_valid_slot_id(i)
+                    ==> wimpdrv_get_id_word(old(globals), i) != id)
+            );
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); 
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+        globals == old(globals);
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let id @= edi;
+    let i @= eax;
+    let found_slot @= ecx;
+    let tmp_v @= ebx;
+    let run @= edx;
+    PUSH_Reg1ToReg6();
+
+
+    let begin_state := this;
+    let orig_ebp := ebp;
+    Load(id, ebp, ARCH_WORD_BYTES);                            // Load <id>
+    let in_id := id;
+ 
+    MOV_ToReg(i, 0);                                                        // uint32 i = 0
+    MOV_ToReg(run, const(TRUE));                                            // bool run = TRUE
+
+    PUSH(i);
+    wimpdrv_ops_get_id();
+    Load(tmp_v, esp, 0);
+    POP_VOID(1 * ARCH_WORD_BYTES);
+
+    if(tmp_v == id)
+    {
+        MOV_ToReg(run, const(FALSE));
+        MOV_ToReg(found_slot, const(TRUE));
+    }
+    else
+    {
+        MOV_ToReg(run, const(TRUE));
+        MOV_ToReg(found_slot, const(FALSE));
+    }
+
+    while (run == const(TRUE))
+        invariant
+            0 <= i <= WimpDrv_Info_ENTRIES;
+            run == TRUE ==> (0 <= i < WimpDrv_Info_ENTRIES);
+
+            run == TRUE ==> found_slot == FALSE;
+            tmp_v != in_id ==> found_slot == FALSE;
+            found_slot == FALSE ==> (forall (j:uint32) (0 <= j < i && wimpdrv_valid_slot_id(j)
+                                ==> wimpdrv_get_id_word(old(globals), j) != in_id)
+                        );
+            (run != TRUE && found_slot == FALSE) ==> (forall (j:uint32) (wimpdrv_valid_slot_id(j)
+                                ==> wimpdrv_get_id_word(old(globals), j) != in_id)
+                        );
+                // Invariant relates to found_slot == FALSE
+                
+            run != TRUE ==> (tmp_v == in_id || i == WimpDrv_Info_ENTRIES-1);
+                // Invariant: When using this schema of while-loop, one has to describe the definition of run != TRUE
+            run != TRUE && tmp_v == in_id
+                ==> (
+                        wimpdrv_valid_slot_id(i) &&
+                        wimpdrv_get_id_word(old(globals), i) == in_id
+                    );
+                // Invariant: When found the slot, its ID word must be <in_id>
+
+            esp == old(esp) - 7 * ARCH_WORD_BYTES;
+            stack_under_sp_is_unchanged(begin_state.wk_mstate.m, this.wk_mstate.m, esp);
+                // Invariant: Earlier stack are unchanged in this while-loop
+
+            esi == old(esi);
+            ebp == orig_ebp;
+            id == in_id;
+                // Invariant: Registers used by sub-functions are not modified
+
+            globals == old(globals);
+            state_equal_except_mstate(old(this), this);
+        decreases
+            (WimpDrv_Info_ENTRIES - i), run;
+    {
+        PUSH(i);
+        wimpdrv_ops_get_id();
+        Load(tmp_v, esp, 0);
+        POP_VOID(1 * ARCH_WORD_BYTES);
+
+        if(tmp_v == id)                               // Stop conditions of while-loop
+        {
+            MOV_ToReg(run, const(FALSE));
+            MOV_ToReg(found_slot, const(TRUE));
+        }  
+        else if(i == const(WimpDrv_Info_ENTRIES - 1))                       //// i + 1 == WimpDrv_Info_ENTRIES
+        {
+            MOV_ToReg(run, const(FALSE));
+            MOV_ToReg(found_slot, const(FALSE));
+        }
+        else                                                            // Add 1 when there is next run
+        {
+            ADD(i, 1);                                                          // i += 1
+            MOV_ToReg(run, const(TRUE));
+            MOV_ToReg(found_slot, const(FALSE));
+        }
+    }
+
+    // Out of while-loop
+    if(tmp_v == id)
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(TRUE));
+        Store(ebp, 2 * ARCH_WORD_BYTES, i);
+    }
+    else
+    {
+        assert i == WimpDrv_Info_ENTRIES - 1;
+        assert found_slot == FALSE;
+
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(WimpDrv_SlotID_EMPTY));
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+
+
+
+/*********************** Util Predicates ********************/
+#verbatim
+// Predicate: When registering a wimp driver, The given information must match the information in <subjs>, <objs>, 
+// <id_mappings>, and <objs_addrs>, as they store all wimp drivers that will be activated in the system
+predicate {:opaque} wimpdrv_registration_info_must_exist(subjs:WSM_Subjects, objs:WSM_Objects, id_mappings:WSM_ID_Mappings, objs_addrs:WSM_Objects_Addrs,
+    new_wimpdrv_id:word, new_do_pbase:word, new_do_pend:uint
+)
+    requires WK_ValidSubjs_SubjIDs(subjs)
+    requires WK_ValidObjs(subjs, objs)
+    requires WK_ValidIDMappings(subjs, objs, id_mappings)
+    requires (MapGetKeys(objs_addrs.tds_addrs) == MapGetKeys(objs.os_tds) + MapGetKeys(objs.eehci_hcoded_tds) + 
+                                                objs.eehci_other_tds + MapGetKeys(objs.usbpdev_tds) + (objs.usbtd_tds)
+            ) &&
+            (MapGetKeys(objs_addrs.fds_addrs) == MapGetKeys(objs.os_fds) + 
+                                                objs.eehci_fds + MapGetKeys(objs.usbpdev_fds) + (objs.usbtd_fds)
+            ) &&
+            (MapGetKeys(objs_addrs.dos_addrs) == MapGetKeys(objs.os_dos) + objs.eehci_dos + 
+                                                MapGetKeys(objs.usbpdev_dos) + MapGetKeys(objs.wimpdrv_dos) + (objs.usbtd_dos)
+            )
+    requires (forall id, pmem :: id in objs.os_tds && pmem in objs_addrs.tds_addrs[id].paddrs ==> pmem.paddr_start < pmem.paddr_end) &&
+            (forall id, pmem :: id in objs.os_fds && pmem in objs_addrs.fds_addrs[id].paddrs ==> pmem.paddr_start < pmem.paddr_end) &&
+            (forall id, pmem :: id in objs.os_dos && pmem in objs_addrs.dos_addrs[id].paddrs ==> pmem.paddr_start < pmem.paddr_end)
+
+    requires new_wimpdrv_id != WimpDrv_ID_RESERVED_EMPTY
+    requires WK_ValidPMemRegion(new_do_pbase, new_do_pend)
+{
+    var drv_id:Drv_ID := WimpDrv_IDWord_ToDrvID(subjs, objs, id_mappings, new_wimpdrv_id);
+    WSM_IsWimpDrvID(subjs, drv_id) &&
+        // Requirement: As <subjs> and <objs> have given all wimp drivers to be loaded and their DO's
+        // information, <new_wimpdrv_id> must map to some wimp driver's ID
+    var wimpdrv_do_id:DO_ID := WimpDrv_GetDOID(subjs, objs, id_mappings, new_wimpdrv_id);
+    (forall pmem :: pmem in objs_addrs.dos_addrs[wimpdrv_do_id].paddrs
+        ==> (new_do_pbase == pmem.paddr_start && new_do_pend == pmem.paddr_end)) &&
+        // Requirement: As <subjs> and <objs> have given all wimp drivers to be loaded and their DO's
+        // information, <new_do_pbase> and <new_do_pend> must match these information
+    WimpDrvDO_MemRegionSeparateFromAllActiveOSObjs(objs, objs_addrs, new_do_pbase, new_do_pend)
+        // Requirement: As the wimp driver will be active after registration, then <new_do_pbase> and <new_do_pend> must 
+        // be separate from all active OS objects
+}
+#endverbatim

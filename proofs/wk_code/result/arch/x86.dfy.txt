@@ -1,0 +1,14 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing arch/x86.dfy
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0658245 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.Valid__WKMachineState__Arch ...
+  [0.847 s, 10 proof obligations]  verified
+
+Dafny program verifier finished with 1 verified, 0 errors

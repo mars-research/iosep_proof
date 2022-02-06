@@ -1,0 +1,445 @@
+include "../../../ins/x86/ins_utils.vad"
+include {:verbatim} "../../../wk_ops_commons.dfy"
+include {:verbatim} "../usb_def.dfy"
+include {:verbatim} "../eehci.s.dfy"
+include {:verbatim} "../usb_tds.s.dfy"
+include {:verbatim} "usb_tds_checks.s.dfy"
+include  "../../../drv/drv_ops_utils.vad"
+include "../usb_tds_utils.vad"
+
+include {:verbatim} "../usb.i.dfy"
+
+
+/*********************** Method Forward Declarations ********************/
+// Check the 4K data buffer starting from <tmp1> is in the physical memory region [do_pbase, do_pend)
+procedure usbtd_verify_td32_check_databuf_in_paddr_range(
+    inout tmp1:reg, in do_pbase:reg, in do_pend:reg
+)
+    extern;
+
+
+
+
+/*********************** Public Methods ********************/
+// Return if the physical memory region of the USB TD's data buffer within the region of the given wimpdrv's DO
+// Input params on stack: (buf_pbase:paddr) at esp + 2 * ARCH_WORD_BYTES
+// (wimpdrv_do_pend:paddr) at esp + ARCH_WORD_BYTES, (wimpdrv_do_pbase:paddr) at esp
+// Return params on stack: (ret:word/bool) at esp
+procedure usbtd_check_buf_region()
+    reads
+        flags;
+    modifies
+        ebp; esp; mem;
+        eax; ebx; ecx; edx;                        // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            5 * ARCH_WORD_BYTES;                   // For local variables
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space> is a stack address
+    requires
+        let wimpdrv_do_pbase:paddr := stack_get_val(old(mem), old(esp));
+        let wimpdrv_do_pend:paddr := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let buf_pbase:paddr := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+             
+        wimpdrv_do_pbase <= wimpdrv_do_pend;
+            // Requirement: The start of the DO must not be larger than the end
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures 
+        let wimpdrv_do_pbase:paddr := stack_get_val(old(mem), old(esp));
+        let wimpdrv_do_pend:paddr := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let buf_pbase:paddr := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let out_ret:word := stack_get_val(mem, old(esp));
+
+        (out_ret == TRUE) ==> is_valid_addr(buf_pbase + PAGE_4K_SZ);
+        (out_ret == TRUE) ==> is_mem_region_inside(wimpdrv_do_pbase, wimpdrv_do_pend, buf_pbase, buf_pbase + PAGE_4K_SZ);
+            // Property 1: Get the value of <g_usbtd_map_mem_paddr_base>
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let do_pbase @= eax;
+    let do_pend @= ebx;
+    let buf_pbase @= ecx;
+    let buf_pend @= edx;
+
+    PUSH_TwoRegs(do_pbase, do_pend);
+    PUSH_TwoRegs(buf_pbase, buf_pend);
+
+    // Load input parameters
+    Load(do_pbase, ebp, ARCH_WORD_BYTES);
+    Load(do_pend, ebp, 2 * ARCH_WORD_BYTES);
+    Load(buf_pbase, ebp, 3 * ARCH_WORD_BYTES);
+    
+    // Check memory region
+    if(do_pbase != do_pend)
+    {
+        if(do_pbase <= buf_pbase)
+        {
+            // Check: buf_pbase + PAGE_4K_SZ must be in the address space
+            // [NOTE] <buf_pend> cannot be ADDR_SPACE_UPPER + 1, because <wimpdrv_do_pend> cannot.
+            if(buf_pbase <= const(ADDR_SPACE_UPPER - PAGE_4K_SZ))
+            {
+                MOV_ToReg(buf_pend, buf_pbase);
+                ADD(buf_pend, const(PAGE_4K_SZ));
+                if(buf_pend <= do_pend)
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(TRUE));                   // return TRUE
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));                  // return FALSE
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                  // return FALSE
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                  // return FALSE
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                  // return FALSE
+    }
+
+
+    POP_TwoRegs(buf_pbase, buf_pend);
+    POP_TwoRegs(do_pbase, do_pend);
+    POP_OneReg(ebp);
+}
+
+// Check each pair of <next_td_slot> and <next_td_slot_Tflag>
+procedure usbtd_verify_td32_check_next_slot_and_tflag(
+    in drv_pid:reg, in flag:reg, in next_slot:reg, out ret:reg
+)
+    reads
+        globals; flags;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            2 * ARCH_WORD_BYTES +               // For local variables
+            10 * ARCH_WORD_BYTES +              // For <usbtd_check_and_get_td_pid>
+            2 * ARCH_WORD_BYTES;                // For params of <usbtd_check_and_get_td_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        @drv_pid == Reg5; @flag == Reg6; @next_slot == Reg4; @ret == Reg2;
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        ret == TRUE ==> (
+            old(flag) == 1 || 
+            (
+                (0 <= old(next_slot) < USB_TD_ENTRY_NUM) && 
+                usbtd_map_get_pid(old(globals), old(next_slot)) == WS_PartitionID(old(drv_pid)) &&
+                    // Property: The USB TD <next_slot> must be in the partition <drv_pid>
+                TestBit(usbtd_map_get_flags(old(globals), old(next_slot)), USBTD_SLOT_FLAG_SlotSecure_Bit)
+                    // Property: The USB TD <next_slot> must be a verified/secure one
+            )
+        );
+            // Property 1: If return true, then the <next_slot> pointers point USB TDs (if any) in the same partition
+    ensures
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        eax == old(eax); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi); 
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    let tmp4 @= ecx;
+    let tmp5 @= eax;
+    PUSH_TwoRegs(tmp4, tmp5);
+
+
+    if(flag != const(1))
+    {
+        PUSH_VOID(1 * ARCH_WORD_BYTES); 
+        PUSH(next_slot);
+        usbtd_check_and_get_td_pid();
+        Load(tmp4, esp, 0);
+        Load(tmp5, esp, ARCH_WORD_BYTES);          // tmp4:bool, tmp5:WS_PartitionID := usbtd_check_and_get_td_pid(tmp5)
+        POP_VOID(2 * ARCH_WORD_BYTES);
+
+        // Check if <next_slot> is a valid USBTD slot
+        if(tmp4 == const(TRUE))
+        {
+            assert usbtd_map_valid_slot_id(next_slot);
+
+            // Check PID of the USBTD slot
+            if(tmp5 == drv_pid)
+            {
+                // Check the flags of the <next_slot>
+                PUSH(next_slot);
+                usbtd_check_flags_slotsecure();
+                Load(tmp4, esp, 0);
+                POP_VOID(1 * ARCH_WORD_BYTES);
+
+                if(tmp4 == const(TRUE))
+                {
+                    MOV_ToReg(ret, const(TRUE));
+                }
+                else
+                {
+                    MOV_ToReg(ret, const(FALSE));
+                }
+            }
+            else
+            {
+                MOV_ToReg(ret, const(FALSE));
+            }
+        }
+        else
+        {
+            MOV_ToReg(ret, const(FALSE));
+        }
+    }
+    else
+    {
+        MOV_ToReg(ret, const(TRUE));
+    }
+
+
+    POP_TwoRegs(tmp4, tmp5);
+}
+
+// Check 5 tuples of data buffer in a given TD (32-bit)
+// Input: (do_pend:paddr) at esp + 6 * ARCH_WORD_BYTES, (do_pbase:paddr) at esp + 5 * ARCH_WORD_BYTES, 
+// (buf4_pbase:paddr) at esp + 4 * ARCH_WORD_BYTES, (buf3_pbase:paddr) at esp + 3 * ARCH_WORD_BYTES, 
+// (buf2_pbase:paddr) at esp + 2 * ARCH_WORD_BYTES, (buf1_pbase:paddr) at esp + 1 * ARCH_WORD_BYTES, 
+// (buf0_pbase:paddr) at esp
+// Output: (ret:word/bool) at esp
+// [NOTE] Needs 550s to verify
+procedure usbtd_verify_td32_Check5BufPAddrRange() {:timeLimitMultiplier 60}
+    reads
+        flags;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            5 * ARCH_WORD_BYTES +           // For local variables
+            5 * ARCH_WORD_BYTES +            // For <usbtd_check_buf_region>                  
+            3 * ARCH_WORD_BYTES;             // For input params of <usbtd_check_buf_region>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            7 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let do_pbase := stack_get_val(old(mem), old(esp) + 5 * ARCH_WORD_BYTES);
+        let do_pend := stack_get_val(old(mem), old(esp) + 6 * ARCH_WORD_BYTES);
+        do_pbase <= do_pend;
+        // Requirement: For the wimpdrv's DO, do_pbase <= do_pend
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let buf0_pbase := stack_get_val(old(mem), old(esp));
+        let buf1_pbase := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let buf2_pbase := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let buf3_pbase := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let buf4_pbase := stack_get_val(old(mem), old(esp) + 4 * ARCH_WORD_BYTES);
+        let do_pbase := stack_get_val(old(mem), old(esp) + 5 * ARCH_WORD_BYTES);
+        let do_pend := stack_get_val(old(mem), old(esp) + 6 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, esp);
+
+        ret == TRUE ==> (is_valid_addr(buf0_pbase + PAGE_4K_SZ) && is_mem_region_inside(do_pbase, do_pend, buf0_pbase, buf0_pbase + PAGE_4K_SZ));
+        ret == TRUE ==> (is_valid_addr(buf1_pbase + PAGE_4K_SZ) && is_mem_region_inside(do_pbase, do_pend, buf1_pbase, buf1_pbase + PAGE_4K_SZ));
+        ret == TRUE ==> (is_valid_addr(buf2_pbase + PAGE_4K_SZ) && is_mem_region_inside(do_pbase, do_pend, buf2_pbase, buf2_pbase + PAGE_4K_SZ));
+        ret == TRUE ==> (is_valid_addr(buf3_pbase + PAGE_4K_SZ) && is_mem_region_inside(do_pbase, do_pend, buf3_pbase, buf3_pbase + PAGE_4K_SZ));
+        ret == TRUE ==> (is_valid_addr(buf4_pbase + PAGE_4K_SZ) && is_mem_region_inside(do_pbase, do_pend, buf4_pbase, buf4_pbase + PAGE_4K_SZ));
+            // Property 1: If return true, then the buffer pointers must point to the DO in the given wimp driver
+    ensures
+        esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+    ensures
+        let stack_params_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_params_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let tmp1 @= esi;
+    let tmp2 @= edi;
+    let tmp3 @= edx;
+    let ret @= eax;
+
+    PUSH_TwoRegs(tmp1, tmp2);
+    PUSH_TwoRegs(tmp3, ret);
+
+    MOV_ToReg(ret, const(TRUE)); 
+
+
+    //// 4.3 Check the paddr range 
+    Load(tmp1, ebp, ARCH_WORD_BYTES);                       // tmp1 := buf0_pbase
+    Load(tmp3, ebp, 6 * ARCH_WORD_BYTES);                   // tmp3 := do_pbase
+    Load(tmp2, ebp, 7 * ARCH_WORD_BYTES);                   // tmp2 := do_pend
+    let do_pbase := tmp3;
+    let do_pend := tmp2;
+    assert do_pbase <= do_pend;
+
+    ////// 4.3.1 BufPointer0_paddr_base
+    usbtd_verify_td32_check_databuf_in_paddr_range(tmp1, tmp3, tmp2);
+    let test_buf0_pbase := tmp1;
+
+    if(tmp1 != const(TRUE))
+    {
+        MOV_ToReg(ret, const(FALSE));
+    }
+
+    ////// 4.3.2 BufPointer1_paddr_base
+    Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);                  // tmp1 := buf1_pbase
+    usbtd_verify_td32_check_databuf_in_paddr_range(tmp1, tmp3, tmp2);
+    let test_buf1_pbase := tmp1;
+
+    if(tmp1 != const(TRUE))
+    {
+        MOV_ToReg(ret, const(FALSE));
+    }
+
+    ////// 4.3.3 BufPointer2_paddr_base
+    Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);                  // tmp1 := buf2_pbase
+    usbtd_verify_td32_check_databuf_in_paddr_range(tmp1, tmp3, tmp2);
+    let test_buf2_pbase := tmp1;
+
+    if(tmp1 != const(TRUE))
+    {
+        MOV_ToReg(ret, const(FALSE));
+    }
+
+    ////// 4.3.4 BufPointer3_paddr_base
+    Load(tmp1, ebp, 4 * ARCH_WORD_BYTES);                  // tmp1 := buf3_pbase
+    usbtd_verify_td32_check_databuf_in_paddr_range(tmp1, tmp3, tmp2);
+    let test_buf3_pbase := tmp1;
+
+    if(tmp1 != const(TRUE))
+    {
+        MOV_ToReg(ret, const(FALSE));
+    }
+
+    ////// 4.3.5 BufPointer4_paddr_base
+    Load(tmp1, ebp, 5 * ARCH_WORD_BYTES);                  // tmp1 := buf4_pbase
+    usbtd_verify_td32_check_databuf_in_paddr_range(tmp1, tmp3, tmp2);
+    let test_buf4_pbase := tmp1;
+
+    if(tmp1 != const(TRUE))
+    {
+        MOV_ToReg(ret, const(FALSE));
+    }
+
+    // 5. Summary
+    if(ret == const(TRUE))
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(TRUE));                  // return TRUE
+
+        assert test_buf0_pbase == TRUE;
+        assert test_buf1_pbase == TRUE;
+        assert test_buf2_pbase == TRUE;
+        assert test_buf3_pbase == TRUE;
+        assert test_buf4_pbase == TRUE;
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                  // return FALSE
+    }
+
+
+    POP_TwoRegs(tmp3, ret);
+    POP_TwoRegs(tmp1, tmp2);
+    POP_OneReg(ebp);
+}
+
+
+
+
+/*********************** Private Methods ********************/
+// Check the 4K data buffer starting from <tmp1> is in the physical memory region [do_pbase, do_pend)
+procedure usbtd_verify_td32_check_databuf_in_paddr_range(
+    inout tmp1:reg, in do_pbase:reg, in do_pend:reg
+)
+    reads
+        flags;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            //5 * ARCH_WORD_BYTES +           // For local variables
+            5 * ARCH_WORD_BYTES +            // For <usbtd_check_buf_region>                  
+            3 * ARCH_WORD_BYTES;             // For input params of <usbtd_check_buf_region>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        //let stack_params_space :=
+        //    7 * ARCH_WORD_BYTES;
+        //IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        @tmp1 == Reg5; @do_pbase == Reg4; @do_pend == Reg6;
+    requires
+        do_pbase <= do_pend;
+        // Requirement: For the wimpdrv's DO, do_pbase <= do_pend
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let buf_pbase := old(tmp1);
+        let ret:word := tmp1;
+
+        do_pbase <= do_pend;
+        tmp1 == TRUE ==> (is_valid_addr(buf_pbase + PAGE_4K_SZ) && is_mem_region_inside(do_pbase, do_pend, buf_pbase, buf_pbase + PAGE_4K_SZ));
+            // Property 1: If return true, then the buffer pointers must point to the DO in the given wimp driver
+    ensures
+        edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); 
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH(tmp1);
+    let buf_pbase := tmp1;
+    PUSH(do_pend);
+    PUSH(do_pbase);
+    usbtd_check_buf_region();                              // ret := usbtd_check_buf_region();
+    Load(tmp1, esp, 0);                                     // tmp3 := ret
+    POP_VOID(3 * ARCH_WORD_BYTES);
+
+    ghost if(tmp1 == TRUE)
+    {
+        assert is_valid_addr(buf_pbase + PAGE_4K_SZ);
+        assert is_mem_region_inside(do_pbase, do_pend, buf_pbase, buf_pbase + PAGE_4K_SZ);
+    }
+}

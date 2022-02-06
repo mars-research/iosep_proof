@@ -1,0 +1,293 @@
+include {:verbatim} "wk_partition_ops_utils.s.dfy"
+include "partition_id_ops.vad"
+include "dev/usb2/eehci_info.vad"
+include "dev/usb2/usb_pdev_utils.vad"
+include "dev/usb2/usb_tds_utils.vad"
+include "drv/drv_ops_utils.vad"
+include {:verbatim} "transition_constraints.s.dfy"
+include {:verbatim} "proof/wkapi_commutative_diagram.i.dfy"
+
+/*********************** Public Methods - Impl ********************/
+// Create an empty partition
+// Input params on stack: None
+// Return params on stack: (new_pid:word) at esp + ARCH_WORD_BYTES, (ret:word) at esp
+// [NOTE] Needs 50s to verify
+procedure WK_EmptyPartitionCreate_Impl() returns (ghost pid_slot:word) {:timeLimitMultiplier 5}
+    reads
+        flags;
+    modifies
+        ebp; esp; mem;
+        eax; ebx; ecx; edx; esi; edi;
+    modifies
+        globals;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            13 * ARCH_WORD_BYTES +                  // For pid_existing_find_pid_slot
+            2 * ARCH_WORD_BYTES;                    // For params of pid_existing_find_pid_slot
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space for two words
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space);
+            // The params of the function must be on stack
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let new_pid:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> (
+                !pids_parse_g_wimp_pids(old(globals))?[WS_PartitionID(new_pid)] &&
+                new_pid != PID_INVALID &&
+                new_pid != PID_RESERVED_OS_PARTITION
+                    // Property: On success returns, the returned PID must be a new wimp PID
+            );
+        (ret == TRUE) ==> (
+                wk_create_partition_globalvars_relation(old(globals), globals, pid_slot, new_pid)
+                    // Property: The global variables are modified as expected
+            );
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+            // Property 3: If return false, then non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi);
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let new_pid @= eax;
+    let find_slot @= ebx;
+    let find_slot_ret @= ecx;
+    PUSH_TwoRegs(new_pid, find_slot);
+    PUSH_OneReg(find_slot_ret);
+
+    PUSH_VOID(1 * ARCH_WORD_BYTES);
+    PUSH(const(PID_INVALID));
+    pid_existing_find_pid_slot();
+    Load(find_slot_ret, esp, 0);
+    Load(find_slot, esp, ARCH_WORD_BYTES);
+    POP_VOID(2 * ARCH_WORD_BYTES);
+
+    if (find_slot_ret != const(TRUE))
+    {
+        // Find empty slot in <g_existing_pids> error
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(PID_GENERATE_FUNC_ERROR));
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+    else
+    {
+        pid_generate(new_pid);
+
+        if (new_pid == const(PID_GENERATE_FUNC_ERROR))
+        {
+            // Generate PID error
+
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+            Store(ebp, 2 * ARCH_WORD_BYTES, const(PID_GENERATE_FUNC_ERROR));
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+        else
+        {
+            assert new_pid <= pids_parse_g_pid_counter(globals).v;
+
+            // Generate PID is OK, and found empty slot in <g_existing_pids>
+            let ghost_find_slot := find_slot;                  // Store <find_slot>, because find_slot is ebx
+
+            PUSH(new_pid);
+            PUSH(find_slot);
+            pid_existing_write_pid();                            // pid_existing_write_pid(find_slot, new_pid);
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            // Output result
+            pid_slot := ghost_find_slot;
+            Store(ebp, ARCH_WORD_BYTES, const(TRUE));
+            Store(ebp, 2 * ARCH_WORD_BYTES, new_pid);
+        }
+    }
+    
+
+    POP_OneReg(find_slot_ret);
+    POP_TwoRegs(new_pid, find_slot);
+    POP_OneReg(ebp);
+}
+
+// Destroy an empty partition
+// Input params on stack: (pid:word) at esp
+// Return params on stack: (ret:word) at esp
+// [NOTE] Dafny-v2.3 can verify this operation if putting it in an individual file.
+// [NOTE] Needs 500s to verify
+procedure WK_EmptyPartitionDestroy_Impl() {:timeLimitMultiplier 70}
+    reads
+        flags;
+    modifies
+        ebp; esp; mem;
+        eax; ebx; ecx; edx; esi; edi;
+    modifies
+        globals;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            19 * ARCH_WORD_BYTES +                  // For pids_is_existing_wimp_pid
+            2 * ARCH_WORD_BYTES;                    // For params of pids_is_existing_wimp_pid
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space for two words
+        let stack_params_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space);
+            // The params of the function must be on stack
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let pid:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> pids_is_existing_wimp_pid(old(globals), pid);
+            // Property: If return true, then the given partition must be an wimp partition previously
+        (ret == TRUE) ==> (
+                (forall (i:word) (eehci_valid_slot_id(i)
+                    ==> eehci_info_get_pid(old(globals), i) != WS_PartitionID(pid))) &&
+                (forall (i:word) (usbpdev_valid_slot_id(i)
+                    ==> usbpdev_get_pid(old(globals), i) != WS_PartitionID(pid))) &&
+                (forall (i:word) (usbtd_map_valid_slot_id(i)
+                    ==> usbtd_map_get_pid(old(globals), i) != WS_PartitionID(pid))) &&
+                (forall (i:word) (wimpdrv_valid_slot_id(i)
+                    ==> wimpdrv_get_pid(old(globals), i) != WS_PartitionID(pid)))
+            );
+        (ret == TRUE) ==> wk_destroy_partition_globalvars_relation(old(globals), globals, pid);
+            // Property: If return true, then global variables are modified as expected
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+            // Property: If return false, then non scratch-pad global variables are unchanged
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi);
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let pid @= eax;
+    let pid_slot @= ebx;
+    let ret @= ecx;
+    PUSH_TwoRegs(pid, pid_slot);
+    PUSH_OneReg(ret);
+    let in_pid := stack_get_val(old(mem), old(esp));
+
+    // 1. Check if <pid> is a wimp partition's ID
+    PUSH_VOID(1 * ARCH_WORD_BYTES);
+    Load(pid, ebp, ARCH_WORD_BYTES);                            // Load <pid>
+    PUSH(pid);
+    pids_is_existing_wimp_pid();
+    Load(ret, esp, 0);
+    Load(pid_slot, esp, ARCH_WORD_BYTES);
+    POP_VOID(2 * ARCH_WORD_BYTES);
+
+    if(ret == const(TRUE))
+    {
+        // 2. Check if the partition is empty
+        PUSH_VOID(1 * ARCH_WORD_BYTES);
+        PUSH(pid);
+        eehci_find_slot_in_partition();
+        Load(ret, esp, 0);
+        POP_VOID(2 * ARCH_WORD_BYTES);
+
+        if(ret == const(FALSE))
+        {
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            PUSH(pid);
+            usbpdev_find_slot_in_partition();
+            Load(ret, esp, 0);
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            if(ret == const(FALSE))
+            {
+                PUSH_VOID(1 * ARCH_WORD_BYTES);
+                PUSH(pid);
+                usbtd_find_slot_in_partition();
+                Load(ret, esp, 0);
+                POP_VOID(2 * ARCH_WORD_BYTES);
+
+                if(ret == const(FALSE))
+                {
+                    PUSH_VOID(1 * ARCH_WORD_BYTES);
+                    PUSH(pid);
+                    wimpdrv_find_slot_in_partition();
+                    Load(ret, esp, 0);
+                    POP_VOID(2 * ARCH_WORD_BYTES);
+
+                    if(ret == const(FALSE))
+                    {
+                        // 3. Remove partition
+                        PUSH(const(PID_INVALID));
+                        PUSH(pid_slot);
+                        pid_existing_write_pid_invalid();
+                        POP_VOID(2 * ARCH_WORD_BYTES);
+
+                        // 4. Summary
+                        Store(ebp, ARCH_WORD_BYTES, const(TRUE));
+                    }
+                    else
+                    {
+                        Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+                        assert globals == old(globals);
+                        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                    }
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_OneReg(ret);
+    POP_TwoRegs(pid, pid_slot);
+    POP_OneReg(ebp);
+}

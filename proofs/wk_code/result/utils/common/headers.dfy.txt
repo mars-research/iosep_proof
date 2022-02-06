@@ -1,0 +1,11 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing utils/common/headers.dfy
+utils\common\../../../Abstract/utils/Collections.dfy(338,12): Warning: /!\ No terms found to trigger on.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0129656 s]
+
+Dafny program verifier finished with 0 verified, 0 errors

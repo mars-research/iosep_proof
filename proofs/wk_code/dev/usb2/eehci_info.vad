@@ -1,0 +1,940 @@
+include "../../ins/x86/ins_wrapper.vad"
+include {:verbatim} "../../wk_ops_commons.dfy"
+include {:verbatim} "usb_def.dfy"
+include {:verbatim} "eehci.s.dfy"
+include {:verbatim} "usb_tds.i.dfy"
+include {:verbatim} "usb_pdev.i.dfy"
+include {:verbatim} "eehci_info.i.dfy"
+include {:verbatim} "eehci_mem.i.dfy"
+
+/*********************** Method Forward Declarations ********************/
+procedure _eehci_info_get_reserved(
+    in slot:reg
+) // Return on stack: (eehci_id:uint32) at esp
+    extern;
+
+procedure eehci_info_get_pid(
+    in slot:reg
+) // Return on stack: (pid:uint32) at esp
+    extern;
+
+
+
+
+/*********************** Public Methods ********************/
+// Get <bus_id> from the given <eehci_id>
+// Input params on stack: (eehci_id:word) at esp
+// Return params on stack: (bus_id:word) at esp
+procedure eechi_id_get_bus_id()
+    reads
+        flags;
+    modifies
+        ebp; esp; mem;
+        edi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            2 * ARCH_WORD_BYTES;                   // For local variables
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let eehci_id:word := stack_get_val(old(mem), old(esp));
+        let bus_id:word := stack_get_val(mem, old(esp));
+
+        usb_parse_eehci_id(eehci_id).bus_id == bus_id;
+            // Property 1: Correctly computes <bus_id> from given <eehci_id>
+    ensures
+        edi == old(edi);
+        ebp == old(ebp); esp == old(esp);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp); 
+
+    let eehci_id @= edi;
+    PUSH_OneReg(eehci_id);
+
+
+    Load(eehci_id, ebp, ARCH_WORD_BYTES);                               // Load eehci_id;
+    SHR(eehci_id, const(eEHCI_ID_BUSID_SHIFT_BITS));
+    AND(eehci_id, const(eEHCI_ID_BUSID_MASK));
+
+    Store(ebp, ARCH_WORD_BYTES, eehci_id);
+
+
+    POP_OneReg(eehci_id);
+    POP_OneReg(ebp);
+
+    Lemma_modify_3regs_mem_stateeq(old(this), this);
+}
+
+// Update the info of given eEHCI (at slot) to have a PID not equal to PID_INVALID
+// Input params on stack: (pid:word) at esp + 2 * ARCH_WORD_BYTES, (reserved:word) at esp + 1 * ARCH_WORD_BYTES, (slot:word) at esp
+// Return params on stack: None
+procedure _eehci_info_update_slot_to_valid_pid()
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        esp; ebp; mem;
+        eax; ebx; ecx; edx; esi; edi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            7 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        eehci_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_eehcis_info>
+        eehci_mem_get_eehci_id(globals, slot) != eEHCI_ID_INVALID;
+            // Requirement: In <g_eehci_mem>, the eEHCI at the slot must not have ID word equal to eEHCI_ID_INVALID
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        EECHI_DoNotRefAnyUSBTD(globals, slot);
+            // Requirement: When changing the eehci_slot information, the eehci must not reference any USB TDs
+    requires
+        let pid:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        pids_is_existing_wimp_pid(globals, pid);
+            // <pid> must be allowed in <g_eehcis_info>
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let reserved:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let pid:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+
+        eehci_info_only_change_slot_newvalue(old(globals), globals, slot, reserved, pid);
+            // Property: The globals are modified as expected
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); edi == old(edi); esi == old(esi);
+        ebp == old(ebp); esp == old(esp);
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp); 
+    
+    let slot @= eax;
+    let reserved @= ebx;
+    let pid @= ecx;
+    let base @= edx;
+    let tmp1 @= edi;
+    let tmp2 @= esi;
+    PUSH_Reg1ToReg6();
+
+    let orig_esp := esp;
+
+    LDRglobaladdr_ToReg(base, G_EEHCIs_Info());
+    Load(slot, ebp, ARCH_WORD_BYTES);                               // Load slot;
+    Load(reserved, ebp, 2 * ARCH_WORD_BYTES);                       // Load reserved;
+    Load(pid, ebp, 3 * ARCH_WORD_BYTES);                            // Load pid;
+
+    MOV_ToReg(tmp1, slot);
+    Lemma_NatMul_Ineq_4var(slot, EEHCI_Info_ENTRY_SZ, eEHCI_INSTANCE_NUM, EEHCI_Info_ENTRY_SZ);
+    assert isUInt32(slot * EEHCI_Info_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp1, const(EEHCI_Info_ENTRY_SZ));
+    MOV_ToReg(tmp2, tmp1);         
+    ADD(tmp1, const(G_EEHCI_Info_ENTRY_Reserved_BytesOffset));   // tmp1 := slot * EEHCI_Info_ENTRY_SZ + G_EEHCI_Info_ENTRY_Reserved_BytesOffset
+    ADD(tmp2, const(G_EEHCI_INFO_ENTRY_PID_BytesOffset));        // tmp2 := slot * EEHCI_Info_ENTRY_SZ + G_EEHCI_INFO_ENTRY_PID_BytesOffset
+    
+    // Prove ValidGlobalOffset(G_EEHCIs_Info(), offset);
+    assert 0 <= slot < eEHCI_INSTANCE_NUM;
+    let offset := slot * EEHCI_Info_ENTRY_SZ;
+    Lemma_NatMul_Ineq_NoEqualRight(slot, eEHCI_INSTANCE_NUM, EEHCI_Info_ENTRY_SZ);
+    assert 0 <= offset < eEHCI_INSTANCE_NUM * EEHCI_Info_ENTRY_SZ;
+
+    Lemma_NTimesUInt32IsStillAligned(slot, EEHCI_Info_ENTRY_SZ);
+    assert WordAligned(slot * EEHCI_Info_ENTRY_SZ);
+    assert ValidGlobalOffset(G_EEHCIs_Info(), offset);
+
+    assert forall (usbtd_reg_id:int) (0 <= usbtd_reg_id < eEHCI_USBTD_SlotID_NUMS)
+            ==> (eehci_mem_get_usbtd_reg(old(globals), slot, usbtd_reg_id) == USBTD_SlotID_INVALID);
+
+    // Prove ins_valid_strglobal_word for writting <reserved>
+    let new_globals := global_write_word(globals, G_EEHCIs_Info(), (base+tmp1), reserved);
+    let new_this := this.(wk_mstate := this.wk_mstate.(globals := new_globals));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals);
+
+    assert global_read_fullval(new_globals, G_WimpDrvs_Info()) == global_read_fullval(globals, G_WimpDrvs_Info());
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_IDWords_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals);
+    assert WK_WimpDrvs_ValidGlobalVarValues(new_globals);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfUpdateReservedFieldOnly(globals, new_globals, (base+tmp1), reserved);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals);
+
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIINFOUpdateReservedField(globals, new_globals, slot, (base+tmp1), reserved);
+    Lemma_EEHCIDoNotRefUSBTDs_IfSoBeforeAndGEEHCIINFOUpdateReservedField(globals, new_globals, slot, (base+tmp1), reserved);
+
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_EEHCIs_Info(), (base+tmp1), reserved);
+
+    // Write <reserved>
+    STRglobal(G_EEHCIs_Info(), base, tmp1, reserved);
+    let globals1 := globals;
+
+    // Prove Security Properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfGEEHCIINFOUpdateReservedField(old(globals), globals1, slot, (base+tmp1), reserved);
+
+    // Prove ins_valid_strglobal_word for writting <pid>
+    let new_globals2 := global_write_word(globals, G_EEHCIs_Info(), (base+tmp2), pid);
+    let new_this2 := this.(wk_mstate := this.wk_mstate.(globals := new_globals2));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals2);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals2);
+
+    assert global_read_fullval(new_globals2, G_WimpDrvs_Info()) == global_read_fullval(globals, G_WimpDrvs_Info());
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_IDWords_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals2);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals2);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals2);
+    assert WK_WimpDrvs_ValidGlobalVarValues(new_globals2);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfUpdatePIDToExistingPIDs(globals, new_globals2, (base+tmp2), pid);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals2);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals2);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIINFOUpdatePIDField(globals, new_globals2, slot, (base+tmp2), pid);
+
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this2);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this2);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_EEHCIs_Info(), (base+tmp2), pid);
+    
+    // Write <pid>
+    STRglobal(G_EEHCIs_Info(), base, tmp2, pid);
+
+    // Prove Security Properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfGEEHCIINFOUpdatePIDField(globals1, globals, slot, (base+tmp2), pid);
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+    assert esp == orig_esp;
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Update the info of given eEHCI (at slot) to have a PID equal to PID_INVALID
+// Input params on stack: (pid:word) at esp + 2 * ARCH_WORD_BYTES, (reserved:word) at esp + 1 * ARCH_WORD_BYTES, (slot:word) at esp
+// Return params on stack: None
+procedure _eehci_info_update_slot_to_invalid_pid()
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        esp; ebp; mem;
+        eax; ebx; ecx; edx; esi; edi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            7 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        eehci_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_eehcis_info>
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        EECHI_DoNotRefAnyUSBTD(globals, slot);
+            // Requirement: When changing the eehci_slot information, the eehci must not reference any USB TDs
+    requires
+        let pid:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        pid == PID_INVALID;
+            // <pid> must be allowed in <g_eehcis_info>
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let reserved:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let pid:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+
+        eehci_info_only_change_slot_newvalue(old(globals), globals, slot, reserved, pid);
+            // Property: The globals are modified as expected
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); edi == old(edi); esi == old(esi);
+        ebp == old(ebp); esp == old(esp);
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp); 
+    
+    let slot @= eax;
+    let reserved @= ebx;
+    let pid @= ecx;
+    let base @= edx;
+    let tmp1 @= edi;
+    let tmp2 @= esi;
+    PUSH_Reg1ToReg6();
+
+    let orig_esp := esp;
+
+    LDRglobaladdr_ToReg(base, G_EEHCIs_Info());
+    Load(slot, ebp, ARCH_WORD_BYTES);                               // Load slot;
+    Load(reserved, ebp, 2 * ARCH_WORD_BYTES);                       // Load reserved;
+    Load(pid, ebp, 3 * ARCH_WORD_BYTES);                            // Load pid;
+
+    MOV_ToReg(tmp1, slot);
+    Lemma_NatMul_Ineq_4var(slot, EEHCI_Info_ENTRY_SZ, eEHCI_INSTANCE_NUM, EEHCI_Info_ENTRY_SZ);
+    assert isUInt32(slot * EEHCI_Info_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp1, const(EEHCI_Info_ENTRY_SZ));
+    MOV_ToReg(tmp2, tmp1);         
+    ADD(tmp1, const(G_EEHCI_Info_ENTRY_Reserved_BytesOffset));   // tmp1 := slot * EEHCI_Info_ENTRY_SZ + G_EEHCI_Info_ENTRY_Reserved_BytesOffset
+    ADD(tmp2, const(G_EEHCI_INFO_ENTRY_PID_BytesOffset));        // tmp2 := slot * EEHCI_Info_ENTRY_SZ + G_EEHCI_INFO_ENTRY_PID_BytesOffset
+    
+    // Prove ValidGlobalOffset(G_EEHCIs_Info(), offset);
+    assert 0 <= slot < eEHCI_INSTANCE_NUM;
+    let offset := slot * EEHCI_Info_ENTRY_SZ;
+    Lemma_NatMul_Ineq_NoEqualRight(slot, eEHCI_INSTANCE_NUM, EEHCI_Info_ENTRY_SZ);
+    assert 0 <= offset < eEHCI_INSTANCE_NUM * EEHCI_Info_ENTRY_SZ;
+
+    Lemma_NTimesUInt32IsStillAligned(slot, EEHCI_Info_ENTRY_SZ);
+    assert WordAligned(slot * EEHCI_Info_ENTRY_SZ);
+    assert ValidGlobalOffset(G_EEHCIs_Info(), offset);
+
+    assert forall (usbtd_reg_id:int) (0 <= usbtd_reg_id < eEHCI_USBTD_SlotID_NUMS)
+            ==> (eehci_mem_get_usbtd_reg(old(globals), slot, usbtd_reg_id) == USBTD_SlotID_INVALID);
+
+    // Prove ins_valid_strglobal_word for writting <reserved>
+    let new_globals := global_write_word(globals, G_EEHCIs_Info(), (base+tmp1), reserved);
+    let new_this := this.(wk_mstate := this.wk_mstate.(globals := new_globals));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals);
+
+    assert global_read_fullval(new_globals, G_WimpDrvs_Info()) == global_read_fullval(globals, G_WimpDrvs_Info());
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_IDWords_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals);
+    assert WK_WimpDrvs_ValidGlobalVarValues(new_globals);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfUpdateReservedFieldOnly(globals, new_globals, (base+tmp1), reserved);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals);
+
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIINFOUpdateReservedField(globals, new_globals, slot, (base+tmp1), reserved);
+    Lemma_EEHCIDoNotRefUSBTDs_IfSoBeforeAndGEEHCIINFOUpdateReservedField(globals, new_globals, slot, (base+tmp1), reserved);
+
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_EEHCIs_Info(), (base+tmp1), reserved);
+
+    // Write <reserved>
+    STRglobal(G_EEHCIs_Info(), base, tmp1, reserved);
+    let globals1 := globals;
+
+    // Prove Security Properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfGEEHCIINFOUpdateReservedField(old(globals), globals1, slot, (base+tmp1), reserved);
+
+    // Prove ins_valid_strglobal_word for writting <pid>
+    let new_globals2 := global_write_word(globals, G_EEHCIs_Info(), (base+tmp2), pid);
+    let new_this2 := this.(wk_mstate := this.wk_mstate.(globals := new_globals2));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals2);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals2);
+
+    assert global_read_fullval(new_globals2, G_WimpDrvs_Info()) == global_read_fullval(globals, G_WimpDrvs_Info());
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_IDWords_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals2);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals2);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals2);
+    assert WK_WimpDrvs_ValidGlobalVarValues(new_globals2);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfUpdatePIDToExistingPIDs(globals, new_globals2, (base+tmp2), pid);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals2);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals2);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIINFOUpdatePIDField(globals, new_globals2, slot, (base+tmp2), pid);
+
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this2);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this2);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_EEHCIs_Info(), (base+tmp2), pid);
+    
+    // Write <pid>
+    STRglobal(G_EEHCIs_Info(), base, tmp2, pid);
+
+    // Prove Security Properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfGEEHCIINFOUpdatePIDField(globals1, globals, slot, (base+tmp2), pid);
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+    assert esp == orig_esp;
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Check if the given <slot_id> fulfills eehci_valid_slot_id(slot_id)
+procedure eehci_check_slot_id(
+    in slot_id:reg,
+    out ret:reg
+)
+    reads
+        mem; flags;
+    requires
+        @slot_id != @ret; @ret == Reg1;
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        ret == TRUE ==> eehci_valid_slot_id(slot_id);
+    ensures
+        old(mem) == mem;
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    if(slot_id >= const(0))
+    {
+        if(slot_id < const(eEHCI_INSTANCE_NUM))
+        {
+            MOV_ToReg(ret, const(TRUE));
+        }
+        else
+        {
+            MOV_ToReg(ret, const(FALSE));
+        }
+    }
+    else
+    {
+        MOV_ToReg(ret, const(FALSE));
+    }
+}
+
+procedure eehci_info_get_pid(
+    in slot:reg
+) // Return on stack: (pid:uint32) at esp
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        edx; edi; eax;                                      // Local variables
+        esi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        @slot == Reg1;
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        eehci_valid_slot_id(slot);
+            // Requirement: <offset> points to the global variable g_eehcis_info region
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures 
+        let pid:uint32 := stack_get_val(mem, old(esp));
+
+        eehci_info_get_pid(old(globals), old(slot)) == WS_PartitionID(pid);
+            // Property 1: The globals are read as expected
+    ensures
+        slot == old(slot); // Input parameters are unchanged
+        edx == old(edx); edi == old(edi); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        esi == old(esi);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal WordAligned;
+
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let tmp_val @= eax;
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(tmp_val);
+
+    LDRglobaladdr_ToReg(base, G_EEHCIs_Info());
+
+    MOV_ToReg(tmp, slot);
+    Lemma_NatMul_Ineq_4var(slot, EEHCI_Info_ENTRY_SZ, eEHCI_INSTANCE_NUM, EEHCI_Info_ENTRY_SZ);
+    assert isUInt32(slot * EEHCI_Info_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(EEHCI_Info_ENTRY_SZ));           
+    ADD(tmp, const(G_EEHCI_INFO_ENTRY_PID_BytesOffset));        // tmp := slot * EEHCI_Info_ENTRY_SZ + G_EEHCI_INFO_ENTRY_PID_BytesOffset
+    
+    // Prove ValidGlobalOffset(G_EEHCIs_Info(), offset);
+    assert 0 <= slot < eEHCI_INSTANCE_NUM;
+    let offset := slot * EEHCI_Info_ENTRY_SZ;
+    Lemma_NatMul_Ineq_NoEqualRight(slot, eEHCI_INSTANCE_NUM, EEHCI_Info_ENTRY_SZ);
+    assert 0 <= offset < eEHCI_INSTANCE_NUM * EEHCI_Info_ENTRY_SZ;
+
+    Lemma_NTimesUInt32IsStillAligned(slot, EEHCI_Info_ENTRY_SZ);
+    assert WordAligned(slot * EEHCI_Info_ENTRY_SZ);
+    assert ValidGlobalOffset(G_EEHCIs_Info(), offset);
+
+    // Read and store uint32 <pid> at esp
+    LDRglobal(tmp_val, G_EEHCIs_Info(), base, tmp);
+    Store(ebp, ARCH_WORD_BYTES, tmp_val);               // [NOTE] ebp == old_esp - ARCH_WORD_BYTES;
+
+
+    POP_OneReg(tmp_val);
+    POP_TwoRegs(base, tmp);
+
+    POP_OneReg(ebp);
+}
+
+// Find eEHCI in the given partition
+// If no slot is found, return eEHCI_SlotID_EMPTY and false.
+// Input params on stack: (pid:word/uint32) at esp
+// Return params on stack: (result_slot:word) at esp + ARCH_WORD_BYTES, (ret:word) at esp
+// [NOTE] Needs 50s to verify
+procedure eehci_find_slot_in_partition() {:timeLimitMultiplier 5}
+    modifies
+        esp; ebp; mem;
+        eax; ebx; ecx; edx; esi; edi;               // Local variables
+    reads
+        globals; flags;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            7 * ARCH_WORD_BYTES +                   // For local variables
+            1 * ARCH_WORD_BYTES +                   // For params of eehci_read_usbtd_slot
+            6 * ARCH_WORD_BYTES;                    // For eehci_read_usbtd_slot
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space);
+            // The params of the function must be on stack
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let pid:word := stack_get_val(old(mem), old(esp));
+        let result_slot:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> eehci_valid_slot_id(result_slot);
+        (ret == TRUE) ==> eehci_info_get_pid(old(globals), result_slot) == WS_PartitionID(pid);
+        (ret == FALSE) ==> (
+                forall (i:word) (eehci_valid_slot_id(i)
+                    ==> eehci_info_get_pid(old(globals), i) != WS_PartitionID(pid))
+            );
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); 
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+        globals == old(globals);
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let pid @= edi;
+    let i @= eax;
+    let found_slot @= ecx;
+    let tmp_v @= ebx;
+    let run @= edx;
+    PUSH_Reg1ToReg6();
+
+
+    let begin_state := this;
+    let orig_ebp := ebp;
+    Load(pid, ebp, ARCH_WORD_BYTES);                            // Load <pid>
+    let in_pid := pid;
+ 
+    MOV_ToReg(i, 0);                                                        // uint32 i = 0
+    MOV_ToReg(run, const(TRUE));                                            // bool run = TRUE
+
+    PUSH_VOID(1 * ARCH_WORD_BYTES);
+    eehci_info_get_pid(i);
+    Load(tmp_v, esp, 0);
+    POP_VOID(1 * ARCH_WORD_BYTES);
+
+    if(tmp_v == pid)
+    {
+        MOV_ToReg(run, const(FALSE));
+        MOV_ToReg(found_slot, const(TRUE));
+    }
+    else
+    {
+        MOV_ToReg(run, const(TRUE));
+        MOV_ToReg(found_slot, const(FALSE));
+    }
+
+    while (run == const(TRUE))
+        invariant
+            0 <= i <= eEHCI_INSTANCE_NUM;
+            run == TRUE ==> (0 <= i < eEHCI_INSTANCE_NUM);
+
+            run == TRUE ==> found_slot == FALSE;
+            tmp_v != in_pid ==> found_slot == FALSE;
+            found_slot == FALSE ==> (forall (j:uint32) (0 <= j < i && eehci_valid_slot_id(j)
+                                ==> eehci_info_get_pid(old(globals), j) != WS_PartitionID(in_pid))
+                        );
+            (run != TRUE && found_slot == FALSE) ==> (forall (j:uint32) (eehci_valid_slot_id(j)
+                                ==> eehci_info_get_pid(old(globals), j) != WS_PartitionID(in_pid))
+                        );
+                // Invariant relates to found_slot == FALSE
+                
+            run != TRUE ==> (tmp_v == in_pid || i == eEHCI_INSTANCE_NUM-1);
+                // Invariant: When using this schema of while-loop, one has to describe the definition of run != TRUE
+            run != TRUE && tmp_v == in_pid
+                ==> (
+                        eehci_valid_slot_id(i) &&
+                        eehci_info_get_pid(old(globals), i) == WS_PartitionID(in_pid)
+                    );
+                // Invariant: When found the slot, its PID must be <in_pid>
+
+            esp == old(esp) - 7 * ARCH_WORD_BYTES;
+            stack_under_sp_is_unchanged(begin_state.wk_mstate.m, this.wk_mstate.m, esp);
+                // Invariant: Earlier stack are unchanged in this while-loop
+
+            esi == old(esi);
+            ebp == orig_ebp;
+            pid == in_pid;
+                // Invariant: Registers used by sub-functions are not modified
+
+            globals == old(globals);
+            state_equal_except_mstate(old(this), this);
+        decreases
+            (eEHCI_INSTANCE_NUM - i), run;
+    {
+        PUSH_VOID(1 * ARCH_WORD_BYTES);
+        eehci_info_get_pid(i);
+        Load(tmp_v, esp, 0);
+        POP_VOID(1 * ARCH_WORD_BYTES);
+
+        if(tmp_v == pid)                               // Stop conditions of while-loop
+        {
+            MOV_ToReg(run, const(FALSE));
+            MOV_ToReg(found_slot, const(TRUE));
+        }  
+        else if(i == const(eEHCI_INSTANCE_NUM - 1))                       //// i + 1 == eEHCI_INSTANCE_NUM
+        {
+            MOV_ToReg(run, const(FALSE));
+            MOV_ToReg(found_slot, const(FALSE));
+        }
+        else                                                            // Add 1 when there is next run
+        {
+            ADD(i, 1);                                                          // i += 1
+            MOV_ToReg(run, const(TRUE));
+            MOV_ToReg(found_slot, const(FALSE));
+        }
+    }
+
+    // Out of while-loop
+    if(tmp_v == pid)
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(TRUE));
+        Store(ebp, 2 * ARCH_WORD_BYTES, i);
+    }
+    else
+    {
+        assert i == eEHCI_INSTANCE_NUM - 1;
+        assert found_slot == FALSE;
+
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(eEHCI_SlotID_EMPTY));
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Find eEHCI not in the given partition
+// If no slot is found, return eEHCI_SlotID_EMPTY and false.
+// Input params on stack: (pid:word/uint32) at esp
+// Return params on stack: (result_slot:word) at esp + ARCH_WORD_BYTES, (ret:word) at esp
+// [NOTE] Needs 50s to verify
+procedure eehci_find_slot_not_in_partition() {:timeLimitMultiplier 5}
+    modifies
+        esp; ebp; mem;
+        eax; ebx; ecx; edx; esi; edi;               // Local variables
+    reads
+        globals; flags;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            7 * ARCH_WORD_BYTES +                   // For local variables
+            1 * ARCH_WORD_BYTES +                   // For params of eehci_read_usbtd_slot
+            6 * ARCH_WORD_BYTES;                    // For eehci_read_usbtd_slot
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space);
+            // The params of the function must be on stack
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let pid:word := stack_get_val(old(mem), old(esp));
+        let result_slot:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> eehci_valid_slot_id(result_slot);
+        (ret == TRUE) ==> eehci_info_get_pid(old(globals), result_slot) != WS_PartitionID(pid);
+        (ret == FALSE) ==> (
+                forall (i:word) (eehci_valid_slot_id(i)
+                    ==> eehci_info_get_pid(old(globals), i) == WS_PartitionID(pid))
+            );
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); 
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+        globals == old(globals);
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let pid @= edi;
+    let i @= eax;
+    let found_slot @= ecx;
+    let tmp_v @= ebx;
+    let run @= edx;
+    PUSH_Reg1ToReg6();
+
+
+    let begin_state := this;
+    let orig_ebp := ebp;
+    Load(pid, ebp, ARCH_WORD_BYTES);                            // Load <pid>
+    let in_pid := pid;
+ 
+    MOV_ToReg(i, 0);                                                        // uint32 i = 0
+    MOV_ToReg(run, const(TRUE));                                            // bool run = TRUE
+
+    PUSH_VOID(1 * ARCH_WORD_BYTES);
+    eehci_info_get_pid(i);
+    Load(tmp_v, esp, 0);
+    POP_VOID(1 * ARCH_WORD_BYTES);
+
+    if(tmp_v != pid)
+    {
+        MOV_ToReg(run, const(FALSE));
+        MOV_ToReg(found_slot, const(TRUE));
+    }
+    else
+    {
+        MOV_ToReg(run, const(TRUE));
+        MOV_ToReg(found_slot, const(FALSE));
+    }
+
+    while (run == const(TRUE))
+        invariant
+            0 <= i <= eEHCI_INSTANCE_NUM;
+            run == TRUE ==> (0 <= i < eEHCI_INSTANCE_NUM);
+
+            run == TRUE ==> found_slot == FALSE;
+            tmp_v == in_pid ==> found_slot == FALSE;
+            found_slot == FALSE ==> (forall (j:uint32) (0 <= j < i && eehci_valid_slot_id(j)
+                                ==> eehci_info_get_pid(old(globals), j) == WS_PartitionID(in_pid))
+                        );
+            (run != TRUE && found_slot == FALSE) ==> (forall (j:uint32) (eehci_valid_slot_id(j)
+                                ==> eehci_info_get_pid(old(globals), j) == WS_PartitionID(in_pid))
+                        );
+                // Invariant relates to found_slot == FALSE
+                
+            run != TRUE ==> (tmp_v != in_pid || i == eEHCI_INSTANCE_NUM-1);
+                // Invariant: When using this schema of while-loop, one has to describe the definition of run != TRUE
+            run != TRUE && tmp_v != in_pid
+                ==> (
+                        eehci_valid_slot_id(i) &&
+                        eehci_info_get_pid(old(globals), i) != WS_PartitionID(in_pid)
+                    );
+                // Invariant: When found the slot, its PID must not be <in_pid>
+
+            esp == old(esp) - 7 * ARCH_WORD_BYTES;
+            stack_under_sp_is_unchanged(begin_state.wk_mstate.m, this.wk_mstate.m, esp);
+                // Invariant: Earlier stack are unchanged in this while-loop
+
+            esi == old(esi);
+            ebp == orig_ebp;
+            pid == in_pid;
+                // Invariant: Registers used by sub-functions are not modified
+
+            globals == old(globals);
+            state_equal_except_mstate(old(this), this);
+            !interrupts_enabled(flags);
+        decreases
+            (eEHCI_INSTANCE_NUM - i), run;
+    {
+        PUSH_VOID(1 * ARCH_WORD_BYTES);
+        eehci_info_get_pid(i);
+        Load(tmp_v, esp, 0);
+        POP_VOID(1 * ARCH_WORD_BYTES);
+
+        if(tmp_v != pid)                               // Stop conditions of while-loop
+        {
+            MOV_ToReg(run, const(FALSE));
+            MOV_ToReg(found_slot, const(TRUE));
+        }  
+        else if(i == const(eEHCI_INSTANCE_NUM - 1))                       //// i + 1 == eEHCI_INSTANCE_NUM
+        {
+            MOV_ToReg(run, const(FALSE));
+            MOV_ToReg(found_slot, const(FALSE));
+        }
+        else                                                            // Add 1 when there is next run
+        {
+            ADD(i, 1);                                                          // i += 1
+            MOV_ToReg(run, const(TRUE));
+            MOV_ToReg(found_slot, const(FALSE));
+        }
+    }
+
+    // Out of while-loop
+    if(tmp_v != pid)
+    {
+        assert ebp == orig_ebp;
+        Store(ebp, ARCH_WORD_BYTES, const(TRUE));
+        Store(ebp, 2 * ARCH_WORD_BYTES, i);
+    }
+    else
+    {
+        assert ebp == orig_ebp;
+        assert i == eEHCI_INSTANCE_NUM - 1;
+        assert found_slot == FALSE;
+
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(eEHCI_SlotID_EMPTY));
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+
+
+
+/*********************** Private Methods ********************/
+procedure _eehci_info_get_reserved(
+    in slot:reg
+) // Return on stack: (v:uint32) at esp
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        edx; edi; eax;                                      // Local variables
+        esi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        @slot == Reg1;
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        eehci_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_eehcis_info>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures 
+        let v:uint32 := stack_get_val(mem, old(esp));
+
+        eehci_info_get_reserved(old(globals), old(slot)) == v;
+            // Property 1: The globals are read as expected
+    ensures
+        slot == old(slot); // Input parameters are unchanged
+        edx == old(edx); edi == old(edi); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        esi == old(esi);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal WordAligned;
+
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let tmp_val @= eax;
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(tmp_val);
+
+    LDRglobaladdr_ToReg(base, G_EEHCIs_Info());
+
+    MOV_ToReg(tmp, slot);
+    Lemma_NatMul_Ineq_4var(slot, EEHCI_Info_ENTRY_SZ, eEHCI_INSTANCE_NUM, EEHCI_Info_ENTRY_SZ);
+    assert isUInt32(slot * EEHCI_Info_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(EEHCI_Info_ENTRY_SZ));           
+    ADD(tmp, const(G_EEHCI_Info_ENTRY_Reserved_BytesOffset));        // tmp := slot * EEHCI_Info_ENTRY_SZ + G_EEHCI_Info_ENTRY_Reserved_BytesOffset
+    
+    // Prove ValidGlobalOffset(G_EEHCIs_Info(), offset);
+    assert 0 <= slot < eEHCI_INSTANCE_NUM;
+    let offset := slot * EEHCI_Info_ENTRY_SZ;
+    Lemma_NatMul_Ineq_NoEqualRight(slot, eEHCI_INSTANCE_NUM, EEHCI_Info_ENTRY_SZ);
+    assert 0 <= offset < eEHCI_INSTANCE_NUM * EEHCI_Info_ENTRY_SZ;
+
+    Lemma_NTimesUInt32IsStillAligned(slot, EEHCI_Info_ENTRY_SZ);
+    assert WordAligned(slot * EEHCI_Info_ENTRY_SZ);
+    assert ValidGlobalOffset(G_EEHCIs_Info(), offset);
+
+    // Read and store <v> at esp
+    LDRglobal(tmp_val, G_EEHCIs_Info(), base, tmp);
+    Store(ebp, ARCH_WORD_BYTES, tmp_val);               // [NOTE] ebp == old_esp - ARCH_WORD_BYTES;
+
+
+    POP_OneReg(tmp_val);
+    POP_TwoRegs(base, tmp);
+
+    POP_OneReg(ebp);
+}
+

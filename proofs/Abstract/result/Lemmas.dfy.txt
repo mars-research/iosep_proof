@@ -1,0 +1,170 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing Lemmas.dfy
+Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+Lemmas.dfy(8,4): Warning: /!\ No terms found to trigger on.
+Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+./utils/Collections.dfy(338,12): Warning: /!\ No terms found to trigger on.
+Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0548532 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying Impl$$_module.__default.AModeIsEitherROrW ...
+  [0.948 s, 3 proof obligations]  verified
+
+Verifying Impl$$_module.__default.AllReqAModesPermsSubsetOfRW ...
+  [0.454 s, 3 proof obligations]  verified
+
+Verifying Impl$$_module.__default.AllReqNonEmptyAModesMustContainROrW ...
+  [0.423 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.IfAModesContainROrWThenNotEmpty ...
+  [0.390 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__EmptyAModesIsNoRAndNoW ...
+  [0.408 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__SameAllSubjsIDsBetweenStates ...
+  [0.483 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__AllTDFDDOIDsAreInObjIDs ...
+  [0.410 s, 4 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__SameAllObjsIDsBetweenStates ...
+  [0.438 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__TDFDDOIDsInStateAlsoHasObjIDsInState ...
+  [0.449 s, 4 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__SameSubjObjIDsInSuccessiveStates ...
+  [1.507 s, 12 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ObjsInSubjsAreAlsoInState ...
+  [0.443 s, 7 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ObjsInSubjsAreAlsoInState ...
+  [0.447 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__NewK__FulfillCondition28 ...
+  [2.243 s, 49 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__NewK__FulfillCondition28 ...
+  [0.440 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__NewK__FulfillCondition27 ...
+  [1.791 s, 27 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__NewK__FulfillCondition27 ...
+  [0.519 s, 15 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__SameSubjObjPIDsIfSubjPIDsAreUnchanged ...
+  [0.548 s, 32 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__SameSubjObjPIDsIfSubjPIDsAreUnchanged ...
+  [1.938 s, 28 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__SameObjsOwnershipInSuccessiveStates ...
+  [0.490 s, 18 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__SameObjsOwnershipInSuccessiveStates ...
+  [0.493 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__SameObjsOwnershipInSuccessiveStates__SlimState ...
+  [0.406 s, 18 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__SameObjsOwnershipInSuccessiveStates__SlimState ...
+  [0.456 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DevReturnsSamePIDBySubjPIDDevIDAndSubjPID ...
+  [0.429 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DevReturnsSamePIDBySubjPIDDevIDAndSubjPID ...
+  [0.402 s, 8 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__AllDevsInStateReturnsSamePIDBySubjPIDDevIDAndSubjPID ...
+  [0.387 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__AllDevsInStateReturnsSamePIDBySubjPIDDevIDAndSubjPID ...
+  [0.381 s, 5 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ActiveDevsHaveHcodedPtrsToOwnedObjs ...
+  [0.651 s, 16 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ActiveDevsHaveHcodedPtrsToOwnedObjs ...
+  [0.474 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__OwnObjIDs__Property ...
+  [0.366 s, 5 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__OwnObjIDs__Property ...
+  [0.348 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.K__UniqueIDsAndOwnedObjs ...
+  [0.402 s, 8 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ActiveObjsMustInActiveSet__TD ...
+  [0.353 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ActiveObjsMustInActiveSet__TD ...
+  [0.378 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ActiveObjsMustInActiveSet__FD ...
+  [0.353 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ActiveObjsMustInActiveSet__FD ...
+  [0.430 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ActiveObjsMustInActiveSet__DO ...
+  [0.413 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ActiveObjsMustInActiveSet__DO ...
+  [0.377 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__InActiveObjsMustInInActiveSet__TD ...
+  [0.355 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__InActiveObjsMustInInActiveSet__TD ...
+  [0.365 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__InActiveObjsMustInInActiveSet__FD ...
+  [0.387 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__InActiveObjsMustInInActiveSet__FD ...
+  [0.374 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__InActiveObjsMustInInActiveSet__DO ...
+  [0.387 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__InActiveObjsMustInInActiveSet__DO ...
+  [0.393 s, 2 proof obligations]  verified
+
+Dafny program verifier finished with 43 verified, 0 errors
+
+Statistics
+----------
+Call graph width (max)    215
+Datatypes                  23
+Functions (total)         126
+Functions recursive         3
+Methods (total)            65
+Methods ghost              64
+Methods recursive           1
+Module height (max)         0
+Modules                     1

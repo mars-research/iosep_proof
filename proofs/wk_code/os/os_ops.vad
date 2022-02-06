@@ -1,0 +1,338 @@
+include "os_ops_impl.vad"
+include {:verbatim} "../transition_constraints.s.dfy"
+include {:verbatim} "../proof/wkapi_commutative_diagram.i.dfy"
+
+// Activate OS objects and related OS subjects, due to activating memory region [paddr_start, paddr_end). This
+// operation just call mHV, which fulfill the goal of this operation by giving memory back to the OS partition. 
+// [NOTE] "main memory" is the physical memory address space for processes (i.e., excluding MMIOs and relevant)
+// Input params on stack: (paddr_end:word) at esp + ARCH_WORD_BYTES, (paddr_start:word) at esp
+// Return on stack: (ret:word/uint32) at esp
+procedure OS_Activate_MainMem_ByPAddr()
+    reads
+        flags; globals;
+    modifies
+        mem; subjects; objects; os_mem_active_map;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                              // Local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +                   // For <CALL_PMem_ActivateInOS>
+            2 * ARCH_WORD_BYTES;                               // For params of <CALL_PMem_ActivateInOS>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_PMem_ActivateInOS_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        ins_valid_pmem_activate_main_mem_in_os(old(this), old(esp));
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let paddr_end:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let paddr_start:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        OS_Activate_MainMem_ByPAddr_CommutativeDiagram_Property(old(this), dm, dm', paddr_start, paddr_end, ret);
+            // Prove the commutative diagram
+    ensures
+        esi == old(esi); edi == old(edi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+        esp == old(esp); ebp == old(ebp);// temp registers are correctly restored
+    ensures
+        let stack_retval_space := FFI_PMem_ActivateInOS_ReturnWords * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    OS_Activate_MainMem_ByPAddr_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 2 * ARCH_WORD_BYTES - ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal ffi_pmem_activate_main_mem_in_os_stack_and_statevars;
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_OS_Activate_MainMem_ByPAddr_WhenReturnTRUE_ProveWK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_IfUSBTDsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s, s');
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    let paddr_end:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+    let paddr_start:word := stack_get_val(old(mem), old(esp));
+    let ret:word := stack_get_val(mem, old(esp));
+    ghost if (ret == TRUE)
+    {
+        let dm := WSM_MapSecureState(s);
+
+        Lemma_OS_Activate_MainMem_ByPAddr_ProveCommutativeDiagram(s, dm, paddr_start, paddr_end, s');
+        let dm' := WSM_MapSecureState(this);
+        assert OS_Activate_MainMem_ByPAddr_CommutativeDiagram_Property(s, dm, dm', paddr_start, paddr_end, ret);
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}
+
+// Deactivate all OS objects overlaps with the memory region [paddr_start, paddr_end), and related OS subjects. This
+// operation just call mHV, which fulfill the goal of this operation by taking away memory from the OS partition. 
+// [NOTE] "main memory" is the physical memory address space for processes (i.e., excluding MMIOs and relevant)
+// Input params on stack: (paddr_end:word) at esp + ARCH_WORD_BYTES, (paddr_start:word) at esp
+// Return on stack: None
+procedure OS_Deactivate_MainMem_ByPAddr()
+    reads
+        flags; globals;
+    modifies
+        mem; subjects; objects; os_mem_active_map;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                              // Local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +                   // For <CALL_PMem_DeactivateFromOS>
+            2 * ARCH_WORD_BYTES;                               // For params of <CALL_PMem_DeactivateFromOS>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_PMem_DeactivateFromOS_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        ins_valid_pmem_deactivate_main_mem_from_os(old(this), old(esp));
+    requires
+        let paddr_end:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let paddr_start:word := stack_get_val(old(mem), old(esp));
+
+        let dm := WSM_MapSecureState(old(this));
+        P_OS_Deactivate_MainMem_ByPAddr_AdditonalPreConditions(old(this), dm, paddr_start, paddr_end);
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let paddr_end:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let paddr_start:word := stack_get_val(old(mem), old(esp));
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        OS_Deactivate_MainMem_ByPAddr_CommutativeDiagram_Property(old(this), dm, dm', paddr_start, paddr_end);
+            // Prove the commutative diagram
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    OS_Deactivate_MainMem_ByPAddr_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 2 * ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+    Lemma_OS_Deactivate_MainMem_ByPAddr_ProveStackAddr(old(esp));
+    assert IsAddrInStack(old(esp) + 2 * ARCH_WORD_BYTES - ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal ffi_pmem_deactivate_main_mem_from_os_stack_and_statevars;
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_OS_Deactivate_MainMem_ByPAddr_ProveWK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_IfUSBTDsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s, s');
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    let paddr_end:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+    let paddr_start:word := stack_get_val(old(mem), old(esp));
+
+    let dm := WSM_MapSecureState(s);
+    Lemma_OS_Deactivate_MainMem_ByPAddr_ProveCommutativeDiagram(s, dm, paddr_start, paddr_end, s');
+    let dm' := WSM_MapSecureState(this);
+    assert OS_Deactivate_MainMem_ByPAddr_CommutativeDiagram_Property(s, dm, dm', paddr_start, paddr_end);
+}
+
+// Activate all USBPDevs assigned to wimp partitions back to OS
+// Input params on stack: None
+// Return params on stack: (ret:word) at esp
+// [NOTE] In the WK implementation spec, if a trace never calls this operation, then that trace still prevents object 
+// reuse. This is because all traces must terminate before physical EHCIs are active in the OS partition, otherwise the
+// set of device IDs is modified. However, after physical EHCIs are active, wimp drivers data in USBPDevs could be  
+// reused by OS/Apps if this operation is not called before hand. 
+procedure OS_Activate_AllReleasedPEHCIsAndUSBPDevs()
+    reads
+        globals; flags;
+    modifies
+        mem; objects; subjects;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;               // Local variables
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space := 
+            3 * ARCH_WORD_BYTES +                    // For local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         // For <CALL_USBPDev_Clear>
+            15 * ARCH_WORD_BYTES;                    
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space for two words
+        let stack_params_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space);
+            // The params of the function must be on stack
+    requires
+        forall (usbpdev_id:Dev_ID) (WSM_IsUSBPDevID(this.subjects, usbpdev_id)
+            ==> this.subjects.usbpdevs[usbpdev_id].active_in_os == false);
+            // Requirement: USBPDevs in the model/system must have <active_in_os> to be false
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let ret:word := stack_get_val(mem, old(esp));
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        WK_OS_Activate_AllReleasedPEHCIsAndUSBPDevs_CommutativeDiagram_Property(old(this), dm, dm', ret);
+            // Prove the commutative diagram
+    ensures
+        esi == old(esi); edi == old(edi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+        esp == old(esp); ebp == old(ebp);// temp registers are correctly restored
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+        globals == old(globals);
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    OS_Activate_AllReleasedPEHCIsAndUSBPDevs_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    // Prove OpsSaneStateSubset(s')
+    assert OpsSaneStateSubset(s');
+    reveal global_non_scratchpad_vars_are_unchanged;
+
+    // Prove commutative diagram
+    let ret:word := stack_get_val(mem, old(esp));
+    ghost if (ret == TRUE)
+    {
+        let dm := WSM_MapSecureState(s);
+
+        Lemma_OS_Activate_AllReleasedPEHCIsAndUSBPDevs_ProveCommutativeDiagram(s, dm, PID_RESERVED_OS_PARTITION, s');
+        let dm' := WSM_MapSecureState(this);
+        assert WK_OS_Activate_AllReleasedPEHCIsAndUSBPDevs_CommutativeDiagram_Property(s, dm, dm', ret);
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}
+
+
+
+
+/*********************** Private Lemmas ********************/
+#verbatim
+lemma Lemma_OS_Activate_MainMem_ByPAddr_WhenReturnTRUE_ProveWK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions(
+    s:state, s':state
+)
+    requires OpsSaneStateSubset(s)
+    requires InstSaneState(s')
+
+    requires var s_wkm := s.wk_mstate; 
+             var old_esp := x86_get_reg(s_wkm, ESP);
+             var stack_params_space := FFI_PMem_ActivateInOS_StackParamsWords * ARCH_WORD_BYTES;
+             IsAddrInStack(old_esp + stack_params_space - ARCH_WORD_BYTES)
+                // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires var s_wkm := s.wk_mstate;
+             var old_esp := x86_get_reg(s_wkm, ESP); 
+             ins_valid_pmem_activate_main_mem_in_os(s, old_esp)
+    requires var mem := wkm_stack_get_all(s'.wk_mstate);
+             ffi_preserve_old_stack(s.wk_mstate, mem, FFI_PMem_ActivateInOS_ReturnWords)
+        // Requirements needed by the following requirements
+    requires var mem := wkm_stack_get_all(s'.wk_mstate);
+             ffi_pmem_activate_main_mem_in_os_stack_and_statevars(s, mem, s'.subjects, s'.objects, s'.os_mem_active_map);
+    
+    ensures WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions(s'.subjects, s'.objects, s'.id_mappings, wkm_get_globals(s'.wk_mstate))
+{
+    reveal ffi_preserve_old_stack();
+    reveal ffi_pmem_activate_main_mem_in_os_stack_and_statevars();
+    reveal WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions();
+}
+
+lemma Lemma_OS_Deactivate_MainMem_ByPAddr_ProveWK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions(
+    s:state, s':state
+)
+    requires OpsSaneStateSubset(s)
+    requires InstSaneState(s')
+
+    requires var s_wkm := s.wk_mstate; 
+             var old_esp := x86_get_reg(s_wkm, ESP);
+             var stack_params_space := FFI_PMem_DeactivateFromOS_StackParamsWords * ARCH_WORD_BYTES;
+             IsAddrInStack(old_esp + stack_params_space - ARCH_WORD_BYTES)
+                // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires var s_wkm := s.wk_mstate;
+             var old_esp := x86_get_reg(s_wkm, ESP); 
+             ins_valid_pmem_deactivate_main_mem_from_os(s, old_esp)
+    requires var mem := wkm_stack_get_all(s'.wk_mstate);
+             ffi_preserve_old_stack(s.wk_mstate, mem, FFI_PMem_DeactivateFromOS_ReturnWords)
+        // Requirements needed by the following requirements
+    requires var mem := wkm_stack_get_all(s'.wk_mstate);
+             ffi_pmem_deactivate_main_mem_from_os_stack_and_statevars(s, mem, s'.subjects, s'.objects, s'.os_mem_active_map);
+    
+    ensures WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions(s'.subjects, s'.objects, s'.id_mappings, wkm_get_globals(s'.wk_mstate))
+{
+    reveal ffi_preserve_old_stack();
+    reveal ffi_pmem_deactivate_main_mem_from_os_stack_and_statevars();
+    reveal WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions();
+}
+
+lemma Lemma_OS_Deactivate_MainMem_ByPAddr_ProveStackAddr(base:word)
+    requires isUInt32(base + ARCH_WORD_BYTES)
+    requires IsAddrInStack(base + ARCH_WORD_BYTES)
+    ensures IsAddrInStack(base + 2 * ARCH_WORD_BYTES - ARCH_WORD_BYTES)
+{
+    // Dafny can automatically prove this lemma
+}
+#endverbatim

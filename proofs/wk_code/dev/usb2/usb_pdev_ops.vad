@@ -1,0 +1,198 @@
+include "usb_pdev_ops_impl.vad"
+include {:verbatim} "../../transition_constraints.s.dfy"
+include {:verbatim} "../../proof/wkapi_commutative_diagram.i.dfy"
+
+// Activate the given USBPDev into a wimp partition
+// Input params on stack: (new_usbpdev_addr_high:word/uint32) at esp + 2 * ARCH_WORD_BYTES, 
+// (new_usbpdev_addr_low:word/uint32) at esp + ARCH_WORD_BYTES, (new_pid:word/uint32) at esp
+// Return params on stack: (ret:word) at esp, (usbpdev_slot:word) at esp + ARCH_WORD_BYTES
+procedure USBPDev_Activate()
+    reads
+        flags;
+    modifies
+        mem; globals; objects;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space :=
+            4 * ARCH_WORD_BYTES +                    // For local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         // For <_usbpdev_activate_private>
+            15 * ARCH_WORD_BYTES +                    // For saving registers for <CALL_USBPDev_Clear>
+            3 * ARCH_WORD_BYTES;                     // For params of <CALL_USBPDev_Clear>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Stack space for function parameters
+    requires
+        forall (usbpdev_id:Dev_ID) (WSM_IsUSBPDevID(this.subjects, usbpdev_id)
+            ==> this.subjects.usbpdevs[usbpdev_id].active_in_os == false);
+            // Requirement: USBPDevs in the model/system must have <active_in_os> to be false
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 2 * ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let new_pid := stack_get_val(old(mem), old(esp));
+        let new_usbpdev_addr_low := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_high := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+
+        let ret:word := stack_get_val(mem, old(esp));
+        let usbpdev_slot:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        WK_USBPDev_Activate_CommutativeDiagram_Property(old(this), dm, dm', usbpdev_slot, new_pid, new_usbpdev_addr_low, new_usbpdev_addr_high, ret);
+            // Prove the commutative diagram
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    USBPDev_ActivateIntoWimpPartition_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 3 * ARCH_WORD_BYTES - ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions_IfOSSubjsObjsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_IfUSBTDsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s, s');
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    let ret:word := stack_get_val(mem, old(esp));
+    ghost if (ret == TRUE)
+    {
+        let new_pid := stack_get_val(old(mem), old(esp));
+        let new_usbpdev_addr_low := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_high := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+
+        let ret:word := stack_get_val(mem, old(esp));
+        let usbpdev_slot:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+
+        let dm := WSM_MapSecureState(s);
+        Lemma_USBPDev_Activate_ProveCommutativeDiagram(s, dm, usbpdev_slot, new_pid, new_usbpdev_addr_low, new_usbpdev_addr_high, s');
+        let dm' := WSM_MapSecureState(this);
+        assert WK_USBPDev_Activate_CommutativeDiagram_Property(old(this), dm, dm', usbpdev_slot, new_pid, new_usbpdev_addr_low, new_usbpdev_addr_high, ret);
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}
+
+// Deactivate the given USBPDev from its current wimp partition
+// Input params on stack: (usbpdev_slot:word) at esp
+// Return params on stack: (ret:word) at esp
+procedure USBPDev_Deactivate()
+    reads
+        flags;
+    modifies
+        mem; globals;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            20 * ARCH_WORD_BYTES +                   // For <_usbpdev_find_referencing_secure_usbtd>
+            2 * ARCH_WORD_BYTES;                     // For params of <_usbpdev_find_referencing_secure_usbtd>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Stack space for function parameters
+    requires
+        forall (usbpdev_id:Dev_ID) (WSM_IsUSBPDevID(this.subjects, usbpdev_id)
+            ==> this.subjects.usbpdevs[usbpdev_id].active_in_os == false);
+            // Requirement: USBPDevs in the model/system must have <active_in_os> to be false
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 1 * ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let usbpdev_slot:word := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        WK_USBPDev_Deactivate_CommutativeDiagram_Property(old(this), dm, dm', usbpdev_slot, ret);
+            // Prove the commutative diagram
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    USBPDev_DeactivateFromWimpPartition_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 1 * ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions_IfOSSubjsObjsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_IfUSBTDsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s, s');
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    let ret:word := stack_get_val(mem, old(esp));
+    ghost if (ret == TRUE)
+    {
+        let usbpdev_slot:word := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+
+        let dm := WSM_MapSecureState(s);
+        Lemma_USBPDev_Deactivate_ProveCommutativeDiagram(s, dm, usbpdev_slot, s');
+        let dm' := WSM_MapSecureState(this);
+        assert WK_USBPDev_Deactivate_CommutativeDiagram_Property(old(this), dm, dm', usbpdev_slot, ret);
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}

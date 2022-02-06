@@ -1,0 +1,107 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/eehci_info.gen.dfy
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\ins\x86\..\util\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\ins\x86\..\util\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [1.3683397 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.va__code__eechi__id__get__bus__id ...
+  [6.429 s, 29 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__eechi__id__get__bus__id ...
+  [5.483 s, 315 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__eechi__id__get__bus__id ...
+  [9.389 s, 1396 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code____eehci__info__update__slot__to__valid__pid ...
+  [3.033 s, 54 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma____eehci__info__update__slot__to__valid__pid ...
+  [6.495 s, 982 proof obligations]  verified
+Linearising   [1.0940736 s]
+
+Verifying Impl$$_module.__default.va__lemma____eehci__info__update__slot__to__valid__pid ...
+  [85.057 s, 5345 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code____eehci__info__update__slot__to__invalid__pid ...
+  [3.477 s, 54 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma____eehci__info__update__slot__to__invalid__pid ...
+  [7.390 s, 842 proof obligations]  verified
+Linearising   [1.0831033 s]
+
+Verifying Impl$$_module.__default.va__lemma____eehci__info__update__slot__to__invalid__pid ...
+  [134.233 s, 5345 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__eehci__check__slot__id ...
+  [3.623 s, 29 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__eehci__check__slot__id ...
+  [3.133 s, 282 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__eehci__check__slot__id ...
+  [7.653 s, 512 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__eehci__info__get__pid ...
+  [3.294 s, 42 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__eehci__info__get__pid ...
+  [4.896 s, 598 proof obligations]  verified
+Linearising   [0.7340372 s]
+
+Verifying Impl$$_module.__default.va__lemma__eehci__info__get__pid ...
+  [21.304 s, 2421 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__eehci__find__slot__in__partition ...
+  [4.363 s, 146 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__eehci__find__slot__in__partition ...
+  [8.678 s, 687 proof obligations]  verified
+Linearising   [1.4850266 s]
+
+Verifying Impl$$_module.__default.va__lemma__eehci__find__slot__in__partition ...
+  [164.605 s, 4763 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__eehci__find__slot__not__in__partition ...
+  [6.903 s, 146 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__eehci__find__slot__not__in__partition ...
+  [8.798 s, 687 proof obligations]  verified
+Linearising   [1.4710635 s]
+
+Verifying Impl$$_module.__default.va__lemma__eehci__find__slot__not__in__partition ...
+  [107.082 s, 4894 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code____eehci__info__get__reserved ...
+  [7.222 s, 42 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma____eehci__info__get__reserved ...
+  [5.426 s, 598 proof obligations]  verified
+Linearising   [0.6572453 s]
+
+Verifying Impl$$_module.__default.va__lemma____eehci__info__get__reserved ...
+  [27.242 s, 2421 proof obligations]  verified
+
+Dafny program verifier finished with 24 verified, 0 errors

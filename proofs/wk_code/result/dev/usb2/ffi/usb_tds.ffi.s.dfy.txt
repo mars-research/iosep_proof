@@ -1,0 +1,140 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/ffi/usb_tds.ffi.s.dfy
+dev\usb2\ffi\..\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.137633 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.usbtd__ffi__valid__usbtd__vaddr__on__stack ...
+  [4.202 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__qtd32__parseTDPtrs ...
+  [3.255 s, 101 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__qtd32__parseDataBufPtrs ...
+  [2.971 s, 101 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__qh32__parseTDPtrs ...
+  [3.084 s, 101 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__qh32__parseDataBufPtrs ...
+  [3.378 s, 101 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__qh32__parseTargetUSBDevID ...
+  [4.089 s, 101 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__fstn32__parseTDPtrs ...
+  [3.071 s, 107 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__copy__from__user ...
+  [3.231 s, 90 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__check__not__modify__usbpdev__addrs ...
+  [2.600 s, 89 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__backup ...
+  [2.384 s, 101 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__restore ...
+  [2.937 s, 102 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__usbtd__restore ...
+  [2.443 s, 48 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__usbtd__clear__content ...
+  [2.648 s, 31 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__is__ref__target__usbtd ...
+  [3.416 s, 101 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__clear__content ...
+  [3.875 s, 111 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p__ffi__usbtd__qtd32__parseTDPtrs__retval ...
+  [5.246 s, 69 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p__ffi__usbtd__qtd32__parseDataBufPtrs__retval ...
+  [4.632 s, 78 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p__ffi__usbtd__qh32__parseTDPtrs__retval ...
+  [6.005 s, 85 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p__ffi__usbtd__qh32__parseDataBufPtrs__retval ...
+  [5.086 s, 78 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p__ffi__usbtd__qh32__parseTargetUSBDevID__retval ...
+  [4.296 s, 74 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p__ffi__usbtd__fstn32__parseTDPtrs__retval ...
+  [4.391 s, 108 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__copy__from__user__stack__and__globals ...
+  [4.724 s, 91 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__ffi__usbtd__check__not__modify__usbpdev__addrs__stack__and__globals ...
+  [2.605 s, 42 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__copy__from__user__copied__some__new__usbtd ...
+  [7.724 s, 268 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__backup__stack__and__globals ...
+  [2.604 s, 31 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__backup__stack__and__globals__inner ...
+  [35.993 s, 682 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__restore__stack__and__globals ...
+  [2.711 s, 31 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__restore__stack__and__globals__inner ...
+  [16.741 s, 830 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p__ffi__usbtd__is__ref__target__usbtd__retval ...
+  [3.742 s, 54 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.usbtd__is__slot__ref__target__slot ...
+  [2.372 s, 19 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__usbtd__clear__content__stack__and__globals ...
+  [24.441 s, 287 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.usbtd__qtd32__parse__TDPtrs__from__global ...
+  [2.962 s, 58 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.usbtd__qtd32__parse__DataBufPtrs__from__global ...
+  [3.286 s, 68 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.usbtd__qh32__parse__TDPtrs__from__global ...
+  [3.314 s, 82 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.usbtd__qh32__parse__DataBufPtrs__from__global ...
+  [3.123 s, 68 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.usbtd__qh32__can__parse__TargetUSBDevID__from__global ...
+  [2.389 s, 39 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.usbtd__qh32__parse__TargetUSBPDevAddr__from__global ...
+  [2.966 s, 53 proof obligations]  verified
+
+Dafny program verifier finished with 37 verified, 0 errors

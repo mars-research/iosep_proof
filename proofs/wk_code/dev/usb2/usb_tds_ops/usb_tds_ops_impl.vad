@@ -1,0 +1,1083 @@
+include "../../../ins/x86/ins_wrapper.vad"
+include "../usb_tds_utils.vad"
+include "../../../partition_id_ops.vad"
+include "../eehci_info.vad"
+include "../../../drv/drv_ops_utils.vad"
+
+include {:verbatim} "../state_mapping/usbtd_map.s.dfy"
+include {:verbatim} "../usb_tds_utils.i.dfy"
+include "usb_tds_ops.dafny21.vad"
+include "usb_tds_ops.private.vad"
+
+/*********************** Method Forward Declarations ********************/
+procedure _usbtd_slot_allocate_1slot_private()
+    extern;
+procedure _usbtd_slot_submit()
+    extern;
+
+
+
+
+/*********************** Public Methods ********************/
+// Allocate one slot in <g_usbtd_mem_map> by finding one empty slot, and setting its PID to the given <pid> 
+// Input params on stack: (td_type:word/uint32) at esp + ARCH_WORD_BYTES, (pid:word/WS_PartitionID) at esp
+// Return params on stack: (ret:word/bool) at esp, (slot:word/uint32) at esp + ARCH_WORD_BYTES
+// [NOTE] Needs 200s to verify
+procedure USBTD_slot_allocate_1slot_Impl() returns (ghost out_new_id:word) {:timeLimitMultiplier 30}
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        esi; edi;
+        eax; ebx; ecx; edx;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            4 * ARCH_WORD_BYTES +                    // For local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         // For <_usbtd_slot_allocate_1slot_private>
+            14 * ARCH_WORD_BYTES +                    
+            3 * ARCH_WORD_BYTES;                     // For the params of <_usbtd_slot_allocate_1slot_private>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let td_type:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        (td_type == USBTDs_TYPE_QTD32) || (td_type == USBTDs_TYPE_QH32) || 
+        (td_type == USBTDs_TYPE_iTD32) || (td_type == USBTDs_TYPE_siTD32);
+            // Requirement: <td_type> must be one of the four types
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let td_type:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let pid:word := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+        let slot:uint32 := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> pids_parse_g_wimp_pids(old(globals))?[WS_PartitionID(pid)];
+        (ret == TRUE) ==> usbtd_map_valid_slot_id(slot);
+            // Property 1
+        (ret == TRUE) ==> out_new_id != USBTD_ID_INVALID;
+            // Property 2
+        (ret == TRUE) ==> (
+            forall (i:uint32) (usbtd_map_valid_slot_id(i) &&
+                    usbtd_map_get_idword(old(globals), i) != USBTD_ID_INVALID
+                ==> usbtd_map_get_idword(old(globals), i) != out_new_id)
+        );
+            // Property 3: If return true, then <out_new_id> must not be a duplicate USB TD ID after update
+        usbtd_slot_allocate_1slot_globals_relationship(old(globals), globals, slot, out_new_id, td_type, pid, ret);
+            // Property 4: The global variables are modified and fulfill this predicate
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let tmp1 @= edi;
+    let ret @= ebx;
+    let new_id @= eax;
+    PUSH_OneReg(tmp1);
+    PUSH_TwoRegs(ret, new_id);
+
+    // 1. Generate USBTD ID
+    PUSH_VOID(2 * ARCH_WORD_BYTES);
+    usbtd_id_generate(new_id);
+    POP_VOID(2 * ARCH_WORD_BYTES);
+
+    if(new_id != const(USBTD_ID_INVALID))
+    {
+        let globals1 := globals;
+        Lemma_usbtd_id_generate_ProveIDUniqueness(globals1, new_id);
+        assert globals_other_gvar_unchanged(old(globals), globals1, G_USBTD_ID_Counter());
+        out_new_id := new_id;
+
+        // 2. Call <_usbtd_slot_allocate_1slot_private>
+        PUSH(new_id);
+        Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);
+        PUSH(tmp1);
+        let td_type := tmp1;
+        Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);
+        PUSH(tmp1);
+        let pid := tmp1;
+        _usbtd_slot_allocate_1slot_private();
+        Load(ret, esp, 0);
+        Store(ebp, ARCH_WORD_BYTES, ret);
+        Load(tmp1, esp, ARCH_WORD_BYTES);
+        Store(ebp, 2 * ARCH_WORD_BYTES, tmp1);    // tmp1 := slot
+        POP_VOID(3 * ARCH_WORD_BYTES);
+        let td_slot := tmp1;
+
+        ghost if (ret == TRUE)
+        {
+            let globals2 := globals;
+            assert p_usbtd_slot_allocate_1slot_private_globals_relationship(globals1, globals2, td_slot, new_id, td_type, pid, TRUE);
+
+            Lemma_usbtd_slot_allocate_1slot_ProveProperty2(old(globals), globals1, globals2, td_slot, new_id, td_type, pid);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(USBTD_SlotID_INVALID));
+    }
+
+
+    POP_TwoRegs(ret, new_id);
+    POP_OneReg(tmp1);
+    POP_OneReg(ebp);
+}
+
+// Deallocate one slot in <g_usbtd_mem_map>, and setting its PID to PID_INVALID
+// Input params on stack: (td_slot:word/uint32) at esp
+// Return params on stack: (ret:word/bool) at esp
+// [NOTE] Needs 370s to verify
+procedure USBTD_slot_deallocate_1slot_Impl() {:timeLimitMultiplier 40}
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        esi; edi;
+        eax; ebx; ecx; edx;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            10 * ARCH_WORD_BYTES +                   // For <_usbtd_find_referencing_secure_slot>
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +
+            FFI_USBTD_IsRefTargetUSBTD_StackParamsWords * ARCH_WORD_BYTES + 
+            2 * ARCH_WORD_BYTES;                     // For the params of <_usbtd_find_referencing_secure_slot>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let td_slot:word := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> usbtd_map_valid_slot_id(td_slot);
+        (ret == TRUE) ==> pids_is_existing_wimp_pid(old(globals), usbtd_map_get_pid(old(globals), td_slot).v);
+            // Property: If return true, then the wimp driver must be in an wimp partition previously
+        (ret == TRUE) ==> eehci_mem_no_ref_to_usbtd_slot(old(globals), td_slot);
+        (ret == TRUE) ==> usbtds_verifiedtds_do_not_associate_usbtd(old(globals), td_slot);
+            // Property: If return true, then no eEHCI or USB TDs refs the USB TD
+        usbtd_slot_deallocate_1slot_globals_relationship(old(globals), globals, td_slot, ret);
+            // Property: The global variables are modified and fulfill this predicate
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{ 
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let td_slot @= edi;
+    let tmp1 @= esi;
+    let tmp2 @= edx;
+    let ret @= eax;
+    PUSH_Reg1ToReg6();
+
+
+    // 1. Check if <td_slot> is valid
+    Load(td_slot, ebp, ARCH_WORD_BYTES);        // Load <td_slot>
+    let in_td_slot := td_slot;
+    usbtd_check_td_slot_id(td_slot, ret);
+    if(ret == const(TRUE))
+    {
+        // 2. Check if the wimp driver's PID is an existing one
+        PUSH(td_slot);
+        usbtd_get_td_pid();      // tmp2 := eehci_info_get_pid(eehci_slot);
+        Load(tmp2, esp, 0);
+        POP_VOID(1 * ARCH_WORD_BYTES);
+
+        PUSH_VOID(1 * ARCH_WORD_BYTES);
+        PUSH(tmp2);
+        pids_is_existing_wimp_pid();
+        Load(ret, esp, 0);
+        POP_VOID(2 * ARCH_WORD_BYTES);
+
+        if(ret == const(TRUE))
+        {
+            // 3. Check if any verified/secure USB TDs refs the <td_slot>
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            PUSH(td_slot);
+            _usbtd_find_referencing_secure_slot();  // ret, _ := _usbtd_find_referencing_secure_slot(td_slot)
+            Load(ret, esp, 0);                     
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            if(ret == const(FALSE))
+            {
+                Lemma_InstSaneState_usbtd_find_referencing_secure_slot_ReturnFalseImplies_usbtds_verifiedtds_do_not_associate_usbtd(globals, td_slot);
+
+                // 4. Check if any active eEHCI refs the <td_slot>
+                PUSH(td_slot);
+                let old_wkm := this.wk_mstate;
+                CALL_EEHCI_FIND_RefToUSBTD();           // tmp1 := CALL_EEHCI_FIND_RefToUSBTD();
+                let new_stack1 := mem;
+                Load(tmp1, esp, 0);                     // tmp1 := eehci_slot_id
+                POP_VOID(1 * ARCH_WORD_BYTES);
+                
+                Load(td_slot, ebp, ARCH_WORD_BYTES);    // Load <td_slot>, due to register overwritten by CALL_EEHCI_FIND_RefToUSBTD
+                if(tmp1 == const(eEHCI_SlotID_EMPTY))
+                {
+                    Lemma_eehci_find_ref_to_usbtd_property(old_wkm, new_stack1);
+                    assert forall (i:uint32) (eehci_valid_slot_id(i))
+                        ==> EECHI_DoNotRefGivenUSBTD(globals, i, td_slot);
+                    assert eehci_mem_no_ref_to_usbtd_slot(globals, td_slot);
+                    let globals1 := globals;
+                    assert globals1 == old(globals);
+
+                    // 5. Modify flags first, so we can prove the flag related SIs
+                    PUSH(const(0));
+                    PUSH(td_slot);
+                    Lemma_TestBit_ReturnFalseIfANumberIs0();
+                    assert TestBit(0, USBTD_SLOT_FLAG_SlotSecure_Bit) == false;
+                    usbtd_set_flags();
+                    POP_VOID(2 * ARCH_WORD_BYTES);
+                    let globals2 := globals;
+                    Lemma_USBTD_PreserveOtherSlots_WhenModifyingOneSlot(globals1, globals2, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, 0);
+                    Lemma_WK_USB_TD_Map_PreserveUSBTDContentsIfModifyOtherFields(globals1, globals2, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, 0);
+
+                    assert global_read_fullval(globals1, G_EEHCI_MEM()) == global_read_fullval(globals2, G_EEHCI_MEM());
+                    assert global_read_fullval(globals1, G_Existing_PIDs()) == global_read_fullval(globals2, G_Existing_PIDs());
+                    Lemma_eehci_mem_no_ref_to_usbtd_slot_Equivilant(globals1, globals2, td_slot);
+
+                    // 6. Modify PID
+                    PUSH(const(PID_INVALID));
+                    PUSH(td_slot);
+                    usbtd_set_td_pid();
+                    POP_VOID(2 * ARCH_WORD_BYTES);
+
+                    Lemma_usbtd_slot_offset_AlwaysValidGUSBTDMapMemAddr(in_td_slot, G_USBTDs_MAP_ENTRY_PID_BytesOffset);
+                    Lemma_WK_USB_TD_Map_PreserveFlagsFieldIfModifyOtherFields(globals2, globals, in_td_slot, G_USBTDs_MAP_ENTRY_PID_BytesOffset, PID_INVALID);
+                    Lemma_USBTD_PreserveOtherSlots_WhenModifyingOneSlot(globals2, globals, in_td_slot, G_USBTDs_MAP_ENTRY_PID_BytesOffset, PID_INVALID);
+                    Lemma_WK_USB_TD_Map_PreserveUSBTDContentsIfModifyOtherFields(globals2, globals, in_td_slot, G_USBTDs_MAP_ENTRY_PID_BytesOffset, PID_INVALID);
+
+                    // 7. Summary
+                    Store(ebp, ARCH_WORD_BYTES, const(TRUE));                       // Return TRUE
+
+                    // Prove <usbtd_slot_deallocate_1slot_globals_relationship>
+                    forall (i:uint32) (usbtd_map_valid_slot_id(i) && i != in_td_slot)
+                        implies p_usbtd_equal(old(globals), globals, i) by
+                    {
+                        assert globals1 == old(globals);
+                        Lemma_p_usbtd_equal_transitive(globals1, globals2, globals, i);
+                    }
+
+                    Lemma_p_usbtd_content_equal_transitive(globals1, globals2, globals, in_td_slot);
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+
+
+
+/*********************** Util Methods ********************/
+// Perform more checks for _usbtd_slot_submit_and_verify_*
+// Input params on stack: (wimpdrv_slot_id:word) at esp + ARCH_WORD_BYTES, (td_slot:word/uint32) at esp
+// Return params on stack: (ret:uint32) at esp
+// [NOTE] Needs 70s to verify
+procedure _usbtd_slot_submit_and_verify_morechecks() {:timeLimitMultiplier 10}
+    reads
+        flags; globals;
+    modifies
+        ebp; esp; mem;
+        esi; edi;
+        eax; ebx; ecx; edx;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            19 * ARCH_WORD_BYTES +                    // For <pids_is_existing_wimp_pid>
+            2 * ARCH_WORD_BYTES;                    // For params of <pids_is_existing_wimp_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let wimpdrv_slot_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> usbtd_map_valid_slot_id(td_slot);
+        (ret == TRUE) ==> wimpdrv_valid_slot_id(wimpdrv_slot_id);
+        (ret == TRUE) ==> pids_parse_g_wimp_pids(old(globals))?[wimpdrv_get_pid(old(globals), wimpdrv_slot_id)];
+        (ret == TRUE) ==> wimpdrv_get_pid(old(globals), wimpdrv_slot_id) == usbtd_map_get_pid(old(globals), td_slot);
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        globals == old(globals);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let wimpdrv_pid @= edi;
+    let td_pid @= esi;
+    let wimpdrv_slot @= ecx;
+    let td_slot @= ebx;
+    let ret @= eax;
+    PUSH_Reg1ToReg6();
+
+    Load(td_slot, ebp, ARCH_WORD_BYTES);                // Load <td_slot>
+    Load(wimpdrv_slot, ebp, 2 * ARCH_WORD_BYTES);       // Load <wimpdrv_slot>
+
+    wimpdrv_check_slotid(wimpdrv_slot, ret);
+    if(ret == const(TRUE))
+    {
+        usbtd_check_td_slot_id(td_slot, ret);
+        if(ret == const(TRUE))
+        {
+            PUSH(wimpdrv_slot);
+            wimpdrv_ops_get_pid_nocheck();
+            Load(wimpdrv_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            // 1. Check wimp driver's PID must be an existing wimp partition's PID
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            PUSH(wimpdrv_pid);
+            pids_is_existing_wimp_pid();
+            Load(ret, esp, 0);
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            if(ret == const(TRUE))
+            {
+                PUSH(td_slot);                                        
+                usbtd_get_td_pid();                                              // td_pid = usbtd_get_td_pid(td_slot)
+                Load(td_pid, esp, 0);
+                POP_VOID(1 * ARCH_WORD_BYTES);
+
+                if(td_pid == wimpdrv_pid)
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+
+
+
+/*********************** Private Methods ********************/
+// Allocate one slot in <g_usbtd_mem_map> by finding one empty slot, and setting its PID to the given <pid> 
+// Input params on stack: (td_type:word/uint32) at esp + ARCH_WORD_BYTES, (pid:word/WS_PartitionID) at esp
+// Return params on stack: (ret:word/bool) at esp, (slot:word/uint32) at esp + ARCH_WORD_BYTES
+// [TODO-Known issue] Dafny-2.3 can successfully verify this function alone, but failed if we put in this file
+// [NOTE] Needs 1000s to verify
+procedure _usbtd_slot_allocate_1slot_private() {:timeLimitMultiplier 110}
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        esi; edi;
+        eax; ebx; ecx; edx;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            6 * ARCH_WORD_BYTES +                    // For local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         // For <CALL_USBTD_Clear_Content>
+            2 * ARCH_WORD_BYTES +                    // For the params of <CALL_USBTD_Clear_Content>
+            6 * ARCH_WORD_BYTES;                     // For saving all registers used by <CALL_USBTD_Clear_Content>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let td_type:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        (td_type == USBTDs_TYPE_QTD32) || (td_type == USBTDs_TYPE_QH32) || 
+        (td_type == USBTDs_TYPE_iTD32) || (td_type == USBTDs_TYPE_siTD32);
+            // Requirement: <td_type> must be one of the four types
+    requires
+        let usbtd_idword:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        
+        forall (i:uint32) (usbtd_map_valid_slot_id(i) &&
+                usbtd_map_get_idword(globals, i) != USBTD_ID_INVALID
+            ==> usbtd_map_get_idword(globals, i) != usbtd_idword);
+            // Requirement: No duplicate USB TD ID after update
+        usbtd_idword <= usbtd_id_counter_read(globals);
+        usbtd_idword != USBTD_ID_INVALID;
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let usbtd_idword:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let td_type:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let pid:word := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+        let slot:uint32 := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> pids_parse_g_wimp_pids(old(globals))?[WS_PartitionID(pid)];
+        (ret == TRUE) ==> usbtd_map_valid_slot_id(slot);
+            // Property 1: The corresponding slot is set to the desired PID and type
+        (ret == TRUE) ==> usbtd_map_get_pid(old(globals), slot) == WS_PartitionID(PID_INVALID);
+            // Property 2:
+        (ret == TRUE) ==> eehci_mem_no_ref_to_usbtd_slot(globals, slot);
+            // Property 3: If return true, then the EEHCIs in the result <globals> does not ref the USBTD slot
+        p_usbtd_slot_allocate_1slot_private_globals_relationship(old(globals), globals, slot, usbtd_idword, td_type, pid, ret);
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let pid @= edi;
+    let ret @= esi;
+    let usbtd_findslot_slot @= eax;
+    let usbtd_findslot_ret @= ebx;
+    let tmp1 @= ecx;
+    PUSH_TwoRegs(pid, ret);
+    PUSH_TwoRegs(usbtd_findslot_slot, usbtd_findslot_ret);
+    PUSH_OneReg(tmp1);
+
+
+    Load(pid, ebp, ARCH_WORD_BYTES);
+    MOV_ToReg(ret, const(TRUE));     
+
+    // 1. Check if <partition_id> is one of pids_parse_g_wimp_pids(old_globals)
+    PUSH_VOID(1 * ARCH_WORD_BYTES);
+    PUSH(pid);
+    pids_is_existing_wimp_pid();
+    Load(ret, esp, 0);
+    POP_VOID(2 * ARCH_WORD_BYTES);
+
+    if(ret == const(TRUE))
+    {
+        // 2. Find an empty USB TD slot, update its PID and flags
+        usbtd_find_empty_slot(usbtd_findslot_slot, usbtd_findslot_ret);
+
+        if(usbtd_findslot_ret == const(TRUE))
+        {
+            assert globals == old(globals);
+            assert usbtd_map_get_pid(globals, usbtd_findslot_slot) == WS_PartitionID(PID_INVALID);
+            Lemma_InstSaneState_IfUSBTDIsInactive_Then_usbtds_verifiedtds_do_not_associate_usbtd(globals, usbtd_findslot_slot);
+
+            Lemma_usbtd_find_empty_slot_FoundSlotMustNotRefedInAnyEEHCI(globals, usbtd_findslot_slot);
+            let globals1 := globals;
+
+            // 3. Modify flags first, so we can prove the flag related SIs
+            PUSH(const(0));
+            PUSH(usbtd_findslot_slot);
+            Lemma_TestBit_ReturnFalseIfANumberIs0();
+            assert TestBit(0, USBTD_SLOT_FLAG_SlotSecure_Bit) == false;
+            usbtd_set_flags();
+            POP_VOID(2 * ARCH_WORD_BYTES);
+            let globals2 := globals;
+            Lemma_USBTD_PreserveOtherSlots_WhenModifyingOneSlot(globals1, globals2, usbtd_findslot_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, 0);
+            Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals1, globals2, usbtd_findslot_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, 0);
+
+            assert global_read_fullval(globals1, G_EEHCI_MEM()) == global_read_fullval(globals2, G_EEHCI_MEM());
+            assert global_read_fullval(globals1, G_Existing_PIDs()) == global_read_fullval(globals2, G_Existing_PIDs());
+            Lemma_eehci_mem_no_ref_to_usbtd_slot_Equivilant(globals1, globals2, usbtd_findslot_slot);
+            assert eehci_mem_no_ref_to_usbtd_slot(globals2, usbtd_findslot_slot);
+
+            // 4. Modify ID word
+            Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);           // tmp1 := usbtd_idword
+            PUSH(tmp1);
+            let idword := tmp1;
+            PUSH(usbtd_findslot_slot);
+            Lemma_usbtd_slot_allocate_1slot_private_ProvePreConditionsOfUSBTDSetID(globals, usbtd_findslot_slot, idword);
+            usbtd_set_id();
+            POP_VOID(2 * ARCH_WORD_BYTES);
+            let globals3 := globals;
+            Lemma_eehci_mem_no_ref_to_usbtd_slot_Equivilant(globals2, globals3, usbtd_findslot_slot);
+            Lemma_WK_USB_TD_Map_PreserveFlagsFieldIfModifyOtherFields(globals2, globals3, usbtd_findslot_slot, G_USBTDs_MAP_ENTRY_ID_BytesOffset, idword);
+            Lemma_USBTD_PreserveOtherSlots_WhenModifyingOneSlot(globals2, globals3, usbtd_findslot_slot, G_USBTDs_MAP_ENTRY_ID_BytesOffset, idword);
+
+            // 5. Modify PID next
+            PUSH(pid);
+            PUSH(usbtd_findslot_slot);
+            usbtd_set_td_pid();
+            POP_VOID(2 * ARCH_WORD_BYTES);
+            let globals4 := globals;
+            Lemma_eehci_mem_no_ref_to_usbtd_slot_Equivilant(globals3, globals4, usbtd_findslot_slot);
+            Lemma_WK_USB_TD_Map_PreserveFlagsFieldIfModifyOtherFields(globals3, globals4, usbtd_findslot_slot, G_USBTDs_MAP_ENTRY_PID_BytesOffset, pid);
+            Lemma_USBTD_PreserveOtherSlots_WhenModifyingOneSlot(globals3, globals4, usbtd_findslot_slot, G_USBTDs_MAP_ENTRY_PID_BytesOffset, pid);
+            Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals3, globals4, usbtd_findslot_slot, G_USBTDs_MAP_ENTRY_PID_BytesOffset, pid);
+
+            // 6. Set TD type
+            Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);        // tmp1 := <td_type>
+            PUSH(tmp1);
+            let td_type := tmp1;
+            PUSH(usbtd_findslot_slot);
+            usbtd_set_td_type();
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            let globals5 := globals;
+            Lemma_eehci_mem_no_ref_to_usbtd_slot_Equivilant(globals4, globals5, usbtd_findslot_slot);
+            Lemma_WK_USB_TD_Map_PreserveFlagsFieldIfModifyOtherFields(globals4, globals5, usbtd_findslot_slot, G_USBTDs_MAP_ENTRY_TYPE_BytesOffset, td_type);
+            Lemma_USBTD_PreserveOtherSlots_WhenModifyingOneSlot(globals4, globals5, usbtd_findslot_slot, G_USBTDs_MAP_ENTRY_TYPE_BytesOffset, td_type);
+            Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals4, globals5, usbtd_findslot_slot, G_USBTDs_MAP_ENTRY_TYPE_BytesOffset, td_type);
+
+            // 6. Clear the USB TD's content
+            PUSH_Reg1ToReg6();
+            PUSH(tmp1);
+            PUSH(usbtd_findslot_slot);
+            CALL_USBTD_Clear_Content();
+            POP_VOID(2 * ARCH_WORD_BYTES);
+            POP_Reg1ToReg6();
+
+            // 7. Return results
+            Store(ebp, ARCH_WORD_BYTES, const(TRUE));                       // Return TRUE
+            Store(ebp, 2 * ARCH_WORD_BYTES, usbtd_findslot_slot);
+
+            forall (i:uint32) (usbtd_map_valid_slot_id(i) && i != usbtd_findslot_slot)
+                implies p_usbtd_equal(old(globals), globals, i) by
+            {
+                assert globals1 == old(globals);
+                Lemma_p_usbtd_equal_transitive(globals1, globals2, globals3, i);
+                Lemma_p_usbtd_equal_transitive(globals1, globals3, globals4, i);
+                Lemma_p_usbtd_equal_transitive(globals1, globals4, globals5, i);
+                Lemma_p_usbtd_equal_transitive(globals1, globals5, globals, i);
+            }
+
+            // Prove property 2
+            Lemma_eehci_mem_no_ref_to_usbtd_slot_Equivilant(globals5, globals, usbtd_findslot_slot);
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+            Store(ebp, 2 * ARCH_WORD_BYTES, const(USBTD_SlotID_INVALID));
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(USBTD_SlotID_INVALID));
+    }
+
+
+    POP_OneReg(tmp1);
+    POP_TwoRegs(usbtd_findslot_slot, usbtd_findslot_ret);
+    POP_TwoRegs(pid, ret);
+    POP_OneReg(ebp);
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Handle USB TD submitted by a wimp driver
+// Input params on stack: (usbpdev_slot:word/uint32) at esp + 9 * ARCH_WORD_BYTES, 
+// (new_input_param3:word/uint32) at esp + 8 * ARCH_WORD_BYTES, 
+// (new_input_param2:word/uint32) at esp + 7 * ARCH_WORD_BYTES, (new_input_param1:word/uint32) at esp + 6 * ARCH_WORD_BYTES, 
+// (td_copy_size:uint32) at esp + 5 * ARCH_WORD_BYTES,
+// (td_paddr:paddr) at esp + 4 * ARCH_WORD_BYTES, (eehci_id:word) at esp + 3 * ARCH_WORD_BYTES,
+// (wimpdrv_id:word) at esp + 2 * ARCH_WORD_BYTES, (wimpdrv_slot_id:word) at esp + ARCH_WORD_BYTES, 
+// (td_slot:word/uint32) at esp
+// Return params on stack: (ret:uint32) at esp
+// [NOTE] Needs 1100s to verify
+procedure _usbtd_slot_submit() {:timeLimitMultiplier 150}
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        esi; edi;
+        eax; ebx; ecx; edx;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         // For <CALL_USBTD_Copy_From_User>
+            FFI_USBTD_CopyFromUser_StackParamsWords * ARCH_WORD_BYTES;      // For the params of <CALL_USBTD_Copy_From_User>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            10 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        usbtd_map_valid_slot_id(td_slot);
+            // Requirement: <td_slot> must be inside the global variable <g_usbtd_map_mem>
+        eehci_mem_no_ref_to_usbtd_slot(globals, td_slot);
+            // Requirement: No eEHCI refs the USB TD at current
+        usbtds_verifiedtds_do_not_associate_usbtd(globals, td_slot);
+            // Requirement: No verified/secure USB TDs references this USB TD
+    requires
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        TestBit(usbtd_map_get_flags(globals, td_slot), USBTD_SLOT_FLAG_SlotSecure_Bit) == false;
+            // Requirement: The USB TD must not have SlotSecure flag set
+    requires
+        let usbpdev_slot:word := stack_get_val(old(mem), old(esp) + 9 * ARCH_WORD_BYTES);
+        usbpdev_slot == WimpUSBPDev_SlotID_EMPTY || usbpdev_valid_slot_id(usbpdev_slot);
+            // Requirement: <usbpdev_slot> must be empty or valid
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+        (ret == TRUE) ==> p_usbtd_slot_submit_usbtd_ret_global(old(globals), globals, td_slot);
+            // Property 1: If return true, partial correctness properties hold for the new global variable output by 
+            // <usbtd_slot_submit_qtd32>
+        (ret != TRUE) ==> globals == old(globals);
+            // Property 2: If return false, then global variables are unchanged
+    ensures
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+        let wimpdrv_slot_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let usbpdev_slot:word := stack_get_val(old(mem), old(esp) + 9 * ARCH_WORD_BYTES);
+        let input_param1:uint32 := stack_get_val(old(mem), old(esp) + 6 * ARCH_WORD_BYTES);
+        let input_param2:uint32 := stack_get_val(old(mem), old(esp) + 7 * ARCH_WORD_BYTES);
+        let input_param3:uint32 := stack_get_val(old(mem), old(esp) + 8 * ARCH_WORD_BYTES);
+        let eehci_id:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> (
+            let td_type:word := usbtd_map_get_type(old(globals), td_slot) in
+            p_usbtd_slot_submit_modification_to_usbtd(globals, td_slot, wimpdrv_slot_id, usbpdev_slot, 
+                input_param1, input_param2, input_param3, td_type, eehci_id)
+        );
+            // Property 3: Values are correctly written
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal ffi_usbtd_copy_from_user_stack_and_globals;
+
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let tmp1 @= edi;
+    let tmp2 @= esi;
+    let td_slot @= ebx;
+    let ret @= eax;
+    PUSH_Reg1ToReg6();
+    let orig_ebp := ebp;
+    let orig_esp := esp;
+    let orig_flags := flags;
+    assert IsAddrInStack(orig_esp - WK_STACK_FOR_EXTERNEL_FUNCS_SZ);
+    
+
+    Load(td_slot, ebp, 1 * ARCH_WORD_BYTES);     // td_slot := <td_slot>
+    let in_td_slot := td_slot;
+    // Step 1. Copy qTD
+    Load(tmp1, ebp, 6 * ARCH_WORD_BYTES);        // tmp1 := <td_copy_size>
+    PUSH(tmp1);
+    Load(tmp1, ebp, 5 * ARCH_WORD_BYTES);        // tmp1 := <td_paddr>
+    PUSH(tmp1);
+    Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);        // tmp1 := <wimpdrv_id>
+    PUSH(tmp1);
+    Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);        // tmp1 := <wimpdrv_slot_id>
+    PUSH(tmp1);
+    let wimpdrv_slot_id := tmp1;
+    PUSH(td_slot);
+    let wk_mstate1 := this.wk_mstate;
+    CALL_USBTD_Copy_From_User();
+    let wk_mstate2 := this.wk_mstate;
+    let regs2 := wk_mstate2.regs;
+    let stack2 := mem;
+    let globals2 := globals;
+    Load(tmp1, esp, 0);                          // tmp1 := <ret>
+    POP_VOID(FFI_USBTD_CopyFromUser_StackParamsWords * ARCH_WORD_BYTES);
+    assert esp == orig_esp;
+
+    if(tmp1 == const(TRUE))
+    {
+        Lemma_ffi_usbtd_copy_from_user_DoNotModifyFlagsAndOtherUSBTDs(wk_mstate1, wk_mstate2, regs2, stack2, globals2);
+        Lemma_usbtds_verifiedtds_do_not_associate_usbtd_HoldIfModifyingUSBTDRemainsInsecure(old(globals), globals2, in_td_slot);
+        assert usbtds_verifiedtds_do_not_associate_usbtd(globals2, in_td_slot);
+
+        assert ffi_preserve_sp_and_bp(wk_mstate1, regs2);
+        Lemma_ffi_usbtd_copy_from_user_DoNotModifyOtherGlobalVariables(wk_mstate1, wk_mstate2, regs2, stack2, globals2);
+        assert global_read_fullval(old(globals), G_EEHCI_MEM()) == global_read_fullval(globals2, G_EEHCI_MEM());
+        Lemma_eehci_mem_no_ref_to_usbtd_slot_Equivilant(old(globals), globals2, in_td_slot);
+        assert eehci_mem_no_ref_to_usbtd_slot(globals2, in_td_slot);
+        assert esp == orig_esp;
+
+        Lemma_ffi_usbtd_copy_from_user_stack_and_globals_Properties(wk_mstate1, stack2, globals2);
+        assert wimpdrv_valid_slot_id(wimpdrv_slot_id);
+
+        Lemma_ffi_usbtd_copy_from_user_copied_some_new_usbtd_PreserveOtherUSBTDs(old(globals), globals2, in_td_slot);
+        Lemma_ffi_usbtd_copy_from_user_copied_some_new_usbtd_PreserveOtherFieldsInUSBTDMem(old(globals), globals2, in_td_slot);
+        
+        // Load td_slot again, due to registers overwritten by CALL_USBTD_Copy_From_User
+        Load(td_slot, ebp, 1 * ARCH_WORD_BYTES);     
+
+        // Step 2. Get bus_id
+        Load(tmp1, ebp, 4 * ARCH_WORD_BYTES);        // tmp1 := <eehci_id>
+        PUSH(tmp1);
+        eechi_id_get_bus_id();
+        Load(tmp2, esp, 0);                          // tmp1 := bus_id
+        POP_VOID(1 * ARCH_WORD_BYTES);
+        assert esp == orig_esp;
+        assert usbtds_verifiedtds_do_not_associate_usbtd(globals, in_td_slot);
+
+        // Step 3. Set other fields
+        PUSH(tmp2);
+        Load(tmp1, ebp, 9 * ARCH_WORD_BYTES);        // tmp1 := <new_input_param3>
+        PUSH(tmp1);
+        Load(tmp1, ebp, 8 * ARCH_WORD_BYTES);         // tmp1 := <new_input_param2>
+        PUSH(tmp1);
+        Load(tmp1, ebp, 7 * ARCH_WORD_BYTES);         // tmp1 := <new_input_param1>
+        PUSH(tmp1);
+        Load(tmp1, ebp, 10 * ARCH_WORD_BYTES);        // tmp1 := <usbpdev_slot>
+        PUSH(tmp1);
+        Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);         // tmp1 := <wimpdrv_slot_id>
+        PUSH(tmp1);
+        assert tmp1 == wimpdrv_slot_id;
+        PUSH(td_slot);
+        _usbtd_slot_submit_partial_otherfields();
+        POP_VOID(7 * ARCH_WORD_BYTES);
+        assert esp == orig_esp;
+
+        let globals3 := globals;
+        assert p_usbtd_slot_submit_usbtd_ret_global(globals2, globals3, in_td_slot);
+
+        Lemma__usbtd_slot_submit_ProveProperty1(old(globals), globals2, globals3, in_td_slot);
+
+        // Return
+        Store(ebp, ARCH_WORD_BYTES, const(TRUE));                       // Return TRUE
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+    }
+    
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+
+
+
+/*********************** Private Lemmas And Predicates ********************/
+#verbatim
+predicate usbtd_slot_allocate_1slot_globals_relationship(
+    old_globals:globalsmap, new_globals:globalsmap, new_td_slot:word, new_idword:word, new_td_type:word, new_pid:word, ret:word
+)
+    requires WK_ValidGlobalVars_Decls(old_globals)
+    requires WK_ValidGlobalVars_Decls(new_globals)
+    requires ret == TRUE ==> usbtd_map_valid_slot_id(new_td_slot)
+    requires (new_td_type == USBTDs_TYPE_QTD32) || (new_td_type == USBTDs_TYPE_QH32) || 
+        (new_td_type == USBTDs_TYPE_iTD32) || (new_td_type == USBTDs_TYPE_siTD32)
+{
+    ((ret == TRUE) ==> (
+            // Only one USB TD, and G_USBTD_ID_Counter is changed
+        (forall i:uint32 :: usbtd_map_valid_slot_id(i) && i != new_td_slot
+            ==> p_usbtd_equal(old_globals, new_globals, i)
+        ) &&
+        globals_other_gvar_unchanged_2vars(old_globals, new_globals, G_USBTD_MAP_MEM(), G_USBTD_ID_Counter()) &&
+            // The USB TD is changed as expected
+        usbtd_has_clear_content(new_globals, new_td_slot, new_td_type) &&
+        usbtd_map_get_pid(new_globals, new_td_slot) == WS_PartitionID(new_pid) &&
+        usbtd_map_get_type(new_globals, new_td_slot) == new_td_type &&
+        usbtd_map_get_flags(new_globals, new_td_slot) == 0 &&
+        usbtd_map_get_idword(new_globals, new_td_slot) == new_idword
+    )) &&
+    ((ret != TRUE) ==> globals_other_gvar_unchanged(old_globals, new_globals, G_USBTD_ID_Counter()))
+}
+
+predicate usbtd_slot_deallocate_1slot_globals_relationship(old_globals:globalsmap, new_globals:globalsmap, td_slot:word, ret:word)
+    requires WK_ValidGlobalVars_Decls(old_globals)
+    requires WK_ValidGlobalVars_Decls(new_globals)
+    requires ret == TRUE ==> usbtd_map_valid_slot_id(td_slot)
+{
+    ((ret == TRUE) ==> (
+            // Only one USB TD is changed
+        usbtd_map_modify_one_usbtd_only(old_globals, new_globals, td_slot) &&
+            // The USB TD is changed as expected
+        p_usbtd_content_equal(old_globals, new_globals, td_slot) &&
+        usbtd_map_get_pid(new_globals, td_slot) == WS_PartitionID(PID_INVALID) &&
+        usbtd_map_get_flags(new_globals, td_slot) == 0
+    )) &&
+    ((ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old_globals, new_globals))
+}
+
+predicate p_usbtd_slot_allocate_1slot_private_globals_relationship(
+    old_globals:globalsmap, new_globals:globalsmap, new_td_slot:word, new_usbtd_idword:word, new_td_type:word, new_pid:word, ret:word
+)
+    requires WK_ValidGlobalVars_Decls(old_globals)
+    requires WK_ValidGlobalVars_Decls(new_globals)
+    requires ret == TRUE ==> usbtd_map_valid_slot_id(new_td_slot)
+    requires (new_td_type == USBTDs_TYPE_QTD32) || (new_td_type == USBTDs_TYPE_QH32) || 
+        (new_td_type == USBTDs_TYPE_iTD32) || (new_td_type == USBTDs_TYPE_siTD32)
+{
+    ((ret == TRUE) ==> (
+            // Only one USB TD is changed
+        usbtd_map_modify_one_usbtd_only(old_globals, new_globals, new_td_slot) &&
+            // The USB TD is changed as expected
+        usbtd_has_clear_content(new_globals, new_td_slot, new_td_type) &&
+        usbtd_map_get_pid(new_globals, new_td_slot) == WS_PartitionID(new_pid) &&
+        usbtd_map_get_idword(new_globals, new_td_slot) == new_usbtd_idword &&
+        usbtd_map_get_type(new_globals, new_td_slot) == new_td_type &&
+        usbtd_map_get_flags(new_globals, new_td_slot) == 0
+    )) &&
+    ((ret != TRUE) ==> new_globals == old_globals)
+}
+
+lemma Lemma_usbtd_slot_allocate_1slot_ProveProperty2(
+    old_globals:globalsmap, globals1:globalsmap, globals2:globalsmap, 
+    td_slot:word, new_id:word, new_td_type:word, new_pid:word
+)
+    requires WK_ValidGlobalVars_Decls(old_globals)
+    requires WK_ValidGlobalVars_Decls(globals1)
+    requires WK_ValidGlobalVars_Decls(globals2)
+
+    requires usbtd_map_valid_slot_id(td_slot)
+    requires (new_td_type == USBTDs_TYPE_QTD32) || (new_td_type == USBTDs_TYPE_QH32) || 
+        (new_td_type == USBTDs_TYPE_iTD32) || (new_td_type == USBTDs_TYPE_siTD32)
+
+    requires globals_other_gvar_unchanged(old_globals, globals1, G_USBTD_ID_Counter())
+    requires p_usbtd_slot_allocate_1slot_private_globals_relationship(globals1, globals2, td_slot, new_id, new_td_type, new_pid, TRUE)
+
+    ensures usbtd_slot_allocate_1slot_globals_relationship(old_globals, globals2, td_slot, new_id, new_td_type, new_pid, TRUE)
+{
+    reveal p_usbtd_equal();
+    reveal p_usbtd_content_equal();
+
+    reveal ffi_usbtd_clear_content_stack_and_globals_qtd32();
+    reveal ffi_usbtd_clear_content_stack_and_globals_qh32();
+
+    forall i:uint32 | usbtd_map_valid_slot_id(i) && i != td_slot
+        ensures p_usbtd_equal(old_globals, globals2, i)
+    {
+        assert p_usbtd_equal(old_globals, globals1, i);
+
+        Lemma_p_usbtd_equal_transitive(old_globals, globals1, globals2, i);
+        //Lemma_p_usbtd_equal_transitive(old_globals, globals2, new_globals, i);
+    } 
+}
+
+// Prove the property 1 of <_usbtd_slot_submit>
+lemma Lemma__usbtd_slot_submit_ProveProperty1(old_globals:globalsmap, globals2:globalsmap, new_globals:globalsmap, slot:uint32)
+    requires WK_ValidGlobalVars_Decls(old_globals)
+    requires WK_ValidGlobalVars_Decls(globals2)
+    requires WK_ValidGlobalVars_Decls(new_globals)
+
+    requires usbtd_map_valid_slot_id(slot)
+
+    requires forall i :: 0 <= i < USB_TD_ENTRY_NUM ==> usbtd_map_get_idword(old_globals, i) == usbtd_map_get_idword(globals2, i)
+    requires forall i :: 0 <= i < USB_TD_ENTRY_NUM ==> usbtd_map_get_pid(old_globals, i) == usbtd_map_get_pid(globals2, i)
+    requires forall i:uint32 :: usbtd_map_valid_slot_id(i) && i != slot
+        ==> p_usbtd_equal(old_globals, globals2, i)
+
+    requires globals_other_gvar_unchanged(old_globals, globals2, G_USBTD_MAP_MEM())
+
+    requires p_usbtd_slot_submit_usbtd_ret_global(globals2, new_globals, slot)
+
+    ensures p_usbtd_slot_submit_usbtd_ret_global(old_globals, new_globals, slot)
+{
+    forall i:uint32 | usbtd_map_valid_slot_id(i) && i != slot
+        ensures p_usbtd_equal(old_globals, new_globals, i)
+    {
+        Lemma_p_usbtd_equal_transitive(old_globals, globals2, new_globals, i);
+    }
+}
+
+// Lemma: In a sane state, if a USB TD is inactive, then no verified/secure USB TD refs the USB TD
+lemma Lemma_InstSaneState_IfUSBTDIsInactive_Then_usbtds_verifiedtds_do_not_associate_usbtd(globals:globalsmap, td_slot:uint32)
+    requires WK_ValidGlobalVars_Decls(globals)
+    requires WK_ValidGlobalVars_Vals(globals)
+    requires WK_USBTD_Map_SecureGlobalVarValues(globals)
+    requires WK_EEHCI_Mem_SecureGlobalVarValues(globals)
+
+    requires usbtd_map_valid_slot_id(td_slot)
+    requires usbtd_map_get_pid(globals, td_slot) == WS_PartitionID(PID_INVALID)
+
+    ensures usbtds_verifiedtds_do_not_associate_usbtd(globals, td_slot)
+{
+    reveal p__usbtd_verify_qtd32_step1_OnSuccessCheck();
+    reveal p__usbtd_verify_qtd32_step2_OnSuccessCheck();
+    reveal p__usbtd_verify_qtd32_step3_OnSuccessCheck();
+
+    reveal p__usbtd_verify_qh32_step1_OnSuccessCheck();
+    reveal p__usbtd_verify_qh32_step2_OnSuccessCheck();
+    reveal p__usbtd_verify_qh32_step3_OnSuccessCheck();
+    reveal p__usbtd_verify_qh32_step4_OnSuccessCheck();
+
+    reveal usbtds_verifiedtds_do_not_associate_usbtd_qtd32();
+    reveal usbtds_verifiedtds_do_not_associate_usbtd_qh32();
+}
+
+// Lemma: In a sane state, if <usbtd_find_referencing_secure_slot> returns false, then <usbtds_verifiedtds_do_not_associate_usbtd> is true
+lemma Lemma_InstSaneState_usbtd_find_referencing_secure_slot_ReturnFalseImplies_usbtds_verifiedtds_do_not_associate_usbtd(
+    globals:globalsmap, target_td_slot:uint32
+)
+    requires WK_ValidGlobalVars_Decls(globals)
+    requires WK_ValidGlobalVars_Vals(globals)
+    requires WK_USBTD_Map_SecureGlobalVarValues(globals)
+    requires WK_EEHCI_Mem_SecureGlobalVarValues(globals)
+
+    requires forall i:uint32 :: usbtd_map_valid_slot_id(i)
+            ==> !(usbtd_is_slot_ref_target_slot(globals, i, target_td_slot) &&
+                TestBit(usbtd_map_get_flags(globals, i), USBTD_SLOT_FLAG_SlotSecure_Bit))
+
+    requires usbtd_map_valid_slot_id(target_td_slot)
+    ensures usbtds_verifiedtds_do_not_associate_usbtd(globals, target_td_slot)
+{
+    reveal p__usbtd_verify_qtd32_step1_OnSuccessCheck();
+    reveal p__usbtd_verify_qtd32_step2_OnSuccessCheck();
+    reveal p__usbtd_verify_qtd32_step3_OnSuccessCheck();
+
+    reveal p__usbtd_verify_qh32_step1_OnSuccessCheck();
+    reveal p__usbtd_verify_qh32_step2_OnSuccessCheck();
+    reveal p__usbtd_verify_qh32_step3_OnSuccessCheck();
+    reveal p__usbtd_verify_qh32_step4_OnSuccessCheck();
+
+    reveal usbtds_verifiedtds_do_not_associate_usbtd_qtd32();
+    reveal usbtds_verifiedtds_do_not_associate_usbtd_qh32();
+}
+
+// Lemma: If <global_non_scratchpad_vars_are_unchanged>, then the new global variables always satisfy 
+// usbtds_verifiedtds_do_not_associate_usbtd
+lemma Lemma_usbtds_verifiedtds_do_not_associate_usbtd_HoldIfNonScratchpadGVarsAreUnmodified(globals1:globalsmap, globals2:globalsmap, slot:uint32)
+    requires WK_ValidGlobalVars_Decls(globals1)
+    requires WK_ValidGlobalVars_Decls(globals2)
+
+    requires usbtd_map_valid_slot_id(slot)
+    requires global_non_scratchpad_vars_are_unchanged(globals1, globals2)
+
+    requires usbtds_verifiedtds_do_not_associate_usbtd(globals1, slot)
+
+    ensures usbtds_verifiedtds_do_not_associate_usbtd(globals2, slot)
+{
+    reveal p_usbtd_equal();
+    reveal p_usbtd_content_equal();
+    reveal usbtds_verifiedtds_do_not_associate_usbtd_qtd32();
+    reveal usbtds_verifiedtds_do_not_associate_usbtd_qh32();
+    reveal global_non_scratchpad_vars_are_unchanged();
+}
+
+lemma Lemma_usbtd_slot_allocate_1slot_private_ProvePreConditionsOfUSBTDSetID(globals:globalsmap, slot:word, usbtd_idword:word)
+    requires WK_ValidGlobalVars_Decls(globals)
+
+    requires forall i:uint32 :: usbtd_map_valid_slot_id(i) &&
+                usbtd_map_get_idword(globals, i) != USBTD_ID_INVALID
+            ==> usbtd_map_get_idword(globals, i) != usbtd_idword
+
+    ensures forall i:uint32 :: usbtd_map_valid_slot_id(i) && i != slot &&
+                usbtd_map_get_idword(globals, i) != USBTD_ID_INVALID
+            ==> usbtd_map_get_idword(globals, i) != usbtd_idword
+{
+    // Dafny can automatically prove this lemma
+}
+#endverbatim

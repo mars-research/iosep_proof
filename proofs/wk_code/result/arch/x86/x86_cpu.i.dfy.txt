@@ -1,0 +1,17 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing arch/x86/x86_cpu.i.dfy
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0738035 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.Lemma__EachRegsIsSameThenRegsAreSame ...
+  [0.692 s, 16 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__EachRegsIsSameThenRegsAreSame ...
+  [0.239 s, 3 proof obligations]  verified
+
+Dafny program verifier finished with 2 verified, 0 errors

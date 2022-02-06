@@ -1,0 +1,68 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/ffi/ehci.ffi.s.dfy
+dev\usb2\ffi\..\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\ffi\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.1007302 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.ffi__eehci__activate ...
+  [5.809 s, 166 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__eehci__deactivate ...
+  [2.625 s, 162 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__eehci__deactivate ...
+  [1.924 s, 22 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__eehci__find__ref__to__usbtd ...
+  [2.682 s, 101 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__pEHCI__ActivateInOS ...
+  [2.293 s, 8 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__pEHCI__ActivateInOS ...
+  [2.430 s, 173 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__eehci__activate__stack__and__globals ...
+  [4.607 s, 63 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__eehci__activate__stack__and__globals2 ...
+  [3.837 s, 101 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__eehci__activate__globals__relationship ...
+  [4.874 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__eehci__deactivate__stack__and__globals ...
+  [6.228 s, 111 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__eehci__deactivate__globals__relationship ...
+  [2.038 s, 21 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p__ffi__eehci__find__ref__to__usbtd__retval ...
+  [2.871 s, 63 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__pehci__activate__in__os__stack__and__statevars ...
+  [2.888 s, 110 proof obligations]  verified
+
+Dafny program verifier finished with 13 verified, 0 errors

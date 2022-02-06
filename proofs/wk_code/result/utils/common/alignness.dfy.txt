@@ -1,0 +1,14 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing utils/common/alignness.dfy
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0488698 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.Lemma__NTimesPage4KSZIsPageAligned ...
+  [0.397 s, 1 proof obligation]  verified
+
+Dafny program verifier finished with 1 verified, 0 errors

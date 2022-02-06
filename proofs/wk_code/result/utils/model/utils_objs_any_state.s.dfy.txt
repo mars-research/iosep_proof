@@ -1,0 +1,87 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing utils/model/utils_objs_any_state.s.dfy
+utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+utils\model\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0648267 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.WimpDrv__DO__GetValueRangeOfDO ...
+  [1.616 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__IsObjID ...
+  [0.845 s, 5 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__AllTDIDs ...
+  [0.820 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__AllFDIDs ...
+  [0.771 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__AllDOIDs ...
+  [0.673 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__AllObjIDs ...
+  [0.949 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ObjPID__OSObj ...
+  [0.776 s, 5 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__WriteFDsVals ...
+  [0.771 s, 17 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__WriteDOsVals ...
+  [0.911 s, 17 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__IsDOClearVal ...
+  [0.807 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__IsFDClearVal ...
+  [0.810 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__SetOSTDsPIDs ...
+  [0.748 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__SetOSFDsPIDs ...
+  [0.729 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__SetOSDOsPIDs ...
+  [0.740 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__ClearOSTDs ...
+  [0.776 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__ClearOSFDs ...
+  [0.633 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__ClearOSDOs ...
+  [0.743 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__WriteOSTDsVals ...
+  [0.701 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__WriteOSFDsVals ...
+  [0.707 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WSM__WriteOSDOsVals ...
+  [0.780 s, 13 proof obligations]  verified
+
+Dafny program verifier finished with 20 verified, 0 errors

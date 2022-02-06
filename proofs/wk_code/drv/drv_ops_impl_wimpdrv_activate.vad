@@ -1,0 +1,173 @@
+include "drv_ops_impl.vad"
+
+// [NOTE] This operation can be verified if it is put in a standalone file.
+
+// Fill the info of given wimp driver and activate the wimp driver 
+// Input params on stack: (new_do_pend:paddr) at esp + 3 * ARCH_WORD_BYTES, 
+// (new_do_pbase:word/uint32) at esp + 2 * ARCH_WORD_BYTES, (new_pid:word/uint32) at esp + 1 * ARCH_WORD_BYTES, 
+// (drv_id:word) at esp
+// Return params on stack: (ret:word) at esp, (drv_slot:word) at esp + ARCH_WORD_BYTES
+// [NOTE] Needs 260s to verify
+procedure WimpDrv_Activate_Impl() {:timeLimitMultiplier 40}
+    reads
+        flags;
+    modifies
+        mem; globals; objects;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            11 * ARCH_WORD_BYTES +                   // For <_wimpdrv_activate_private>
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +
+            4 * ARCH_WORD_BYTES;                     // For params of <_wimpdrv_activate_private>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 4 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Stack space for function parameters
+    requires
+        let drv_id:word := stack_get_val(old(mem), old(esp));
+        drv_id != WimpDrv_ID_RESERVED_EMPTY;
+        this.subjects.wimp_drvs?[WimpDrv_IDWord_ToDrvID(this.subjects, this.objects, this.id_mappings, drv_id)];
+            // Requirement: <drv_id> must exist in <wimp_drvs>
+    requires
+        let new_wimpdrv_idword:word := stack_get_val(old(mem), old(esp));
+        let new_do_pbase:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_do_pend:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let drv_id:Drv_ID := WimpDrv_IDWord_ToDrvID(this.subjects, this.objects, this.id_mappings, new_wimpdrv_idword);
+
+        WK_ValidPMemRegion(new_do_pbase, new_do_pend);
+            // Requirement: new_do_pbase must <= new_do_pend
+        wimpdrv_registration_info_must_exist(this.subjects, this.objects, this.id_mappings, this.objs_addrs, new_wimpdrv_idword, new_do_pbase, new_do_pend);
+            // Requirement: When registering a wimp driver, The given information must match the information in <subjs>,  
+            // <objs>, <id_mappings>, and <objs_addrs>, as they store all wimp drivers that will be activated in the system
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let drv_id:word := stack_get_val(old(mem), old(esp));
+        let new_pid:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_do_pbase:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_do_pend:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+        let drv_slot:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> pids_is_existing_wimp_pid(old(globals), new_pid);
+        (ret == TRUE) ==> wimpdrv_valid_slot_id(drv_slot);
+        (ret == TRUE) ==> (
+                forall (i:word) (wimpdrv_valid_slot_id(i)
+                        ==> wimpdrv_get_id_word(old(globals), i) != drv_id)
+            );
+            // Property: If return true, then the <drv_id> does not appear in the <g_wimpdrvs_info>
+        (ret == TRUE) ==> wimpdrv_get_id_word(old(globals), drv_slot) == WimpDrv_ID_RESERVED_EMPTY;
+        (ret == TRUE) ==> wimpdrv_info_newvalue(old(globals), globals, drv_slot, drv_id, new_pid, new_do_pbase, new_do_pend, WimpDrv_Slot_UpdateFlag_Complete);
+            // Property: If return true, then new values are filled into wimp driver's info correctly
+        (ret == TRUE) ==> wimpdrv_DO_clear_non_mstate_relationship(old(this), this, drv_id);
+            // Property: If return true, then state variables other than <wk_mstate> relates to prior ones correctly
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+        (ret != TRUE) ==> state_equal_except_mstate(old(this), this);
+            // Property: If return false, then non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let drv_slot @= ebx;
+    let ret @= eax;
+    let tmp1 @= edi;
+    PUSH_Reg1ToReg6();
+
+    // 1. Check "<new_pid> must be an existing wimp partition's PID"
+    PUSH_VOID(1 * ARCH_WORD_BYTES);
+    Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);   // Load <new_pid>
+    PUSH(tmp1);
+    pids_is_existing_wimp_pid();
+    Load(ret, esp, 0);
+    POP_VOID(2 * ARCH_WORD_BYTES);
+
+    if(ret == const(TRUE))
+    {
+        // 2. Check new_do_pbase and new_do_pend
+        Load(tmp1, ebp, 4 * ARCH_WORD_BYTES);   // Load <new_do_pend>
+        PUSH(tmp1);
+        Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);   // Load <new_do_pbase>
+        PUSH(tmp1);
+        CALL_WimpDrv_CheckDOPAddrRange();
+        Load(ret, esp, 0);
+        POP_VOID(2 * ARCH_WORD_BYTES);
+
+        if(ret == const(TRUE))
+        {
+            reveal p_ffi_wimpdrv_DO_check_paddr_range_retval;
+
+            // 3. Assign physical memory region [new_do_pbase, new_do_pend) to wimp partitions
+            Load(tmp1, ebp, 4 * ARCH_WORD_BYTES);   // Load <new_do_pend>
+            PUSH(tmp1);
+            Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);   // Load <new_do_pbase>
+            PUSH(tmp1);
+            CALL_PMem_AssignToWimps();
+            Load(ret, esp, 0);
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            if(ret == const(TRUE))
+            {
+                // 4. Call <_wimpdrv_activate_private>
+                Load(tmp1, ebp, 4 * ARCH_WORD_BYTES);       // Load <new_do_pend>
+                PUSH(tmp1);
+                Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);       // Load <new_do_pbase>
+                PUSH(tmp1);
+                Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);       // Load <new_pid>
+                PUSH(tmp1);
+                Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);       // Load <drv_id>
+                PUSH(tmp1);
+                _wimpdrv_activate_private();
+                Load(ret, esp, 0);
+                Load(drv_slot, esp, ARCH_WORD_BYTES);
+                POP_VOID(4 * ARCH_WORD_BYTES);
+
+                // Summary
+                Store(ebp, ARCH_WORD_BYTES, ret);                     
+                Store(ebp, 2 * ARCH_WORD_BYTES, drv_slot);  
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                     // Return FALSE
+                Store(ebp, 2 * ARCH_WORD_BYTES, const(WimpDrv_SlotID_EMPTY));  // Return WimpDrv_SlotID_EMPTY
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                     // Return FALSE
+            Store(ebp, 2 * ARCH_WORD_BYTES, const(WimpDrv_SlotID_EMPTY));  // Return WimpDrv_SlotID_EMPTY
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                     // Return FALSE
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(WimpDrv_SlotID_EMPTY));  // Return WimpDrv_SlotID_EMPTY
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}

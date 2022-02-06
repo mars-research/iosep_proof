@@ -1,0 +1,144 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/usb_tds_ops/usb_tds_ops.gen.dfy
+dev\usb2\usb_tds_ops\..\..\..\proof\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\../Abstract/Model.dfy(2123,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\../Abstract/Model.dfy(2184,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1677,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1685,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2493,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2501,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3159,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3151,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3274,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3282,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2162,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2267,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2303,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2375,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\./BuildCAS/ReachableTDsStates.dfy(2147,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2138,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2146,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2547,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2555,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2652,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2644,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(239,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(333,24): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(950,20): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.4458081 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.va__code__USBTD__slot__allocate__1slot ...
+  [11.962 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__USBTD__slot__allocate__1slot ...
+  [11.100 s, 991 proof obligations]  verified
+Linearising   [0.7370297 s]
+
+Verifying Impl$$_module.__default.va__lemma__USBTD__slot__allocate__1slot ...
+  [13.808 s, 2507 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__USBTD__slot__deallocate__1slot ...
+  [6.971 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__USBTD__slot__deallocate__1slot ...
+  [9.797 s, 769 proof obligations]  verified
+Linearising   [0.7669485 s]
+
+Verifying Impl$$_module.__default.va__lemma__USBTD__slot__deallocate__1slot ...
+  [13.105 s, 2341 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__USBTD__slot__submit__and__verify__qtd32 ...
+  [7.290 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__USBTD__slot__submit__and__verify__qtd32 ...
+  [10.529 s, 1626 proof obligations]  verified
+Linearising   [0.9045806 s]
+
+Verifying Impl$$_module.__default.va__lemma__USBTD__slot__submit__and__verify__qtd32 ...
+  [16.318 s, 2874 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__USBTD__slot__submit__and__verify__qh32 ...
+  [8.978 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__USBTD__slot__submit__and__verify__qh32 ...
+  [11.001 s, 1703 proof obligations]  verified
+Linearising   [0.8916155 s]
+
+Verifying Impl$$_module.__default.va__lemma__USBTD__slot__submit__and__verify__qh32 ...
+  [16.737 s, 2967 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__OpsSaneStateSubset__Validity__LimitationOfUSBTDsVerification__OnUSBTDAllocation ...
+  [7.268 s, 6 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__OpsSaneStateSubset__Validity__LimitationOfUSBTDsVerification__OnUSBTDAllocation ...
+  [10.911 s, 36 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__OpsSaneStateSubset__Validity__USBTDsInRecordIsEitherEmptyOrSecure__OnUSBTDAllocation ...
+  [7.066 s, 50 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__OpsSaneStateSubset__Validity__USBTDsInRecordIsEitherEmptyOrSecure__OnUSBTDAllocation ...
+  [11.158 s, 226 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__USBTD__Allocate1Slot__ProveCommutativeDiagram__ProvePreCondition ...
+  [7.479 s, 5 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtd__slot__allocate__1slot__globals__relationship__False__Properties ...
+  [9.087 s, 5 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtd__slot__allocate__1slot__globals__relationship__False__Properties ...
+  [8.208 s, 9 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__OpsSaneStateSubset__Validity__LimitationOfUSBTDsVerification__OnUSBTDDeallocation ...
+  [7.180 s, 5 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__OpsSaneStateSubset__Validity__LimitationOfUSBTDsVerification__OnUSBTDDeallocation ...
+  [9.744 s, 206 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__OpsSaneStateSubset__Validity__USBTDsInRecordIsEitherEmptyOrSecure__OnUSBTDDeallocation ...
+  [7.326 s, 49 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__OpsSaneStateSubset__Validity__USBTDsInRecordIsEitherEmptyOrSecure__OnUSBTDDeallocation ...
+  [13.049 s, 230 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__USBTD__Deallocate1Slot__ProveCommutativeDiagram__ProvePreCondition ...
+  [7.425 s, 7 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__USBTD__Deallocate1Slot__ProveCommutativeDiagram__ProvePreCondition ...
+  [7.356 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__OpsSaneStateSubset__Validity__LimitationOfUSBTDsVerification__OnUSBTDModification ...
+  [7.191 s, 10 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__OpsSaneStateSubset__Validity__LimitationOfUSBTDsVerification__OnUSBTDModification ...
+  [10.449 s, 198 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__OpsSaneStateSubset__Validity__USBTDsInRecordIsEitherEmptyOrSecure__OnUSBTDModification ...
+  [9.113 s, 54 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__OpsSaneStateSubset__Validity__USBTDsInRecordIsEitherEmptyOrSecure__OnUSBTDModification ...
+  [11.681 s, 227 proof obligations]  verified
+
+Dafny program verifier finished with 29 verified, 0 errors

@@ -1,0 +1,20 @@
+Run verification
+==================================
+Dafny 2.3 (650a6bbe): https://github.com/dafny-lang/dafny
+Vale-v0.3.10: https://github.com/project-everest/vale/releases/tag/v0.3.10
+
+Machine: i9-9900K + 128GB memory
+Command: make verify -j16
+
+
+Line count
+==================================
+Result: 8306
+Command: find . -name '*.dfy' | xargs wc -l
+
+
+Known issues
+==================================
+1. Dafny can verify the following functions alone, but report errors if they are defined with other functions. 
+Future Dafny releases may solve the issue.
+    - <Lemma_ConcatTwoTraceEndUpAtSameStateAsCalcTwoTraceIndividually_Private> in Utils.dafny21.dfy

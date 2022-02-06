@@ -1,0 +1,37 @@
+include {:verbatim} "test3.dfy"
+include {:verbatim} "../drv/drv_ops_utils.i.dfy"
+include {:verbatim} "../dev/usb2/usb_tds.i.dfy"
+include {:verbatim} "../dev/usb2/usb_pdev_utils.i.dfy"
+include {:verbatim} "../ins/util/ffi.i.dfy"
+include "../drv/drv_ops_utils.vad"
+include "../dev/usb2/eehci_ops.vad"
+include "../dev/usb2/usb_tds_utils.vad"
+
+//include "../ins/x86/ins_wrapper.vad"
+
+include "../partition_id_ops.vad"
+include "../dev/usb2/usb_tds_ops/usb_tds_qhs_ops_impl.vad"
+include "../dev/usb2/usb_tds_ops/usb_tds_ops_impl.vad"
+include "../dev/usb2/usb_tds_ops/usb_tds_qtds_ops_impl.vad"
+include "../dev/usb2/usb_pdev_utils.vad"
+include "../dev/usb2/usb_pdev_ops.vad"
+include "../dev/usb2/eehci_mem_utils.vad"
+include "../wk_partition_ops.vad"
+include "../drv/drv_ops_impl.vad"
+
+include "../os/os_ops_impl.vad"
+include "../drv/drv_ops_impl_wimpdrv_activate.vad"
+include "../os/os_ops.vad"
+
+
+
+
+
+
+
+
+
+
+
+
+

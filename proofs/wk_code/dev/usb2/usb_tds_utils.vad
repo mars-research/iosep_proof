@@ -1,0 +1,2576 @@
+include "../../ins/x86/ins_wrapper.vad"
+include {:verbatim} "usb_def.dfy"
+include {:verbatim} "usb_tds_utils.i.dfy"
+include {:verbatim} "usb_tds_validstate.i.dfy"
+include {:verbatim} "../../drv/public/wimpdrv_lemmas.i.dfy"
+
+// Get the start vaddr of USBTD entry in the global variable <g_usbtd_map_mem>
+procedure usbtd_get_td_vaddr(
+    in slot:reg
+) // Return on stack: (vaddr:vaddr) at esp
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        edx; edi; eax;                                  // Local variables
+        esi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        @slot == Reg1;
+    requires
+        let stack_req_space := 
+            3 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let vaddr := stack_get_val(mem, old(esp));
+
+        vaddr == AddressOfGlobal(G_USBTD_MAP_MEM()) + slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_TD_BytesOffset;
+            // Property 1: Return the start address of the USB TD's contents 
+    ensures
+        slot == old(slot); // Input parameters are unchanged
+        edx == old(edx); edi == old(edi); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        esi == old(esi);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+
+    PUSH_TwoRegs(base, tmp);
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    MOV_ToReg(tmp, slot);
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ADD(tmp, const(G_USBTDs_MAP_ENTRY_TD_BytesOffset));
+
+    Lemma_usbtd_get_td_vaddr_result_is_gvar_valid_addr(base, slot, tmp);
+    ADD(base, tmp);
+
+    Store(ebp, ARCH_WORD_BYTES, base);                              // [NOTE] ebp == old_esp - ARCH_WORD_BYTES;
+
+
+    POP_TwoRegs(base, tmp);
+
+    POP_OneReg(ebp);
+}
+
+// Get the <id> of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (slot:word/uint32) at esp
+// Return params on stack: (id:word) at esp
+procedure usbtd_get_id()
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        edx; edi; eax;                                  // Local variables
+        esi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let slot:word := stack_get_val(mem, esp);
+
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let ret_v := stack_get_val(mem, old(esp));
+        let addr := AddressOfGlobal(G_USBTD_MAP_MEM()) + slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_ID_BytesOffset;
+        is_gvar_valid_addr(G_USBTD_MAP_MEM(), addr);
+        ret_v == global_read_word(old(globals), G_USBTD_MAP_MEM(), addr);
+            // Property 1: Return the correct bus id of the given USB TD at slot <slot>
+    ensures
+        edx == old(edx); edi == old(edi); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        esi == old(esi);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let ret @= esi;
+
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(ret);
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    // Calc the byte offset for the type field
+    Load(tmp, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp;
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ADD(tmp, const(G_USBTDs_MAP_ENTRY_ID_BytesOffset));
+    Lemma_usbtd_slot_offset_AlwaysValidGUSBTDMapMemAddr(slot, G_USBTDs_MAP_ENTRY_ID_BytesOffset);
+
+    // Read the type field and output the result  
+    LDRglobal(ret, G_USBTD_MAP_MEM(), base, tmp);               // Read the value at byte offset <tmp>
+    Store(ebp, ARCH_WORD_BYTES, ret);                           // [NOTE] ebp == old_esp - ARCH_WORD_BYTES;
+
+
+    POP_OneReg(ret);
+    POP_TwoRegs(base, tmp);
+    POP_OneReg(ebp);
+}
+
+// Get the type of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (slot:word/uint32) at esp
+// Return params on stack: (type:word) at esp
+procedure usbtd_get_type()
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        edx; edi; eax;                                  // Local variables
+        esi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let slot:word := stack_get_val(mem, esp);
+
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let ret_type := stack_get_val(mem, old(esp));
+        let addr := AddressOfGlobal(G_USBTD_MAP_MEM()) + slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_TYPE_BytesOffset;
+        is_gvar_valid_addr(G_USBTD_MAP_MEM(), addr);
+        ret_type == global_read_word(old(globals), G_USBTD_MAP_MEM(), addr);
+            // Property 1: Return the correct type of the given USB TD at slot <slot> 
+    ensures
+        edx == old(edx); edi == old(edi); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        esi == old(esi);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let ret @= esi;
+
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(ret);
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    // Calc the byte offset for the type field
+    Load(tmp, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp;
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ADD(tmp, const(G_USBTDs_MAP_ENTRY_TYPE_BytesOffset));
+    Lemma_usbtd_get_td_type_result_is_gvar_valid_addr(base, slot, tmp);
+
+    // Read the type field and output the result  
+    LDRglobal(ret, G_USBTD_MAP_MEM(), base, tmp);               // Read the value at byte offset <tmp>
+    Store(ebp, ARCH_WORD_BYTES, ret);                           // [NOTE] ebp == old_esp - ARCH_WORD_BYTES;
+
+
+    POP_OneReg(ret);
+    POP_TwoRegs(base, tmp);
+    POP_OneReg(ebp);
+}
+
+// Get the <bus_id> of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (slot:word/uint32) at esp
+// Return params on stack: (bus_id:word) at esp
+procedure usbtd_get_bus_id()
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        edx; edi; eax;                                  // Local variables
+        esi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let slot:word := stack_get_val(mem, esp);
+
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let ret_v := stack_get_val(mem, old(esp));
+        let addr := AddressOfGlobal(G_USBTD_MAP_MEM()) + slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_BUSID_BytesOffset;
+        is_gvar_valid_addr(G_USBTD_MAP_MEM(), addr);
+        ret_v == global_read_word(old(globals), G_USBTD_MAP_MEM(), addr);
+            // Property 1: Return the correct bus id of the given USB TD at slot <slot>
+    ensures
+        edx == old(edx); edi == old(edi); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        esi == old(esi);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let ret @= esi;
+
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(ret);
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    // Calc the byte offset for the type field
+    Load(tmp, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp;
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ADD(tmp, const(G_USBTDs_MAP_ENTRY_BUSID_BytesOffset));
+    Lemma_usbtd_get_bus_id_result_is_gvar_valid_addr(base, slot, tmp);
+
+    // Read the type field and output the result  
+    LDRglobal(ret, G_USBTD_MAP_MEM(), base, tmp);               // Read the value at byte offset <tmp>
+    Store(ebp, ARCH_WORD_BYTES, ret);                           // [NOTE] ebp == old_esp - ARCH_WORD_BYTES;
+
+
+    POP_OneReg(ret);
+    POP_TwoRegs(base, tmp);
+    POP_OneReg(ebp);
+}
+
+// Get the <wimpdrv_slot_id> of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (slot:word/uint32) at esp
+// Return params on stack: (wimpdrv_slot_id:word) at esp
+procedure usbtd_get_wimpdrv_slotid()
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        edx; edi; eax;                                  // Local variables
+        esi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let slot:word := stack_get_val(mem, esp);
+
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let ret_v := stack_get_val(mem, old(esp));
+        let addr := AddressOfGlobal(G_USBTD_MAP_MEM()) + slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset;
+
+        is_gvar_valid_addr(G_USBTD_MAP_MEM(), addr);
+        ret_v == global_read_word(old(globals), G_USBTD_MAP_MEM(), addr);
+            // Property 1: Return the correct wimpdrv_slot_id of the given USB TD at slot <slot> 
+    ensures
+        edx == old(edx); edi == old(edi); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        esi == old(esi); eax == old(eax);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let ret @= esi;
+
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(ret);
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    // Calc the byte offset for the type field
+    Load(tmp, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp;
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ADD(tmp, const(G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset));
+    Lemma_usbtd_get_wimpdrv_slotid_result_is_gvar_valid_addr(base, slot, tmp);
+
+    // Read the type field and output the result  
+    LDRglobal(ret, G_USBTD_MAP_MEM(), base, tmp);               // Read the value at byte offset <tmp>
+    Store(ebp, ARCH_WORD_BYTES, ret);                           // [NOTE] ebp == old_esp - ARCH_WORD_BYTES;
+
+
+    POP_OneReg(ret);
+    POP_TwoRegs(base, tmp);
+    POP_OneReg(ebp);
+}
+
+// Check the <wimpdrv_slot_id> of the USB TD matches <expect_v>
+// Input params on stack: (expect_v:word/uint32) at esp + ARCH_WORD_BYTES, (td_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp
+procedure usbtd_check_wimpdrv_slotid()
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        edx; edi; eax;                                  // Local variables
+        esi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            6 * ARCH_WORD_BYTES +                   // For <usbtd_get_wimpdrv_slotid>
+            1 * ARCH_WORD_BYTES;                    // For params of <usbtd_get_wimpdrv_slotid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // The params of the function must be on stack
+    requires
+        let td_slot:word := stack_get_val(mem, esp);
+
+        usbtd_map_valid_slot_id(td_slot);
+            // Requirement: <td_slot> must be inside the global variable <g_usbtd_map_mem>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let expect_v:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let td_slot:word := stack_get_val(old(mem), old(esp));
+        let ret := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) <==> usbtd_map_get_wimpdrv_slotid(old(globals), td_slot) == expect_v;
+            // Property 1: Return true iff match 
+    ensures
+        edx == old(edx); edi == old(edi); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        esi == old(esi); eax == old(eax);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let tmp1 @= edi;
+    let tmp2 @= esi;
+    let td_slot @= edx;
+
+    PUSH_TwoRegs(tmp1, tmp2);
+    PUSH_OneReg(td_slot);
+
+
+    Load(td_slot, ebp, ARCH_WORD_BYTES);                // Load <td_slot>
+    PUSH(td_slot);
+    usbtd_get_wimpdrv_slotid();                         // tmp1 := usbtd_get_wimpdrv_slotid(td_slot)
+    Load(tmp1, esp, 0);
+    POP_VOID(1 * ARCH_WORD_BYTES);
+
+    Load(tmp2, ebp, 2 * ARCH_WORD_BYTES);               // Load <expect_v>
+    if(tmp1 == tmp2)
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(TRUE));
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+    }
+
+
+    POP_OneReg(td_slot);
+    POP_TwoRegs(tmp1, tmp2);
+    POP_OneReg(ebp);
+}
+
+// Get the <usbpdev_slot_id> of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (slot:word/uint32) at esp
+// Return params on stack: (usbpdev_slot_id:word) at esp
+procedure usbtd_get_usbpdev_slotid()
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        edx; edi; eax;                                  // Local variables
+        esi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let slot:word := stack_get_val(mem, esp);
+
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let ret_v := stack_get_val(mem, old(esp));
+        let addr := AddressOfGlobal(G_USBTD_MAP_MEM()) + slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset;
+
+        is_gvar_valid_addr(G_USBTD_MAP_MEM(), addr);
+        ret_v == global_read_word(old(globals), G_USBTD_MAP_MEM(), addr);
+            // Property 1: Return the correct usbpdev_slot_id of the given USB TD at slot <slot> 
+    ensures
+        edx == old(edx); edi == old(edi); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        esi == old(esi); eax == old(eax);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let ret @= esi;
+
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(ret);
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    // Calc the byte offset for the type field
+    Load(tmp, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp;
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ADD(tmp, const(G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset));
+    Lemma_usbtd_get_usbpdev_slotid_result_is_gvar_valid_addr(base, slot, tmp);
+
+    // Read the type field and output the result  
+    LDRglobal(ret, G_USBTD_MAP_MEM(), base, tmp);               // Read the value at byte offset <tmp>
+    Store(ebp, ARCH_WORD_BYTES, ret);                           // [NOTE] ebp == old_esp - ARCH_WORD_BYTES;
+
+
+    POP_OneReg(ret);
+    POP_TwoRegs(base, tmp);
+    POP_OneReg(ebp);
+}
+
+// Check the <usbpdev_slot_id> of the USB TD matches <expect_v>
+// Input params on stack: (expect_v:word/uint32) at esp + ARCH_WORD_BYTES, (td_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp
+procedure usbtd_check_usbpdev_slotid()
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        edx; edi; eax;                                  // Local variables
+        esi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            6 * ARCH_WORD_BYTES +                   // For <usbtd_get_usbpdev_slotid>
+            1 * ARCH_WORD_BYTES;                    // For params of <usbtd_get_usbpdev_slotid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // The params of the function must be on stack
+    requires
+        let td_slot:word := stack_get_val(mem, esp);
+
+        usbtd_map_valid_slot_id(td_slot);
+            // Requirement: <td_slot> must be inside the global variable <g_usbtd_map_mem>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let expect_v:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let td_slot:word := stack_get_val(old(mem), old(esp));
+        let ret := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) <==> usbtd_map_get_usbpdev_slotid(old(globals), td_slot) == expect_v;
+            // Property 1: Return true iff match 
+    ensures
+        edx == old(edx); edi == old(edi); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        esi == old(esi); eax == old(eax);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let tmp1 @= edi;
+    let tmp2 @= esi;
+    let td_slot @= edx;
+
+    PUSH_TwoRegs(tmp1, tmp2);
+    PUSH_OneReg(td_slot);
+
+
+    Load(td_slot, ebp, ARCH_WORD_BYTES);                // Load <td_slot>
+    PUSH(td_slot);
+    usbtd_get_usbpdev_slotid();                         // tmp1 := usbtd_get_usbpdev_slotid(td_slot)
+    Load(tmp1, esp, 0);
+    POP_VOID(1 * ARCH_WORD_BYTES);
+
+    Load(tmp2, ebp, 2 * ARCH_WORD_BYTES);               // Load <expect_v>
+    if(tmp1 == tmp2)
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(TRUE));
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+    }
+
+
+    POP_OneReg(td_slot);
+    POP_TwoRegs(tmp1, tmp2);
+    POP_OneReg(ebp);
+}
+
+// Get the PID of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (slot:word/uint32) at esp
+// Return params on stack: (pid:word/WS_PartitionID) at esp
+procedure usbtd_get_td_pid()
+    reads
+        globals; flags;
+    modifies
+        eax; ebp; esp; mem;
+        edx; edi; esi;                              // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let slot:word := stack_get_val(mem, esp);
+
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let out_pid:word := stack_get_val(mem, old(esp));
+
+        usbtd_map_get_pid(old(globals), in_slot) == WS_PartitionID(out_pid);
+            // Property 1: Return the correct PID of the given USB TD at slot <slot> 
+    ensures
+        eax == old(eax); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        edx == old(edx); edi == old(edi); esi == old(esi);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let ret @= esi;
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(ret);
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    // Calc the byte offset for the PID field
+    Load(tmp, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp;
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ADD(tmp, const(G_USBTDs_MAP_ENTRY_PID_BytesOffset));
+    Lemma_usbtd_get_td_pid_result_is_gvar_valid_addr(base, slot, tmp);
+
+    // Read the PID field and output the result  
+    LDRglobal(ret, G_USBTD_MAP_MEM(), base, tmp);               // Read the value at byte offset <tmp>
+    Store(ebp, ARCH_WORD_BYTES, ret);                           // [NOTE] ebp == old_esp - ARCH_WORD_BYTES;
+
+
+    POP_OneReg(ret);
+    POP_TwoRegs(base, tmp);
+    POP_OneReg(ebp);
+}
+
+// Check if the given <slot_id> fulfills usbtd_map_valid_slot_id(slot_id)
+procedure usbtd_check_td_slot_id(
+    in slot_id:reg,
+    out ret:reg
+)
+    reads
+        mem; flags;
+    requires
+        @slot_id != @ret; @ret == Reg1;
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        ret == TRUE ==> usbtd_map_valid_slot_id(slot_id);
+    ensures
+        old(mem) == mem;
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    if(slot_id >= const(0))
+    {
+        if(slot_id < const(USB_TD_ENTRY_NUM))
+        {
+            MOV_ToReg(ret, const(TRUE));
+        }
+        else
+        {
+            MOV_ToReg(ret, const(FALSE));
+        }
+    }
+    else
+    {
+        MOV_ToReg(ret, const(FALSE));
+    }
+}
+
+// Check the given slot is in range, and get the PID of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (slot:word/uint32) at esp
+// Return params on stack: (ret:word/bool) at esp, (pid:word/WS_PartitionID) at esp + ARCH_WORD_BYTES
+procedure usbtd_check_and_get_td_pid()
+    reads
+        globals; flags;
+    modifies
+        eax; ebp; esp; mem;
+        edx; edi; esi;                              // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            3 * ARCH_WORD_BYTES +                   // For local variables
+            6 * ARCH_WORD_BYTES +                   // For <usbtd_get_td_pid>
+            1 * ARCH_WORD_BYTES;                    // For params of <usbtd_get_td_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+        let out_pid:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> usbtd_map_valid_slot_id(in_slot);
+        (ret == TRUE) ==> (usbtd_map_get_pid(old(globals), in_slot) == WS_PartitionID(out_pid));
+            // Property 1: If return true, then also return the correct PID of the given USB TD at slot <slot> 
+    ensures
+        eax == old(eax); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        edx == old(edx); edi == old(edi); esi == old(esi);
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                            
+
+    let tmp1 @= edi;
+    let tmp2 @= esi;
+    PUSH_TwoRegs(tmp1, tmp2);
+
+
+    Load(tmp1, ebp, ARCH_WORD_BYTES);               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+
+    if(tmp1 >= const(0))
+    {
+        if(tmp1 < const(USB_TD_ENTRY_NUM))
+        {
+            PUSH(tmp1);
+            usbtd_get_td_pid();
+            Load(tmp2, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            Store(ebp, ARCH_WORD_BYTES, const(TRUE));
+            Store(ebp, 2 * ARCH_WORD_BYTES, tmp2);
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+    }
+    
+
+    POP_TwoRegs(tmp1, tmp2);
+    POP_OneReg(ebp);
+}
+
+// Get the flags of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (slot:word/uint32) at esp
+// Return params on stack: (flag:word) at esp
+procedure usbtd_get_flags()
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        eax; edx; edi; esi;                         // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let slot:word := stack_get_val(mem, esp);
+
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let out_flags:word := stack_get_val(mem, old(esp));
+
+        usbtd_map_get_flags(old(globals), in_slot) == out_flags;
+            // Property 1: Return the correct flags of the given USB TD at slot <slot> 
+    ensures
+        eax == old(eax); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        edx == old(edx); edi == old(edi); esi == old(esi);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let ret @= esi;
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(ret);
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    // Calc the byte offset for the PID field
+    Load(tmp, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp;
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ADD(tmp, const(G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset));
+    Lemma_usbtd_get_flag_result_is_gvar_valid_addr(base, slot, tmp);
+
+    // Read the flags field and output the result  
+    LDRglobal(ret, G_USBTD_MAP_MEM(), base, tmp);               // Read the value at byte offset <tmp>
+    Store(ebp, ARCH_WORD_BYTES, ret);                           // [NOTE] ebp == old_esp - ARCH_WORD_BYTES;
+
+
+    POP_OneReg(ret);
+    POP_TwoRegs(base, tmp);
+    POP_OneReg(ebp);
+}
+
+// Check the given slot is has the USBTD_SLOT_FLAG_SlotSecure_Bit flag
+// Input params on stack: (slot:word/uint32) at esp
+// Return params on stack: (ret:word/bool) at esp
+procedure usbtd_check_flags_slotsecure()
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        eax; ecx; edx; edi; esi;                    // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            6 * ARCH_WORD_BYTES +                   // For <usbtd_get_flags>
+            1 * ARCH_WORD_BYTES;                    // For params of <usbtd_get_flags>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        usbtd_map_valid_slot_id(in_slot);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> TestBit(usbtd_map_get_flags(old(globals), old(in_slot)), USBTD_SLOT_FLAG_SlotSecure_Bit);
+            // Property 1: If return true, then also return the correct PID of the given USB TD at slot <slot> 
+    ensures
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        eax == old(eax); ecx == old(ecx); edx == old(edx); edi == old(edi); esi == old(esi);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                            
+
+    let tmp1 @= esi;
+    let tmp2 @= edi;
+    let result @= edx;
+    PUSH_TwoRegs(tmp1, tmp2);
+    PUSH_OneReg(result);
+
+
+    Load(tmp1, ebp, ARCH_WORD_BYTES);               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+
+    PUSH(tmp1);
+    usbtd_get_flags();
+    Load(tmp2, esp, 0);                             // tmp2 := usbtd_get_flags(tmp1)
+    POP_VOID(1 * ARCH_WORD_BYTES);
+
+    // Test the USBTD_SLOT_FLAG_SlotSecure_Bit flag
+    TestBit(tmp2, USBTD_SLOT_FLAG_SlotSecure_Bit, result);
+    Store(ebp, ARCH_WORD_BYTES, result);
+
+    
+    POP_OneReg(result);
+    POP_TwoRegs(tmp1, tmp2);
+    POP_OneReg(ebp);
+}
+
+// Set the PID of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (new_pid:word/uint32) at esp + ARCH_WORD_BYTES, (slot:word/uint32) at esp
+// Return params on stack: None
+procedure usbtd_set_td_pid()
+    reads
+        flags;
+    reads
+        ebx; ecx;
+    modifies
+        globals; 
+    modifies
+        eax; ebp; esp; mem;
+        edx; edi; esi;                              // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(mem, esp);
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+        eehci_mem_no_ref_to_usbtd_slot(globals, slot);
+            // Requirement: No eEHCI refs the USB TD at current
+    requires
+        let slot:word := stack_get_val(mem, esp);
+        let new_pid:word := stack_get_val(mem, esp + ARCH_WORD_BYTES);
+        new_pid == PID_INVALID || pids_parse_g_wimp_pids(globals)?[WS_PartitionID(new_pid)];
+            // Requirement: <new_pid> must be either PID_INVALID or an existing wimp partition's PID
+        new_pid != PID_INVALID
+                ==> usbtd_map_get_idword(globals, slot) != USBTD_ID_INVALID;
+            // Requirement: If the new PID is valid, then the current USB TD ID must be valid
+    requires
+        let slot:word := stack_get_val(mem, esp);
+        TestBit(usbtd_map_get_flags(globals, slot), USBTD_SLOT_FLAG_SlotSecure_Bit) == false;
+            // Requirement: Modifying an insecure USB TD
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let new_pid:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+
+        usbtd_map_get_pid(globals, in_slot) == WS_PartitionID(new_pid);
+            // Property 1: The partition ID to the given USB TD at slot <slot> is changed to the new_pid
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let new_pid:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let vaddr := AddressOfGlobal(G_USBTD_MAP_MEM()) + in_slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_PID_BytesOffset;
+        is_gvar_valid_addr(G_USBTD_MAP_MEM(), vaddr);
+        globals == global_write_word(old(globals), G_USBTD_MAP_MEM(), vaddr, new_pid);
+            // Property 2: Correctly write the new PID to the given USB TD at slot <slot>
+    ensures
+        eax == old(eax); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        edx == old(edx); edi == old(edi); esi == old(esi);
+        ebx == old(ebx); ecx == old(ecx); // unmodified registers
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let new_pid @= esi;
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(new_pid);
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    // Calc the byte offset for the PID field
+    Load(tmp, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    Load(new_pid, ebp, 2 * ARCH_WORD_BYTES);                       // Load new_pid
+    let slot := tmp;
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ADD(tmp, const(G_USBTDs_MAP_ENTRY_PID_BytesOffset));
+    Lemma_usbtd_get_td_pid_result_is_gvar_valid_addr(base, slot, tmp);
+
+    // Write the PID field with the given value
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr1 := base + tmp;
+    let new_globals1 := global_write_word(globals, G_USBTD_MAP_MEM(), tmp_addr1, new_pid);
+    let new_this1 := this.(wk_mstate := this.wk_mstate.(globals := new_globals1));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals1);
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals1);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfNewPIDOfSlotIsGood(this, new_this1, slot, (base+tmp), new_pid);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals1);
+
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfUpdatePIDOfEEHCIUnrefedUSBTD(globals, new_globals1, slot, tmp_addr1, new_pid);
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this1);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this1);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_USBTD_MAP_MEM(), tmp_addr1, new_pid);
+
+    //// Write the global variable
+    STRglobal(G_USBTD_MAP_MEM(), base, tmp, new_pid);
+
+    // Prove security properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfModifyingInsecureUSBTDAndNotFlags(
+        old(globals), globals, slot, G_USBTDs_MAP_ENTRY_PID_BytesOffset, new_pid);
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+
+    POP_OneReg(new_pid);
+    POP_TwoRegs(base, tmp);
+    POP_OneReg(ebp);
+}
+
+// Set the type of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (new_type:word/uint32) at esp + ARCH_WORD_BYTES, (slot:word/uint32) at esp
+// Return params on stack: None
+procedure usbtd_set_td_type()
+    reads
+        flags;
+    reads
+        ebx; ecx;
+    modifies
+        globals; 
+    modifies
+        eax; ebp; esp; mem;
+        edx; edi; esi;                              // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(mem, esp);
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+    requires
+        let new_type:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        (new_type == USBTDs_TYPE_QTD32) || (new_type == USBTDs_TYPE_QH32) || 
+        (new_type == USBTDs_TYPE_iTD32) || (new_type == USBTDs_TYPE_siTD32);
+            // Requirement: <new_type> must be one of the four types
+    requires
+        let slot:word := stack_get_val(mem, esp);
+        TestBit(usbtd_map_get_flags(globals, slot), USBTD_SLOT_FLAG_SlotSecure_Bit) == false;
+            // Requirement: Modifying an insecure USB TD
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let new_type:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+
+        usbtd_map_get_type(globals, in_slot) == new_type;
+            // Property 1: The type to the given USB TD at slot <slot> is changed to the new_type
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let new_type:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let vaddr := AddressOfGlobal(G_USBTD_MAP_MEM()) + in_slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_TYPE_BytesOffset;
+        is_gvar_valid_addr(G_USBTD_MAP_MEM(), vaddr);
+        globals == global_write_word(old(globals), G_USBTD_MAP_MEM(), vaddr, new_type);
+            // Property 2: Correctly write the new type to the given USB TD at slot <slot>
+    ensures
+        eax == old(eax); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        edx == old(edx); edi == old(edi); esi == old(esi);
+        ebx == old(ebx); ecx == old(ecx); // unmodified registers
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let new_type @= esi;
+
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(new_type);
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    // Calc the byte offset for the type field
+    Load(tmp, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    Load(new_type, ebp, 2 * ARCH_WORD_BYTES);                       // Load new_type
+    let slot := tmp;
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ADD(tmp, const(G_USBTDs_MAP_ENTRY_TYPE_BytesOffset));
+    Lemma_usbtd_get_td_type_result_is_gvar_valid_addr(base, slot, tmp);
+
+    // Write the type field with the given value
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr1 := base + tmp;
+    let new_globals1 := global_write_word(globals, G_USBTD_MAP_MEM(), tmp_addr1, new_type);
+    let new_this1 := this.(wk_mstate := this.wk_mstate.(globals := new_globals1));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals1);
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals1);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfNewTypeOfSlotIsValid(globals, new_globals1, slot, (base+tmp), new_type);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals1);
+
+    Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_TYPE_BytesOffset, new_type);
+    Lemma_WK_USB_TD_Map_PreservePIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_TYPE_BytesOffset, new_type);
+
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfUpdateTypeOfUSBTD(globals, new_globals1, slot, tmp_addr1, new_type);
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this1);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this1);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_USBTD_MAP_MEM(), tmp_addr1, new_type);
+
+    //// Write the global variable
+    STRglobal(G_USBTD_MAP_MEM(), base, tmp, new_type);
+
+    // Prove security properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfModifyingInsecureUSBTDAndNotFlags(
+        old(globals), globals, slot, G_USBTDs_MAP_ENTRY_TYPE_BytesOffset, new_type);
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+
+    POP_OneReg(new_type);
+    POP_TwoRegs(base, tmp);
+    POP_OneReg(ebp);
+}
+
+// Set the <bus_id> of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (new_bus_id:word/uint32) at esp + ARCH_WORD_BYTES, (slot:word/uint32) at esp
+// Return params on stack: None
+procedure usbtd_set_bus_id()
+    reads
+        flags;
+    reads
+        ebx; ecx;
+    modifies
+        globals; 
+    modifies
+        eax; ebp; esp; mem;
+        edx; edi; esi;                              // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(mem, esp);
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+        eehci_mem_no_ref_to_usbtd_slot(globals, slot);
+            // Requirement: No eEHCI refs the USB TD at current
+    requires
+        let new_bus_id:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        isUInt16(new_bus_id);
+            // Requirement: <new_bus_id> must be a uint16 value
+    requires
+        let slot:word := stack_get_val(mem, esp);
+        TestBit(usbtd_map_get_flags(globals, slot), USBTD_SLOT_FLAG_SlotSecure_Bit) == false;
+            // Requirement: Modifying an insecure USB TD
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let new_bus_id:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+
+        usbtd_map_get_busid(globals, in_slot) == new_bus_id;
+            // Property 1: The bus ID to the given USB TD at slot <slot> is changed to the new_bus_id
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let new_bus_id:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let vaddr := AddressOfGlobal(G_USBTD_MAP_MEM()) + in_slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_BUSID_BytesOffset;
+        is_gvar_valid_addr(G_USBTD_MAP_MEM(), vaddr);
+        globals == global_write_word(old(globals), G_USBTD_MAP_MEM(), vaddr, new_bus_id);
+            // Property 2: Correctly write the new bus ID to the given USB TD at slot <slot>
+    ensures
+        eax == old(eax); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        edx == old(edx); edi == old(edi); esi == old(esi);
+        ebx == old(ebx); ecx == old(ecx); // unmodified registers
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let new_bus_id @= esi;
+
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(new_bus_id);
+    let cur_esp := esp;
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    // Calc the byte offset for the <bus_id> field
+    Load(tmp, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    Load(new_bus_id, ebp, 2 * ARCH_WORD_BYTES);                       // Load new_bus_id
+    let slot := tmp;
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ADD(tmp, const(G_USBTDs_MAP_ENTRY_BUSID_BytesOffset));
+    Lemma_usbtd_get_bus_id_result_is_gvar_valid_addr(base, slot, tmp);
+
+    // Write the <bus_id> field with the given value
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr1 := base + tmp;
+    let new_globals1 := global_write_word(globals, G_USBTD_MAP_MEM(), tmp_addr1, new_bus_id);
+    let new_this1 := this.(wk_mstate := this.wk_mstate.(globals := new_globals1));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals1);
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals1);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfNewBusIDIsValid(globals, new_globals1, slot, tmp_addr1, new_bus_id);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals1);
+
+    Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_BUSID_BytesOffset, new_bus_id);
+    Lemma_WK_USB_TD_Map_PreservePIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_BUSID_BytesOffset, new_bus_id);
+
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfUpdateBusIDOfEEHCIUnrefedUSBTD(globals, new_globals1, slot, tmp_addr1, new_bus_id);
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this1);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this1);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_USBTD_MAP_MEM(), tmp_addr1, new_bus_id);
+
+    //// Write the global variable
+    STRglobal(G_USBTD_MAP_MEM(), base, tmp, new_bus_id);
+
+    // Prove security properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfModifyingInsecureUSBTDAndNotFlags(
+        old(globals), globals, slot, G_USBTDs_MAP_ENTRY_BUSID_BytesOffset, new_bus_id);
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+
+    assert esp == cur_esp;
+    POP_OneReg(new_bus_id);
+    POP_TwoRegs(base, tmp);
+    POP_OneReg(ebp);
+}
+
+// Set the <wimpdrv_slot_id> of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (new_wimpdrv_slotid:word/uint32) at esp + ARCH_WORD_BYTES, (slot:word/uint32) at esp
+// Return params on stack: None
+procedure usbtd_set_wimpdrv_slotid()
+    reads
+        flags;
+    reads
+        ebx; ecx;
+    modifies
+        globals; 
+    modifies
+        eax; ebp; esp; mem;
+        edx; edi; esi;                              // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(mem, esp);
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+    requires
+        let new_wimpdrv_slotid:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        new_wimpdrv_slotid == WimpDrv_SlotID_EMPTY || wimpdrv_valid_slot_id(new_wimpdrv_slotid);
+            // Requirement: <new_wimpdrv_slotid> must be empty or valid
+    requires
+        let slot:word := stack_get_val(mem, esp);
+        TestBit(usbtd_map_get_flags(globals, slot), USBTD_SLOT_FLAG_SlotSecure_Bit) == false;
+            // Requirement: Modifying an insecure USB TD
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let new_wimpdrv_slotid:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+
+        usbtd_map_get_wimpdrv_slotid(globals, in_slot) == new_wimpdrv_slotid;
+            // Property 1: The wimp driver slot ID to the given USB TD at slot <slot> is changed to the new_wimpdrv_slotid
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let new_wimpdrv_slotid:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let vaddr := AddressOfGlobal(G_USBTD_MAP_MEM()) + in_slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset;
+
+        is_gvar_valid_addr(G_USBTD_MAP_MEM(), vaddr);
+        globals == global_write_word(old(globals), G_USBTD_MAP_MEM(), vaddr, new_wimpdrv_slotid);
+            // Property 2: Correctly write the new wimp driver slot ID to the given USB TD at slot <slot>
+    ensures
+        eax == old(eax); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        edx == old(edx); edi == old(edi); esi == old(esi);
+        ebx == old(ebx); ecx == old(ecx); // unmodified registers
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let new_wimpdrv_slotid @= esi;
+
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(new_wimpdrv_slotid);
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    // Calc the byte offset for the type field
+    Load(tmp, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    Load(new_wimpdrv_slotid, ebp, 2 * ARCH_WORD_BYTES);            // Load new_wimpdrv_slotid
+    let slot := tmp;
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ADD(tmp, const(G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset));
+    Lemma_usbtd_get_wimpdrv_slotid_result_is_gvar_valid_addr(base, slot, tmp);
+    assert is_gvar_valid_addr(G_USBTD_MAP_MEM(), base + tmp);
+
+    // Write the type field with the given value
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr1 := base + tmp;
+    let new_globals1 := global_write_word(globals, G_USBTD_MAP_MEM(), tmp_addr1, new_wimpdrv_slotid);
+    let new_this1 := this.(wk_mstate := this.wk_mstate.(globals := new_globals1));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals1);
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals1);
+
+    Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, new_wimpdrv_slotid);
+    Lemma_WK_USB_TD_Map_PreserveUSBTDContentsIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, new_wimpdrv_slotid);
+    Lemma_WK_USB_TD_Map_PreservePIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, new_wimpdrv_slotid);
+    Lemma_WK_USB_TD_Map_PreserveTypeFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, new_wimpdrv_slotid);
+    Lemma_WK_USB_TD_Map_PreserveFlagsFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, new_wimpdrv_slotid);
+    Lemma_WK_USB_TD_Map_PreserveBusIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, new_wimpdrv_slotid);
+    Lemma_WK_USB_TD_Map_PreserveUSBPDevSlotIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, new_wimpdrv_slotid);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfNewWimpDrvSlotIDOfSlotIsValid(globals, new_globals1, slot, tmp_addr1, new_wimpdrv_slotid);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals1);
+
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfUpdateWimpDrvSlotIDOfUSBTD(globals, new_globals1, slot, tmp_addr1, new_wimpdrv_slotid);
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this1);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this1);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_USBTD_MAP_MEM(), tmp_addr1, new_wimpdrv_slotid);
+
+    //// Write the global variable
+    STRglobal(G_USBTD_MAP_MEM(), base, tmp, new_wimpdrv_slotid);
+
+    // Prove security properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfModifyingInsecureUSBTDAndNotFlags(
+        old(globals), globals, slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, new_wimpdrv_slotid);
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+
+    POP_OneReg(new_wimpdrv_slotid);
+    POP_TwoRegs(base, tmp);
+    POP_OneReg(ebp);
+}
+
+// Set the <usbpdev_slot_id> of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (new_usbpdev_slotid:word/uint32) at esp + ARCH_WORD_BYTES, (slot:word/uint32) at esp
+// Return params on stack: None
+procedure usbtd_set_usbpdev_slotid()
+    reads
+        flags;
+    reads
+        ebx; ecx;
+    modifies
+        globals; 
+    modifies
+        eax; ebp; esp; mem;
+        edx; edi; esi;                              // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(mem, esp);
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+    requires
+        let new_usbpdev_slotid:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        new_usbpdev_slotid == WimpUSBPDev_SlotID_EMPTY || usbpdev_valid_slot_id(new_usbpdev_slotid);
+            // Requirement: <new_usbpdev_slotid> must be empty or valid
+    requires
+        let slot:word := stack_get_val(mem, esp);
+        TestBit(usbtd_map_get_flags(globals, slot), USBTD_SLOT_FLAG_SlotSecure_Bit) == false;
+            // Requirement: Modifying an insecure USB TD
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let new_usbpdev_slotid:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+
+        usbtd_map_get_usbpdev_slotid(globals, in_slot) == new_usbpdev_slotid;
+            // Property 1: The wimp driver slot ID to the given USB TD at slot <slot> is changed to the new_usbpdev_slotid
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let new_usbpdev_slotid:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let vaddr := AddressOfGlobal(G_USBTD_MAP_MEM()) + in_slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset;
+
+        is_gvar_valid_addr(G_USBTD_MAP_MEM(), vaddr);
+        globals == global_write_word(old(globals), G_USBTD_MAP_MEM(), vaddr, new_usbpdev_slotid);
+            // Property 2: Correctly write the new wimp driver slot ID to the given USB TD at slot <slot>
+    ensures
+        eax == old(eax); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        edx == old(edx); edi == old(edi); esi == old(esi);
+        ebx == old(ebx); ecx == old(ecx); // unmodified registers
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let new_usbpdev_slotid @= esi;
+
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(new_usbpdev_slotid);
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    // Calc the byte offset for the type field
+    Load(tmp, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    Load(new_usbpdev_slotid, ebp, 2 * ARCH_WORD_BYTES);            // Load new_usbpdev_slotid
+    let slot := tmp;
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ADD(tmp, const(G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset));
+    Lemma_usbtd_get_usbpdev_slotid_result_is_gvar_valid_addr(base, slot, tmp);
+    assert is_gvar_valid_addr(G_USBTD_MAP_MEM(), base + tmp);
+
+    // Write the type field with the given value
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr1 := base + tmp;
+    let new_globals1 := global_write_word(globals, G_USBTD_MAP_MEM(), tmp_addr1, new_usbpdev_slotid);
+    let new_this1 := this.(wk_mstate := this.wk_mstate.(globals := new_globals1));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals1);
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals1);
+
+    Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, new_usbpdev_slotid);
+    Lemma_WK_USB_TD_Map_PreserveUSBTDContentsIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, new_usbpdev_slotid);
+    Lemma_WK_USB_TD_Map_PreservePIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, new_usbpdev_slotid);
+    Lemma_WK_USB_TD_Map_PreserveTypeFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, new_usbpdev_slotid);
+    Lemma_WK_USB_TD_Map_PreserveFlagsFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, new_usbpdev_slotid);
+    Lemma_WK_USB_TD_Map_PreserveBusIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, new_usbpdev_slotid);
+    Lemma_WK_USB_TD_Map_PreserveWimpDrvSlotIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, new_usbpdev_slotid);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfNewUSBPDevSlotIDOfSlotIsAllowed(globals, new_globals1, slot, tmp_addr1, new_usbpdev_slotid);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals1);
+
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfUpdateUSBPDevSlotIDOfUSBTD(globals, new_globals1, slot, tmp_addr1, new_usbpdev_slotid);
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this1);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this1);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_USBTD_MAP_MEM(), tmp_addr1, new_usbpdev_slotid);
+
+    //// Write the global variable
+    STRglobal(G_USBTD_MAP_MEM(), base, tmp, new_usbpdev_slotid);
+
+    // Prove security properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfModifyingInsecureUSBTDAndNotFlags(
+        old(globals), globals, slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, new_usbpdev_slotid);
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+
+    POP_OneReg(new_usbpdev_slotid);
+    POP_TwoRegs(base, tmp);
+    POP_OneReg(ebp);
+}
+
+// Set the flag of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (new_flag:word/uint32) at esp + ARCH_WORD_BYTES, (slot:word/uint32) at esp
+// Return params on stack: None
+procedure usbtd_set_flags()
+    reads
+        flags;
+    reads
+        ebx; ecx;
+    modifies
+        globals; 
+    modifies
+        eax; ebp; esp; mem;
+        edx; edi; esi;                              // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(mem, esp);
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+        eehci_mem_no_ref_to_usbtd_slot(globals, slot);
+            // Requirement: No eEHCI refs the USB TD at current
+    requires
+        let slot:word := stack_get_val(mem, esp);
+        let new_flags:word := stack_get_val(mem, esp + ARCH_WORD_BYTES);
+        let slot_type := usbtd_map_get_type(globals, slot);
+
+        (slot_type == USBTDs_TYPE_QTD32 && TestBit(new_flags, USBTD_SLOT_FLAG_SlotSecure_Bit)) 
+            ==> WK_USBTD_Map_SecureGlobalVarValues_qTD32(globals, slot);
+        (slot_type == USBTDs_TYPE_QH32 && TestBit(new_flags, USBTD_SLOT_FLAG_SlotSecure_Bit)) 
+            ==> WK_USBTD_Map_SecureGlobalVarValues_qh32(globals, slot);
+        (slot_type == USBTDs_TYPE_iTD32 && TestBit(new_flags, USBTD_SLOT_FLAG_SlotSecure_Bit)) 
+            ==> WK_USBTD_Map_SecureGlobalVarValues_iTD32(globals, slot);
+        (slot_type == USBTDs_TYPE_siTD32 && TestBit(new_flags, USBTD_SLOT_FLAG_SlotSecure_Bit)) 
+            ==> WK_USBTD_Map_SecureGlobalVarValues_siTD32(globals, slot);
+            // Requirement: If the new flags have the SlotSecure set, then the USB TD must be verified
+        TestBit(new_flags, USBTD_SLOT_FLAG_SlotSecure_Bit) == false
+            ==> usbtds_verifiedtds_do_not_associate_usbtd(globals, slot);
+            // Requirement: If the new flags have no SlotSecure set, then the USB TD must not be referenced by any 
+            // verified/secure USB TDs
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let new_flags:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+
+        usbtd_map_get_flags(globals, in_slot) == new_flags;
+            // Property 1: The flag to the given USB TD at slot <slot> is changed to the new_flags
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let new_flags:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let vaddr := AddressOfGlobal(G_USBTD_MAP_MEM()) + in_slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset;
+
+        is_gvar_valid_addr(G_USBTD_MAP_MEM(), vaddr);
+        globals == global_write_word(old(globals), G_USBTD_MAP_MEM(), vaddr, new_flags);
+            // Property 2: Correctly write the new flag to the given USB TD at slot <slot>
+    ensures
+        eax == old(eax); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        edx == old(edx); edi == old(edi); esi == old(esi);
+        ebx == old(ebx); ecx == old(ecx); // unmodified registers
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let new_flags @= esi;
+
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(new_flags);
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    // Calc the byte offset for the type field
+    Load(tmp, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    Load(new_flags, ebp, 2 * ARCH_WORD_BYTES);                       // Load new_flags
+    let slot := tmp;
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ADD(tmp, const(G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset));
+    Lemma_usbtd_get_flag_result_is_gvar_valid_addr(base, slot, tmp);
+
+    // Write the type field with the given value
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr1 := base + tmp;
+    let new_globals1 := global_write_word(globals, G_USBTD_MAP_MEM(), tmp_addr1, new_flags);
+    let new_this1 := this.(wk_mstate := this.wk_mstate.(globals := new_globals1));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals1);
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals1);
+
+    Lemma_WK_USB_TD_Map_PreserveUSBTDContentsIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_WK_USB_TD_Map_PreservePIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_WK_USB_TD_Map_PreserveTypeFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_WK_USB_TD_Map_PreserveBusIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_WK_USB_TD_Map_PreserveWimpDrvSlotIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_WK_USB_TD_Map_PreserveUSBPDevSlotIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_WK_USB_TD_Map_USBTDSlotValidBusID_HoldIfPIDTypeBusIDWimpDrvSlotIDUSBPDevSlotID_FieldsAreUnchanged(globals, new_globals1);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals1);
+
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfUpdateFlagOfEEHCIUnrefedUSBTD(globals, new_globals1, slot, tmp_addr1, new_flags);
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this1);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this1);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_USBTD_MAP_MEM(), tmp_addr1, new_flags);
+
+    //// Write the global variable
+    STRglobal(G_USBTD_MAP_MEM(), base, tmp, new_flags);
+
+    // Prove security properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfModifyingFlagsOfUSBTDs(old(globals), globals, slot, new_flags);
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+
+    POP_OneReg(new_flags);
+    POP_TwoRegs(base, tmp);
+    POP_OneReg(ebp);
+}
+
+// Set the handle of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (new_handle:word/uint32) at esp + ARCH_WORD_BYTES, (slot:word/uint32) at esp
+// Return params on stack: None
+procedure usbtd_set_handle()
+    reads
+        flags;
+    reads
+        ebx; ecx;
+    modifies
+        globals; 
+    modifies
+        eax; ebp; esp; mem;
+        edx; edi; esi;                              // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(mem, esp);
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let new_handle:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+
+        usbtd_map_get_handle(globals, in_slot) == new_handle;
+            // Property 1: The handle to the given USB TD at slot <slot> is changed to the new_handle
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let new_handle:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let vaddr := AddressOfGlobal(G_USBTD_MAP_MEM()) + in_slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_eEHCISeparation_Handle_BytesOffset;
+        is_gvar_valid_addr(G_USBTD_MAP_MEM(), vaddr);
+        globals == global_write_word(old(globals), G_USBTD_MAP_MEM(), vaddr, new_handle);
+            // Property 2: Correctly write the new handle to the given USB TD at slot <slot>
+    ensures
+        eax == old(eax); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        edx == old(edx); edi == old(edi); esi == old(esi);
+        ebx == old(ebx); ecx == old(ecx); // unmodified registers
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let new_handle @= esi;
+
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(new_handle);
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    // Calc the byte offset for the type field
+    Load(tmp, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    Load(new_handle, ebp, 2 * ARCH_WORD_BYTES);                       // Load new_handle
+    let slot := tmp;
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ADD(tmp, const(G_USBTDs_MAP_ENTRY_eEHCISeparation_Handle_BytesOffset));
+    Lemma_usbtd_get_handle_result_is_gvar_valid_addr(base, slot, tmp);
+
+    // Write the type field with the given value
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr1 := base + tmp;
+    let new_globals1 := global_write_word(globals, G_USBTD_MAP_MEM(), tmp_addr1, new_handle);
+    let new_this1 := this.(wk_mstate := this.wk_mstate.(globals := new_globals1));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals1);
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals1);
+    
+    Lemma_WK_USB_TD_Map_PreserveUSBTDContentsIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_Handle_BytesOffset, new_handle);
+    Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_Handle_BytesOffset, new_handle);
+    Lemma_WK_USB_TD_Map_PreservePIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_Handle_BytesOffset, new_handle);
+    Lemma_WK_USB_TD_Map_PreserveTypeFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_Handle_BytesOffset, new_handle);
+    Lemma_WK_USB_TD_Map_PreserveFlagsFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_Handle_BytesOffset, new_handle);
+    Lemma_WK_USB_TD_Map_PreserveBusIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_Handle_BytesOffset, new_handle);
+    Lemma_WK_USB_TD_Map_PreserveWimpDrvSlotIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_Handle_BytesOffset, new_handle);
+    Lemma_WK_USB_TD_Map_PreserveUSBPDevSlotIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_Handle_BytesOffset, new_handle);
+    Lemma_WK_USB_TD_Map_USBTDSlotValidBusID_HoldIfPIDTypeBusIDWimpDrvSlotIDUSBPDevSlotID_FieldsAreUnchanged(globals, new_globals1);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals1);
+
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfUpdateHandleOfUSBTD(globals, new_globals1, slot, tmp_addr1, new_handle);
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this1);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this1);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_USBTD_MAP_MEM(), tmp_addr1, new_handle);
+
+    //// Write the global variable
+    STRglobal(G_USBTD_MAP_MEM(), base, tmp, new_handle);
+
+    //// Prove security properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfMostUSBTDsFieldAndWimpDrvsAndUSBPDevsAreUnchanged(old(globals), globals);
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+
+    POP_OneReg(new_handle);
+    POP_TwoRegs(base, tmp);
+    POP_OneReg(ebp);
+}
+
+// Set the input params of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (new_input_param:word/uint32) at esp + 2 * ARCH_WORD_BYTES, 
+// (param_sel:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (slot:word/uint32) at esp
+// Return params on stack: None
+// [NOTE] Needs 20s to verify
+procedure usbtd_set_inputparams() {:timeLimitMultiplier 5}
+    reads
+        flags;
+    reads
+        ebx;
+    modifies
+        globals; 
+    modifies
+        eax; ebp; esp; mem;
+        ecx; edx; edi; esi;                              // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            5 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(mem, esp);
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+    requires
+        let param_sel:word := stack_get_val(mem, esp + 1 * ARCH_WORD_BYTES);
+        param_sel == G_USBTDs_MAP_ENTRY_InputParam1 || param_sel == G_USBTDs_MAP_ENTRY_InputParam2 || param_sel == G_USBTDs_MAP_ENTRY_InputParam3;
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let param_sel:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_input_param:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+
+        usbtd_map_get_inputparam(globals, in_slot, param_sel) == new_input_param;
+            // Property 1: The input_param to the given USB TD at slot <slot> is changed to the new_input_param
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let param_sel:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_input_param:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+
+        param_sel == G_USBTDs_MAP_ENTRY_InputParam1 ==> (
+            let vaddr := AddressOfGlobal(G_USBTD_MAP_MEM()) + in_slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam1_BytesOffset in
+            is_gvar_valid_addr(G_USBTD_MAP_MEM(), vaddr) &&
+            globals == global_write_word(old(globals), G_USBTD_MAP_MEM(), vaddr, new_input_param)
+        );
+        param_sel == G_USBTDs_MAP_ENTRY_InputParam2 ==> (
+            let vaddr := AddressOfGlobal(G_USBTD_MAP_MEM()) + in_slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam2_BytesOffset in
+            is_gvar_valid_addr(G_USBTD_MAP_MEM(), vaddr) &&
+            globals == global_write_word(old(globals), G_USBTD_MAP_MEM(), vaddr, new_input_param)
+        );
+        param_sel == G_USBTDs_MAP_ENTRY_InputParam3 ==> (
+            let vaddr := AddressOfGlobal(G_USBTD_MAP_MEM()) + in_slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam3_BytesOffset in
+            is_gvar_valid_addr(G_USBTD_MAP_MEM(), vaddr) &&
+            globals == global_write_word(old(globals), G_USBTD_MAP_MEM(), vaddr, new_input_param)
+        );
+            // Property 2: Correctly write the new input param to the given USB TD at slot <slot>
+    ensures
+        eax == old(eax); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        ecx == old(ecx); edx == old(edx); edi == old(edi); esi == old(esi);
+        ebx == old(ebx); // unmodified registers
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let new_input_param @= esi;
+    let param_sel @= ecx;
+
+    PUSH_TwoRegs(base, tmp);
+    PUSH_TwoRegs(new_input_param, param_sel);
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    // Calc the byte offset for the type field
+    Load(tmp, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    Load(param_sel, ebp, 2 * ARCH_WORD_BYTES);                     // Load param_sel
+    Load(new_input_param, ebp, 3 * ARCH_WORD_BYTES);               // Load new_input_param
+    let slot := tmp;
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ghost var input_param_offset;
+    if(param_sel == const(G_USBTDs_MAP_ENTRY_InputParam1))
+    {
+        ADD(tmp, const(G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam1_BytesOffset));
+        input_param_offset := G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam1_BytesOffset;
+    }
+    else if(param_sel == const(G_USBTDs_MAP_ENTRY_InputParam2))
+    {
+        ADD(tmp, const(G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam2_BytesOffset));
+        input_param_offset := G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam2_BytesOffset;
+    }
+    else
+    {
+        ADD(tmp, const(G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam3_BytesOffset));
+        input_param_offset := G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam3_BytesOffset;
+    }
+    Lemma_usbtd_get_inputparams_result_is_gvar_valid_addr(base, slot, tmp);
+
+    // Write the input_param field with the given value
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr1 := base + tmp;
+    let new_globals1 := global_write_word(globals, G_USBTD_MAP_MEM(), tmp_addr1, new_input_param);
+    let new_this1 := this.(wk_mstate := this.wk_mstate.(globals := new_globals1));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals1);
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals1);
+
+    Lemma_WK_USB_TD_Map_PreserveUSBTDContentsIfModifyOtherFields(globals, new_globals1, slot, input_param_offset, new_input_param);
+    Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals, new_globals1, slot, input_param_offset, new_input_param);
+    Lemma_WK_USB_TD_Map_PreservePIDFieldIfModifyOtherFields(globals, new_globals1, slot, input_param_offset, new_input_param);
+    Lemma_WK_USB_TD_Map_PreserveTypeFieldIfModifyOtherFields(globals, new_globals1, slot, input_param_offset, new_input_param);
+    Lemma_WK_USB_TD_Map_PreserveFlagsFieldIfModifyOtherFields(globals, new_globals1, slot, input_param_offset, new_input_param);
+    Lemma_WK_USB_TD_Map_PreserveBusIDFieldIfModifyOtherFields(globals, new_globals1, slot, input_param_offset, new_input_param);
+    Lemma_WK_USB_TD_Map_PreserveWimpDrvSlotIDFieldIfModifyOtherFields(globals, new_globals1, slot, input_param_offset, new_input_param);
+    Lemma_WK_USB_TD_Map_PreserveUSBPDevSlotIDFieldIfModifyOtherFields(globals, new_globals1, slot, input_param_offset, new_input_param);
+    Lemma_WK_USB_TD_Map_USBTDSlotValidBusID_HoldIfPIDTypeBusIDWimpDrvSlotIDUSBPDevSlotID_FieldsAreUnchanged(globals, new_globals1);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals1);
+
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfUpdateInputParamOfUSBTD(globals, new_globals1, slot, tmp_addr1, new_input_param);
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this1);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this1);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_USBTD_MAP_MEM(), tmp_addr1, new_input_param);
+
+    //// Write the global variable
+    STRglobal(G_USBTD_MAP_MEM(), base, tmp, new_input_param);
+
+    //// Prove security properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfMostUSBTDsFieldAndWimpDrvsAndUSBPDevsAreUnchanged(old(globals), globals);
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+
+    POP_TwoRegs(new_input_param, param_sel);
+    POP_TwoRegs(base, tmp);
+    POP_OneReg(ebp);
+}
+
+// Set the <id> of the USB TD in the global variable <g_usbtd_map_mem>
+// Input params on stack: (new_id:word) at esp + ARCH_WORD_BYTES, (slot:word/uint32) at esp
+// Return params on stack: None
+procedure usbtd_set_id()
+    reads
+        flags;
+    reads
+        ebx; ecx;
+    modifies
+        globals; 
+    modifies
+        eax; ebp; esp; mem;
+        edx; edi; esi;                              // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(mem, esp);
+        usbtd_map_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_usbtd_map_mem>
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let new_id:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+
+        forall (i:uint32) (usbtd_map_valid_slot_id(i) && i != slot &&
+                usbtd_map_get_idword(globals, i) != USBTD_ID_INVALID
+            ==> usbtd_map_get_idword(globals, i) != new_id);
+            // Requirement: No duplicate USB TD ID after update
+
+        new_id <= usbtd_id_counter_read(globals);
+        usbtd_map_get_pid(globals, slot) != WS_PartitionID(PID_INVALID)
+                ==> new_id != USBTD_ID_INVALID;
+            // Requirement: If the modifying USB TD in the slot is active, then the new ID cannot be USBTD_ID_INVALID
+
+        eehci_mem_no_ref_to_usbtd_slot(globals, slot);
+            // Requirement: No eEHCI refs the USB TD at current
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let new_id:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+
+        usbtd_map_get_idword(globals, in_slot) == new_id;
+            // Property 1: The bus ID to the given USB TD at slot <slot> is changed to the new_id
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let new_id:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let vaddr := AddressOfGlobal(G_USBTD_MAP_MEM()) + in_slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_ID_BytesOffset;
+        is_gvar_valid_addr(G_USBTD_MAP_MEM(), vaddr);
+        globals == global_write_word(old(globals), G_USBTD_MAP_MEM(), vaddr, new_id);
+            // Property 2: Correctly write the new bus ID to the given USB TD at slot <slot>
+    ensures
+        eax == old(eax); esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+        edx == old(edx); edi == old(edi); esi == old(esi);
+        ebx == old(ebx); ecx == old(ecx); // unmodified registers
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp @= edi;
+    let new_id @= esi;
+
+    PUSH_TwoRegs(base, tmp);
+    PUSH_OneReg(new_id);
+    let cur_esp := esp;
+
+    LDRglobaladdr_ToReg(base, G_USBTD_MAP_MEM());
+
+    // Calc the byte offset for the <id> field
+    Load(tmp, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    Load(new_id, ebp, 2 * ARCH_WORD_BYTES);                       // Load new_id
+    let slot := tmp;
+    Lemma_NatMul_Ineq_4var(slot, G_USBTDs_MAP_ENTRY_SZ, USB_TD_ENTRY_NUM, G_USBTDs_MAP_ENTRY_SZ);
+    assert isUInt32(slot * G_USBTDs_MAP_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp, const(G_USBTDs_MAP_ENTRY_SZ));            // tmp := slot * G_USBTDs_MAP_ENTRY_SZ
+
+    ADD(tmp, const(G_USBTDs_MAP_ENTRY_ID_BytesOffset));
+    Lemma_usbtd_slot_offset_AlwaysValidGUSBTDMapMemAddr(slot, G_USBTDs_MAP_ENTRY_ID_BytesOffset);
+
+    // Write the <id> field with the given value
+    //// Prove ins_valid_strglobal_word
+    let tmp_addr1 := base + tmp;
+    let new_globals1 := global_write_word(globals, G_USBTD_MAP_MEM(), tmp_addr1, new_id);
+    let new_this1 := this.(wk_mstate := this.wk_mstate.(globals := new_globals1));
+    Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals1);
+
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals1);
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals1);
+
+    Lemma_WK_USB_TD_Map_PreserveUSBTDContentsIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_ID_BytesOffset, new_id);
+    Lemma_WK_USB_TD_Map_PreservePIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_ID_BytesOffset, new_id);
+    Lemma_WK_USB_TD_Map_PreserveTypeFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_ID_BytesOffset, new_id);
+    Lemma_WK_USB_TD_Map_PreserveFlagsFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_ID_BytesOffset, new_id);
+    Lemma_WK_USB_TD_Map_PreserveBusIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_ID_BytesOffset, new_id);
+    Lemma_WK_USB_TD_Map_PreserveWimpDrvSlotIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_ID_BytesOffset, new_id);
+    Lemma_WK_USB_TD_Map_PreserveUSBPDevSlotIDFieldIfModifyOtherFields(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_ID_BytesOffset, new_id);
+    Lemma_USBTD_PreserveOtherSlots_WhenModifyingOneSlot(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_ID_BytesOffset, new_id);
+    Lemma_USBTD_PreserveOtherGvars_WhenModifyingOneSlot(globals, new_globals1, slot, G_USBTDs_MAP_ENTRY_ID_BytesOffset, new_id);
+
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfNewIDOfSlotIsGood(this, new_this1, slot, (base+tmp), new_id);
+    Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals1);
+
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfUpdateIDOfEEHCIUnrefedUSBTD(globals, new_globals1, slot, tmp_addr1, new_id);
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this1);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this1);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_USBTD_MAP_MEM(), tmp_addr1, new_id);
+
+    //// Write the global variable
+    STRglobal(G_USBTD_MAP_MEM(), base, tmp, new_id);
+
+    // Prove security properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfMostUSBTDsFieldAndWimpDrvsAndUSBPDevsAreUnchanged(old(globals), globals);
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+
+    assert esp == cur_esp;
+    POP_OneReg(new_id);
+    POP_TwoRegs(base, tmp);
+    POP_OneReg(ebp);
+}
+
+// Return the earliest slot with empty PID in <g_usbtd_map_mem>.
+// If no slot is found, return 0 and false. 
+// [NOTE] Needs 30s to verify
+procedure usbtd_find_empty_slot(
+    out result_slot:reg,
+    out ret:reg
+) {:timeLimitMultiplier 5}
+    modifies
+        eax; ebx; esp; mem;
+        edx; edi;                                  // Local variables
+        esi; ebp;
+    reads
+        globals; flags;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        @result_slot == Reg1; @ret == Reg2;
+    requires
+        let stack_req_space := 
+            2 * ARCH_WORD_BYTES +                   // For local variables
+            1 * ARCH_WORD_BYTES +                   // For retval of usbtd_get_td_pid
+            6 * ARCH_WORD_BYTES;                    // For usbtd_get_td_pid
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let vaddr1 := AddressOfGlobal(G_USBTD_MAP_MEM()) + result_slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_PID_BytesOffset;
+
+        (ret == TRUE) ==> usbtd_map_valid_slot_id(result_slot);
+        (ret == TRUE) ==> (
+                ValidGlobalOffset(G_USBTD_MAP_MEM(), result_slot * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_PID_BytesOffset)
+            );
+        (ret == TRUE) ==> (
+                is_valid_addr(vaddr1) &&
+                is_valid_vaddr(vaddr1) &&   
+                    // The result must be a valid vaddr
+                is_gvar_valid_vaddr(G_USBTD_MAP_MEM(), vaddr1) &&
+                    // Returned <result_vaddr> is a valid vaddr in <g_existing_pids>
+                PID_INVALID == gvar_read_word_byaddr(old(this).wk_mstate, G_USBTD_MAP_MEM(), vaddr1)
+                    // Returned <result_slot> points to the earlist slot having PID_INVALID
+            );
+        (ret == TRUE) ==> usbtd_map_get_pid(old(globals), result_slot) == WS_PartitionID(PID_INVALID);
+    ensures
+        edi == old(edi); esi == old(esi); ebp == old(ebp); 
+        edx == old(edx); esp == old(esp); // temp registers are correctly restored
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    let i @= eax;
+    let tmp_pid @= ebx;
+    let run @= edx;
+    PUSH_OneReg(run);
+    let begin_state := this;
+ 
+    MOV_ToReg(i, 0);                                                        // uint32 i = 0
+    MOV_ToReg(run, const(TRUE));                                            // bool run = TRUE
+
+    PUSH(i);                                        
+    usbtd_get_td_pid();                                              // tmp_pid = usbtd_get_td_pid(i)
+    Load(tmp_pid, esp, 0);                                           // Get tmp_pid
+    POP_VOID(1 * ARCH_WORD_BYTES);
+
+    let base := AddressOfGlobal(G_USBTD_MAP_MEM());
+
+    Lemma_usbtd_slot_offset_AlwaysValidGUSBTDMapMemAddr(i, G_USBTDs_MAP_ENTRY_PID_BytesOffset);
+    while (run == const(TRUE))
+        invariant
+            0 <= i <= USB_TD_ENTRY_NUM;
+            run == TRUE ==> (0 <= i < USB_TD_ENTRY_NUM);
+
+            let vaddr1 := AddressOfGlobal(G_USBTD_MAP_MEM()) + i * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_PID_BytesOffset;
+            run == TRUE ==> is_valid_addr(vaddr1);
+            run == TRUE ==> is_valid_vaddr(vaddr1);
+            run == TRUE ==> is_gvar_valid_vaddr(G_USBTD_MAP_MEM(), vaddr1);
+                // Invariant: Needed by <gvar_read_word_byaddr>
+
+            run == TRUE ==> ValidGlobalOffset(G_USBTD_MAP_MEM(), i * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_PID_BytesOffset);
+                
+            run != TRUE ==> (tmp_pid == PID_INVALID || i == USB_TD_ENTRY_NUM-1);
+                // Invariant: When using this schema of while-loop, one has to describe the definition of run != TRUE
+            run != TRUE && tmp_pid == PID_INVALID
+                ==> (i <= USB_TD_ENTRY_NUM-1) &&
+                    (is_valid_addr(base + i * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_PID_BytesOffset)) &&
+                    (is_valid_vaddr(base + i * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_PID_BytesOffset)) &&
+                    (is_gvar_valid_vaddr(G_USBTD_MAP_MEM(), base + i * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_PID_BytesOffset)) &&
+                    (gvar_read_word_byaddr(this.wk_mstate, G_USBTD_MAP_MEM(), base + i * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_PID_BytesOffset) == PID_INVALID);
+                // Invariant: When found the slot, the value at the slot must be PID_INVALID 
+
+            esp == old(esp) - 1 * ARCH_WORD_BYTES;
+            stack_under_sp_is_unchanged(begin_state.wk_mstate.m, this.wk_mstate.m, esp);
+                // Invariant: Earlier stack are unchanged in this while-loop
+
+            edi == old(edi);
+            esi == old(esi);
+            ebp == old(ebp);
+                // Invariant: Registers used by sub-functions are not modified
+
+            globals == old(globals);
+            state_equal_except_mstate(old(this), this);
+        decreases
+            (USB_TD_ENTRY_NUM - i), run;
+    {
+        PUSH(i);                                        
+        usbtd_get_td_pid();                                              // tmp_pid = usbtd_get_td_pid(i)
+        Load(tmp_pid, esp, 0);                                           // Get tmp_pid
+        POP_VOID(1 * ARCH_WORD_BYTES);
+
+        if(tmp_pid == const(PID_INVALID))                               // Stop conditions of while-loop
+        {
+            MOV_ToReg(run, const(FALSE));
+
+            Lemma_usbtd_slot_offset_AlwaysValidGUSBTDMapMemAddr(i, G_USBTDs_MAP_ENTRY_PID_BytesOffset);
+        }  
+        else if(i == const(USB_TD_ENTRY_NUM - 1))                       //// i + 1 == USB_TD_ENTRY_NUM
+        {
+            MOV_ToReg(run, const(FALSE));
+        }
+        else                                                            // Add 1 when there is next run
+        {
+            ADD(i, 1);                                                          // i += 1
+
+            Lemma_usbtd_slot_offset_AlwaysValidGUSBTDMapMemAddr(i, G_USBTDs_MAP_ENTRY_PID_BytesOffset);
+        }
+    }
+
+    // Out of while-loop
+    if(tmp_pid == const(PID_INVALID))
+    {
+        assert ValidGlobalOffset(G_USBTD_MAP_MEM(), i * G_USBTDs_MAP_ENTRY_SZ + G_USBTDs_MAP_ENTRY_PID_BytesOffset);
+
+        MOV_ToReg(ret, const(TRUE));                                            // ret := TRUE
+        MOV_ToReg(result_slot, i);                                              // return result_slot 
+    }
+    else
+    {
+        assert i == USB_TD_ENTRY_NUM - 1;
+
+        MOV_ToReg(ret, const(FALSE));                                           // ret := FALSE
+        MOV_ToReg(result_slot, const(0));                                       // result_slot := 0
+    }
+
+
+    POP_OneReg(run);
+}
+
+// Find USB TD in the given partition
+// If no slot is found, return USBTD_SlotID_INVALID and false.
+// Input params on stack: (pid:word/uint32) at esp
+// Return params on stack: (result_slot:word) at esp + ARCH_WORD_BYTES, (ret:word) at esp
+// [NOTE] Needs 50s to verify
+procedure usbtd_find_slot_in_partition() {:timeLimitMultiplier 5}
+    modifies
+        esp; ebp; mem;
+        eax; ebx; ecx; edx; esi; edi;               // Local variables
+    reads
+        globals; flags;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            7 * ARCH_WORD_BYTES +                   // For local variables
+            1 * ARCH_WORD_BYTES +                   // For params of usbtd_get_td_pid
+            6 * ARCH_WORD_BYTES;                    // For usbtd_get_td_pid
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space);
+            // The params of the function must be on stack
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let pid:word := stack_get_val(old(mem), old(esp));
+        let result_slot:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> usbtd_map_valid_slot_id(result_slot);
+        (ret == TRUE) ==> usbtd_map_get_pid(old(globals), result_slot) == WS_PartitionID(pid);
+        (ret == FALSE) ==> (
+                forall (i:word) (usbtd_map_valid_slot_id(i)
+                    ==> usbtd_map_get_pid(old(globals), i) != WS_PartitionID(pid))
+            );
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+        globals == old(globals);
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let pid @= edi;
+    let i @= eax;
+    let found_slot @= ecx;
+    let tmp_v @= ebx;
+    let run @= edx;
+    PUSH_Reg1ToReg6();
+
+
+    let begin_state := this;
+    let orig_ebp := ebp;
+    Load(pid, ebp, ARCH_WORD_BYTES);                            // Load <pid>
+    let in_pid := pid;
+ 
+    MOV_ToReg(i, 0);                                                        // uint32 i = 0
+    MOV_ToReg(run, const(TRUE));                                            // bool run = TRUE
+
+    PUSH(i);
+    usbtd_get_td_pid();
+    Load(tmp_v, esp, 0);
+    POP_VOID(1 * ARCH_WORD_BYTES);
+
+    if(tmp_v == pid)
+    {
+        MOV_ToReg(run, const(FALSE));
+        MOV_ToReg(found_slot, const(TRUE));
+    }
+    else
+    {
+        MOV_ToReg(run, const(TRUE));
+        MOV_ToReg(found_slot, const(FALSE));
+    }
+
+    while (run == const(TRUE))
+        invariant
+            0 <= i <= USB_TD_ENTRY_NUM;
+            run == TRUE ==> (0 <= i < USB_TD_ENTRY_NUM);
+
+            run == TRUE ==> found_slot == FALSE;
+            tmp_v != in_pid ==> found_slot == FALSE;
+            found_slot == FALSE ==> (forall (j:uint32) (0 <= j < i && usbtd_map_valid_slot_id(j)
+                                ==> usbtd_map_get_pid(old(globals), j) != WS_PartitionID(in_pid))
+                        );
+            (run != TRUE && found_slot == FALSE) ==> (forall (j:uint32) (usbtd_map_valid_slot_id(j)
+                                ==> usbtd_map_get_pid(old(globals), j) != WS_PartitionID(in_pid))
+                        );
+                // Invariant relates to found_slot == FALSE
+                
+            run != TRUE ==> (tmp_v == in_pid || i == USB_TD_ENTRY_NUM-1);
+                // Invariant: When using this schema of while-loop, one has to describe the definition of run != TRUE
+            run != TRUE && tmp_v == in_pid
+                ==> (
+                        usbtd_map_valid_slot_id(i) &&
+                        usbtd_map_get_pid(old(globals), i) == WS_PartitionID(in_pid)
+                    );
+                // Invariant: When found the slot, its PID must be <in_pid>
+
+            esp == old(esp) - 7 * ARCH_WORD_BYTES;
+            stack_under_sp_is_unchanged(begin_state.wk_mstate.m, this.wk_mstate.m, esp);
+                // Invariant: Earlier stack are unchanged in this while-loop
+
+            esi == old(esi);
+            ebp == orig_ebp;
+            pid == in_pid;
+                // Invariant: Registers used by sub-functions are not modified
+
+            globals == old(globals);
+            state_equal_except_mstate(old(this), this);
+        decreases
+            (USB_TD_ENTRY_NUM - i), run;
+    {
+        PUSH(i);
+        usbtd_get_td_pid();
+        Load(tmp_v, esp, 0);
+        POP_VOID(1 * ARCH_WORD_BYTES);
+
+        if(tmp_v == pid)                               // Stop conditions of while-loop
+        {
+            MOV_ToReg(run, const(FALSE));
+            MOV_ToReg(found_slot, const(TRUE));
+        }  
+        else if(i == const(USB_TD_ENTRY_NUM - 1))                       //// i + 1 == USB_TD_ENTRY_NUM
+        {
+            MOV_ToReg(run, const(FALSE));
+            MOV_ToReg(found_slot, const(FALSE));
+        }
+        else                                                            // Add 1 when there is next run
+        {
+            ADD(i, 1);                                                          // i += 1
+            MOV_ToReg(run, const(TRUE));
+            MOV_ToReg(found_slot, const(FALSE));
+        }
+    }
+
+    // Out of while-loop
+    if(tmp_v == pid)
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(TRUE));
+        Store(ebp, 2 * ARCH_WORD_BYTES, i);
+    }
+    else
+    {
+        assert i == USB_TD_ENTRY_NUM - 1;
+        assert found_slot == FALSE;
+
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(USBTD_SlotID_INVALID));
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Return a new USB TD ID.
+// Return USBTD_ID_INVALID (USBTD_ID_MAX) If max is reached
+procedure usbtd_id_generate(
+    out ret:reg     
+)
+    reads
+        flags;
+    modifies
+        esp; globals; mem;
+        esi; edi;                                   // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        @ret == Reg1;
+    requires
+        IsAddrInStack(esp - 2 * ARCH_WORD_BYTES); // Stack must have free space for two words
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        globals_other_gvar_unchanged(old(globals), globals, G_USBTD_ID_Counter());
+            // Property 1: Only <g_usbtd_counter> is changed
+        (ret != USBTD_ID_INVALID) ==> (
+            forall (i:word) (usbtd_map_valid_slot_id(i)
+                    ==> (usbtd_map_get_idword(globals, i) < ret || usbtd_map_get_idword(globals, i) == USBTD_ID_INVALID))
+        );
+            // Property 2: On success returns, all existing USB TD IDs stored in g_usbtd_mem must be less than the 
+            // newly generated ID, or be USBTD_ID_INVALID
+        (ret != USBTD_ID_INVALID) ==> ret == usbtd_id_counter_read(globals);
+            // Property: <ret> must be the new value written in <g_usbtd_id_counter>
+        (ret == USBTD_ID_INVALID) ==> globals == old(globals);
+            // Property: On error returns, the global variables are not changed
+    ensures
+        esi == old(esi); edi == old(edi); esp == old(esp); // temp registers are correctly restored
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    let tmp @= esi;
+    let tmp_addr @= edi;
+
+    PUSH_TwoRegs(tmp_addr, tmp);
+
+    // tmp = G_USBTD_ID_Counter;
+    LDRglobaladdr_ToReg(tmp_addr, G_USBTD_ID_Counter());            // tmp_addr == &g_usbtd_id_counter
+    LDRglobal(tmp, G_USBTD_ID_Counter(), tmp_addr, 0);        // tmp == g_usbtd_id_counter
+
+    if(tmp == const(USBTD_ID_MAX - 1))                      // if tmp == USBTD_ID_MAX - 1 then
+    {
+        MOV_ToReg(ret, const(USBTD_ID_INVALID));   // ret = error;
+    }
+    else  
+    {
+        if(tmp == const(USBTD_ID_MAX))
+        {
+            MOV_ToReg(ret, const(USBTD_ID_INVALID));   // ret = error;
+        }
+        else
+        {
+            ADD(tmp, 1);                                // tmp += 1;
+
+            // Prove ins_valid_strglobal_word
+            let new_globals := global_write_word(globals, G_USBTD_ID_Counter(), tmp_addr, tmp);
+            let new_this := this.(wk_mstate := this.wk_mstate.(globals := new_globals));
+            Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals);
+            Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals);
+
+            assert global_read_fullval(new_globals, G_WimpDrvs_Info()) == global_read_fullval(globals, G_WimpDrvs_Info());
+            Lemma_WK_WimpDrvs_ValidGlobalVarValues_IDWords_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals);
+            Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals);
+            Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals);
+
+            Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals);
+            Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGUSBTDIDCounterIncreased(globals, new_globals);
+            Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals);
+            Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(globals, new_globals);
+
+            Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this);
+            Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this);
+            assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_USBTD_ID_Counter(), tmp_addr, tmp);
+
+            // Write the global variable
+            STRglobal(G_USBTD_ID_Counter(), tmp_addr, 0, tmp);    // g_usbtd_id_counter = tmp;
+
+            // Prove security properties
+            Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfUSBTDsAndWimpDrvsAndUSBPDevsAreUnchanged(old(globals), globals);
+            Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+            // Prove other properties
+            Lemma_usbtd_id_generate_ProveProperty2(old(globals), globals);
+
+            MOV_ToReg(ret, tmp);                              // ret =  g_usbtd_id_counter;
+        }
+    }
+
+    POP_TwoRegs(tmp_addr, tmp);
+}
+
+
+
+
+/*********************** Utility Predicates and Lemmas ********************/
+#verbatim
+lemma Lemma_usbtd_id_generate_ProveProperty2(old_globals:globalsmap, new_globals:globalsmap)
+    requires WK_ValidGlobalVars_Decls(old_globals)
+    requires WK_ValidGlobalVars_Decls(new_globals)
+    requires WK_USBTD_Map_ValidGlobalVarValues(old_globals)
+
+    requires globals_other_gvar_unchanged(old_globals, new_globals, G_USBTD_ID_Counter())
+    requires usbtd_id_counter_read(old_globals) + 1 == usbtd_id_counter_read(new_globals)
+
+    ensures forall i :: usbtd_map_valid_slot_id(i)
+                ==> (usbtd_map_get_idword(new_globals, i) < usbtd_id_counter_read(new_globals) ||
+                     usbtd_map_get_idword(new_globals, i) == USBTD_ID_INVALID)
+{
+    forall i | usbtd_map_valid_slot_id(i)
+        ensures usbtd_map_get_idword(new_globals, i) < usbtd_id_counter_read(new_globals) ||
+                usbtd_map_get_idword(new_globals, i) == USBTD_ID_INVALID
+    {
+        assert usbtd_map_get_idword(new_globals, i) == usbtd_map_get_idword(old_globals, i);
+        assert usbtd_id_counter_read(old_globals) < usbtd_id_counter_read(new_globals);
+
+        assert usbtd_slot_valid_id(old_globals, i);
+    }
+}
+#endverbatim

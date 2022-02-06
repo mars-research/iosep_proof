@@ -1,0 +1,38 @@
+include "ins_wrapper.vad"
+
+// Interface realization: <impl_is_valid_addr>
+// Return true if base + ofs is a valid addr
+procedure impl_is_valid_addr(
+    in base:reg,
+    in ofs:word,
+    out ret:reg
+)
+    reads
+        mem; flags;
+    requires
+        @base != OReg(ESP); @ofs != OReg(ESP); @ret != OReg(ESP);
+        @base != @ret; @ofs != @ret;
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        (ret == TRUE) ==> is_valid_addr(base + ofs);
+    ensures
+        base == old(base); ofs == old(ofs);  // Input params are unchanged
+    ensures
+        old(mem) == mem;
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    MOV_ToReg(ret, 0xFFFFFFFF);                       // ret := 0xFFFFFFFF
+    SUB(ret, base);                                 // ret := 0xFFFFFFFF - base
+
+    if(ofs <= ret)
+    {
+        MOV_ToReg(ret, const(TRUE));
+    }
+    else
+    {
+        MOV_ToReg(ret, const(FALSE));
+    }
+}

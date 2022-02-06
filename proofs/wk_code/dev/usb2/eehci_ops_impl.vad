@@ -1,0 +1,1989 @@
+include {:verbatim} "eehci.s.dfy"
+include "eehci_ops_impl_private.vad"
+include "eehci_info.vad"
+include "eehci_mem_utils.vad"
+include "usb_tds_utils.vad"
+include "../../partition_id_ops.vad"
+include "../../drv/drv_ops_utils.vad"
+
+/*********************** Method Forward Declarations ********************/
+procedure _WimpDrv_Write_eEHCI_USBTDReg_check_new_value()
+    extern;
+procedure _WimpDrv_Write_eEHCI_USBTDReg_check_new_value_CheckProperty1()
+    extern;
+procedure _WimpDrv_Write_eEHCI_USBTDReg_check_new_value_CheckProperty2()
+    extern;
+
+
+
+
+/*********************** Public Methods - Impl ********************/
+// Activate the given USBPDev
+// Input params on stack: (new_pid:word/uint32) at esp
+// Return params on stack: (eehci_slot:word) at esp + 3 * ARCH_WORD_BYTES, (eehci_handle:word) at esp + 2 * ARCH_WORD_BYTES, 
+// (eehci_id:word) at esp + ARCH_WORD_BYTES, (ret:word) at esp
+// [NOTE] Needs 190s to verify
+procedure EEHCI_Activate_Impl() {:timeLimitMultiplier 20}
+    reads
+        flags;
+    modifies
+        mem; globals;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         // For <CALL_EEHCI_Activate>
+            FFI_EEHCI_Activate_ReturnWords * ARCH_WORD_BYTES;                     // For params of <CALL_EEHCI_Activate>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 4 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Stack space for function parameters
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let new_pid:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+        let eehci_idword:word := stack_get_val(mem, old(esp) + 1 * ARCH_WORD_BYTES);
+        let eehci_handle:word := stack_get_val(mem, old(esp) + 2 * ARCH_WORD_BYTES);
+        let eehci_slot:word := stack_get_val(mem, old(esp) + 3 * ARCH_WORD_BYTES);
+        
+        (ret == TRUE) ==> (
+                forall (i:word) (eehci_valid_slot_id(i)
+                        ==> eehci_mem_get_eehci_id(old(globals), i) != eehci_idword)
+            );
+            // Property: If return true, then the <eehci_idword> does not appear in the <g_eehci_mem>
+        (ret == TRUE) ==> pids_is_existing_wimp_pid(old(globals), new_pid);
+            // Property 1: <pid> must be an existing one
+        (ret == TRUE) ==> eehci_idword != eEHCI_ID_INVALID;
+        (ret == TRUE) ==> (
+            let eehci_id:Dev_ID := Map_EEHCIIDWord_ToDevID(old(this).subjects, old(this).objects, old(this).id_mappings, eehci_idword) in
+            old(this).subjects.eehcis?[eehci_id]
+        );
+        (ret == TRUE) ==> eehci_valid_slot_id(eehci_slot);
+        (ret == TRUE) ==> eechi_activate_globalvars_relation(old(globals), globals, eehci_slot, eehci_idword, eehci_handle, new_pid);
+            // Property 2: Set <g_eehci_mem> and <g_eehci_info> correctly
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+            // Property 3: If return false, then non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+    ensures
+        let stack_retval_space := 4 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal ffi_eehci_activate_stack_and_globals;
+    
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let slot_id @= edi;
+    let eehci_idword @= esi;
+    let eehci_handle @= edx;
+    let tmp1 @= ecx;
+    let ret @= eax;
+    PUSH_Reg1ToReg6();
+
+
+    // 1. Check "<new_pid> must be an existing wimp partition's PID"
+    PUSH_VOID(1 * ARCH_WORD_BYTES);
+    Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);   // Load <new_pid>
+    PUSH(tmp1);
+    let new_pid := tmp1;
+    pids_is_existing_wimp_pid();
+    Load(ret, esp, 0);
+    POP_VOID(2 * ARCH_WORD_BYTES);
+
+    if(ret == const(TRUE))
+    {
+        assert pids_is_existing_wimp_pid(globals, new_pid);
+
+        let old_globals := globals;
+        assert old_globals == old(globals);
+
+        // 2. Activate EEHCI by calling ephemeral device separation code
+        PUSH_VOID(4 * ARCH_WORD_BYTES);
+        CALL_EEHCI_Activate();
+        Load(ret, esp, 0);
+        Load(eehci_idword, esp, 1 * ARCH_WORD_BYTES);
+        Load(slot_id, esp, 2 * ARCH_WORD_BYTES);
+        Load(eehci_handle, esp, 3 * ARCH_WORD_BYTES);
+        POP_VOID(4 * ARCH_WORD_BYTES);
+
+        if(ret == const(TRUE))
+        {
+            let globals1 := globals;
+            assert eehci_idword != eEHCI_ID_INVALID;
+            assert ffi_eehci_activate_globals_relationship(old_globals, globals1, slot_id, eehci_idword, eehci_handle, TRUE);
+            Lemma_ffi_eehci_activate_globals_relationship_Property(old_globals, globals1, slot_id, eehci_idword, eehci_handle, TRUE);
+
+            // Prove physical EHCIs that map to ephemeral EHCIs is still inactive
+            Lemma_OSSubjsHaveUnchangedPIDs_IfSubjectsAreSame(old(this), this);
+
+            // 3. Update eEHCI Info
+            Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);   // Load <new_pid>
+            PUSH(tmp1);
+            assert tmp1 == new_pid;
+            PUSH(const(0));
+            PUSH(slot_id);
+            _eehci_info_update_slot_to_valid_pid();
+            POP_VOID(3 * ARCH_WORD_BYTES);
+
+            assert eehci_info_only_change_slot_newvalue(globals1, globals, slot_id, 0, new_pid);
+
+            Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+            Store(ebp, 2 * ARCH_WORD_BYTES, eehci_idword);
+            Store(ebp, 3 * ARCH_WORD_BYTES, eehci_handle);
+            Store(ebp, 4 * ARCH_WORD_BYTES, slot_id);
+
+            Lemma_EEHCI_Activate_ProveProperty2(old_globals, globals1, globals, slot_id, eehci_idword, eehci_handle, new_pid);
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+            Store(ebp, 2 * ARCH_WORD_BYTES, const(eEHCI_ID_INVALID));  // Return eEHCI_ID_INVALID
+            Store(ebp, 3 * ARCH_WORD_BYTES, const(eEHCI_Handle_INVALID)); // Return eEHCI_Handle_INVALID
+            Store(ebp, 4 * ARCH_WORD_BYTES, const(eEHCI_SlotID_EMPTY));  // Return eEHCI_SlotID_EMPTY
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(eEHCI_ID_INVALID));  // Return eEHCI_ID_INVALID
+        Store(ebp, 3 * ARCH_WORD_BYTES, const(eEHCI_Handle_INVALID)); // Return eEHCI_Handle_INVALID
+        Store(ebp, 4 * ARCH_WORD_BYTES, const(eEHCI_SlotID_EMPTY));  // Return eEHCI_SlotID_EMPTY
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Deactivate the given USBPDev
+// Input params on stack: (eehci_slot:word) at esp
+// Return params on stack: (ret:word) at esp
+// [NOTE] Needs 150s to verify
+procedure EEHCI_Deactivate_Impl() {:timeLimitMultiplier 20}
+    reads
+        flags;
+    modifies
+        mem; globals;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         // For <CALL_EEHCI_Deactivate>
+            FFI_EEHCI_Deactivate_StackParamsWords * ARCH_WORD_BYTES;               // For params of <CALL_EEHCI_Deactivate>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Stack space for function parameters
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let eehci_slot:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+        
+        (ret == TRUE) ==> eehci_valid_slot_id(eehci_slot);
+        (ret == TRUE) ==> pids_is_existing_wimp_pid(old(globals), eehci_info_get_pid(old(globals), eehci_slot).v);
+            // Property 1: If return true, then the eEHCI must be in an wimp partition previously
+        (ret == TRUE) ==> eechi_deactivate_globalvars_relation(old(globals), globals, eehci_slot);
+            // Property 2: Set <g_eehci_mem> and <g_eehci_info> correctly
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+            // Property 3: If return false, then non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    reveal ffi_eehci_deactivate_stack_and_globals;
+
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+
+    let tmp1 @= eax;
+    let tmp2 @= ebx;
+    let tmp3 @= ecx;
+    let ret @= edx;
+    PUSH_Reg1ToReg6();
+
+    // 1. Check <eehci_slot>
+    Load(tmp2, ebp, 1 * ARCH_WORD_BYTES);   // Load <eehci_slot>
+    let eehci_slot := tmp2;
+    eehci_check_slot_id(tmp2, tmp1);
+
+    if(tmp1 == const(TRUE))
+    {
+        // 2. Check if the eEHCI's PID is an existing one
+        Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);   // Load <eehci_slot>
+        PUSH_VOID(1 * ARCH_WORD_BYTES);
+        eehci_info_get_pid(tmp1);      // tmp2 := eehci_info_get_pid(eehci_slot);
+        Load(tmp2, esp, 0);
+        POP_VOID(1 * ARCH_WORD_BYTES);
+
+        PUSH_VOID(1 * ARCH_WORD_BYTES);
+        PUSH(tmp2);
+        pids_is_existing_wimp_pid();
+        Load(ret, esp, 0);
+        POP_VOID(2 * ARCH_WORD_BYTES);
+
+        if(ret == const(TRUE))
+        {
+            // 3. Check the eEHCI does not ref any USB TD
+            Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);   // Load <eehci_slot>
+            eehci_mem_usbtd_reg_find_nonempty_slot(tmp1, tmp2, tmp3);
+
+            if(tmp3 == const(FALSE))
+            {
+                let old_globals := globals;
+                assert old_globals == old(globals);
+                assert EECHI_DoNotRefAnyUSBTD(globals, eehci_slot);
+
+                // 4. Clear eEHCI Info
+                PUSH(const(PID_INVALID));
+                PUSH(0);
+                Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);   // Load <eehci_slot>
+                PUSH(tmp1);
+                _eehci_info_update_slot_to_invalid_pid();
+                POP_VOID(3 * ARCH_WORD_BYTES);
+
+                let globals1 := globals;
+                assert eehci_info_only_change_slot_newvalue(old_globals, globals1, eehci_slot, 0, PID_INVALID);
+
+                // 5. Deactivate the eEHCI
+                assert esp == old(esp) - 7 * ARCH_WORD_BYTES;
+                Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);   // Load <eehci_slot>
+                PUSH(tmp1);
+                CALL_EEHCI_Deactivate();
+                POP_VOID(1 * ARCH_WORD_BYTES);
+
+                assert ffi_eehci_deactivate_globals_relationship(globals1, globals, eehci_slot);
+                Lemma_EEHCI_Deactivate_ProveProperty2(old_globals, globals1, globals, eehci_slot);
+
+                // 6. Summary
+                Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Wimp driver writes the <config> register of the given eEHCI
+// Input params on stack: (new_v:word/uint32) at esp + 2 * ARCH_WORD_BYTES,
+// (eehci_slot:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (wimpdrv_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp
+// [NOTE] Needs 120s to verify
+procedure WimpDrv_Write_eEHCI_Config_Impl() {:timeLimitMultiplier 15}
+    reads
+        flags;
+    modifies
+        mem; globals;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            19 * ARCH_WORD_BYTES +                   // For <pids_is_existing_wimp_pid>
+            2 * ARCH_WORD_BYTES;                     // For params of <pids_is_existing_wimp_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Stack space for function parameters
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_v:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> wimpdrv_valid_slot_id(wimpdrv_slot);
+        (ret == TRUE) ==> eehci_valid_slot_id(eehci_slot);
+        (ret == TRUE) ==> pids_parse_g_wimp_pids(old(globals))?[wimpdrv_get_pid(old(globals), wimpdrv_slot)];
+            // Property: If return true, then the wimp driver must be in an active wimp partition
+        (ret == TRUE) ==> wimpdrv_get_pid(old(globals), wimpdrv_slot) == eehci_info_get_pid(old(globals), eehci_slot);
+            // Property: If return true, then the wimp driver must be in the same partition with the eEHCI
+        (ret == TRUE) ==> (
+                let vaddr := AddressOfGlobal(G_EEHCI_MEM()) + eehci_slot * eEHCI_INSTANCE_BYTES + G_EEHCI_Mem_ENTRY_EECHI_Config_BytesOffset in
+                globals == global_write_word(old(globals), G_EEHCI_MEM(), vaddr, new_v)
+            );
+            // Property: If return true, then the new value is written into eEHCI
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+        (ret != TRUE) ==> state_equal_except_mstate(old(this), this);
+            // Property: If return false, then non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let wimpdrv_slot @= ebx;
+    let eehci_slot @= ecx;
+    let ret @= eax;
+    let tmp @= edx;
+    let wimpdrv_pid @= edi;
+    let eehci_pid @= esi;
+    PUSH_Reg1ToReg6();
+
+    Load(wimpdrv_slot, ebp, 1 * ARCH_WORD_BYTES);   // Load <wimpdrv_slot>
+    Load(eehci_slot, ebp, 2 * ARCH_WORD_BYTES);   // Load <eehci_slot>
+
+    // 1. Check the validity of <wimpdrv_slot> and <eehci_slot>
+    wimpdrv_check_slotid(wimpdrv_slot, ret);
+    if(ret == const(TRUE))
+    {
+        eehci_check_slot_id(eehci_slot, ret);
+        if(ret == const(TRUE))
+        {
+            PUSH(wimpdrv_slot);
+            wimpdrv_ops_get_pid_nocheck();
+            Load(wimpdrv_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            MOV_ToReg(ret, eehci_slot);
+            eehci_info_get_pid(ret);        // Get PID of <eehci_slot>
+            Load(eehci_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            // 2. Check wimp driver's PID must be an existing wimp partition's PID
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            PUSH(wimpdrv_pid);
+            pids_is_existing_wimp_pid();
+            Load(ret, esp, 0);
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            if(ret == const(TRUE))
+            {
+                // 3. Check the wimp driver must be in the same partition with the eEHCI
+                if(wimpdrv_pid == eehci_pid)
+                {
+                    // 4. Write value
+                    Load(tmp, ebp, 3 * ARCH_WORD_BYTES);   // Load <new_v>
+                    PUSH(tmp);
+                    PUSH(eehci_slot);
+                    eehci_write_config();
+                    POP_VOID(2 * ARCH_WORD_BYTES);
+
+                    Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Wimp driver reads the <config> register of the given eEHCI
+// Input params on stack: (eehci_slot:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (wimpdrv_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp, (val:word/uint32) at esp + 1 * ARCH_WORD_BYTES,
+// [NOTE] Needs 100s to verify
+procedure WimpDrv_Read_eEHCI_Config_Impl() {:timeLimitMultiplier 15}
+    reads
+        flags; globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            19 * ARCH_WORD_BYTES +                   // For <pids_is_existing_wimp_pid>
+            2 * ARCH_WORD_BYTES;                     // For params of <pids_is_existing_wimp_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Stack space for function parameters
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+        let val:word := stack_get_val(mem, old(esp) + 1 * ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> wimpdrv_valid_slot_id(wimpdrv_slot);
+        (ret == TRUE) ==> eehci_valid_slot_id(eehci_slot);
+        (ret == TRUE) ==> pids_parse_g_wimp_pids(old(globals))?[wimpdrv_get_pid(old(globals), wimpdrv_slot)];
+            // Property: If return true, then the wimp driver must be in an active wimp partition
+        (ret == TRUE) ==> wimpdrv_get_pid(old(globals), wimpdrv_slot) == eehci_info_get_pid(old(globals), eehci_slot);
+            // Property: If return true, then the wimp driver must be in the same partition with the eEHCI
+        (ret == TRUE) ==> eehci_mem_get_config_reg(old(globals), eehci_slot) == val;
+            // Property: If return true, then the return value is the value in the register
+        global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+        state_equal_except_mstate(old(this), this);
+            // Property: non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let wimpdrv_slot @= ebx;
+    let eehci_slot @= ecx;
+    let ret @= eax;
+    let tmp @= edx;
+    let wimpdrv_pid @= edi;
+    let eehci_pid @= esi;
+    PUSH_Reg1ToReg6();
+
+    Load(wimpdrv_slot, ebp, 1 * ARCH_WORD_BYTES);   // Load <wimpdrv_slot>
+    Load(eehci_slot, ebp, 2 * ARCH_WORD_BYTES);   // Load <eehci_slot>
+
+    // 1. Check the validity of <wimpdrv_slot> and <eehci_slot>
+    wimpdrv_check_slotid(wimpdrv_slot, ret);
+    if(ret == const(TRUE))
+    {
+        eehci_check_slot_id(eehci_slot, ret);
+        if(ret == const(TRUE))
+        {
+            PUSH(wimpdrv_slot);
+            wimpdrv_ops_get_pid_nocheck();
+            Load(wimpdrv_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            MOV_ToReg(ret, eehci_slot);
+            eehci_info_get_pid(ret);        // Get PID of <eehci_slot>
+            Load(eehci_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            // 2. Check wimp driver's PID must be an existing wimp partition's PID
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            PUSH(wimpdrv_pid);
+            pids_is_existing_wimp_pid();
+            Load(ret, esp, 0);
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            if(ret == const(TRUE))
+            {
+                // 3. Check the wimp driver must be in the same partition with the eEHCI
+                if(wimpdrv_pid == eehci_pid)
+                {
+                    // 4. Read value
+                    PUSH(eehci_slot);
+                    eehci_read_config();
+                    Load(tmp, esp, 0);
+                    POP_VOID(1 * ARCH_WORD_BYTES);
+
+                    Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+                    Store(ebp, 2 * ARCH_WORD_BYTES, tmp);                      // Return value
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Wimp driver writes the <status> register of the given eEHCI
+// Input params on stack: (new_v:word/uint32) at esp + 2 * ARCH_WORD_BYTES,
+// (eehci_slot:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (wimpdrv_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp
+// [NOTE] Needs 100s to verify
+procedure WimpDrv_Write_eEHCI_Status_Impl() {:timeLimitMultiplier 15}
+    reads
+        flags;
+    modifies
+        mem; globals;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            19 * ARCH_WORD_BYTES +                   // For <pids_is_existing_wimp_pid>
+            2 * ARCH_WORD_BYTES;                     // For params of <pids_is_existing_wimp_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Stack space for function parameters
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_v:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> wimpdrv_valid_slot_id(wimpdrv_slot);
+        (ret == TRUE) ==> eehci_valid_slot_id(eehci_slot);
+        (ret == TRUE) ==> pids_parse_g_wimp_pids(old(globals))?[wimpdrv_get_pid(old(globals), wimpdrv_slot)];
+            // Property: If return true, then the wimp driver must be in an active wimp partition
+        (ret == TRUE) ==> wimpdrv_get_pid(old(globals), wimpdrv_slot) == eehci_info_get_pid(old(globals), eehci_slot);
+            // Property: If return true, then the wimp driver must be in the same partition with the eEHCI
+        (ret == TRUE) ==> (
+                let vaddr := AddressOfGlobal(G_EEHCI_MEM()) + eehci_slot * eEHCI_INSTANCE_BYTES + G_EEHCI_Mem_ENTRY_EECHI_Status_BytesOffset in
+                globals == global_write_word(old(globals), G_EEHCI_MEM(), vaddr, new_v)
+            );
+            // Property: If return true, then the new value is written into eEHCI
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+        (ret != TRUE) ==> state_equal_except_mstate(old(this), this);
+            // Property: If return false, then non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let wimpdrv_slot @= ebx;
+    let eehci_slot @= ecx;
+    let ret @= eax;
+    let tmp @= edx;
+    let wimpdrv_pid @= edi;
+    let eehci_pid @= esi;
+    PUSH_Reg1ToReg6();
+
+    Load(wimpdrv_slot, ebp, 1 * ARCH_WORD_BYTES);   // Load <wimpdrv_slot>
+    Load(eehci_slot, ebp, 2 * ARCH_WORD_BYTES);   // Load <eehci_slot>
+
+    // 1. Check the validity of <wimpdrv_slot> and <eehci_slot>
+    wimpdrv_check_slotid(wimpdrv_slot, ret);
+    if(ret == const(TRUE))
+    {
+        eehci_check_slot_id(eehci_slot, ret);
+        if(ret == const(TRUE))
+        {
+            PUSH(wimpdrv_slot);
+            wimpdrv_ops_get_pid_nocheck();
+            Load(wimpdrv_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            MOV_ToReg(ret, eehci_slot);
+            eehci_info_get_pid(ret);        // Get PID of <eehci_slot>
+            Load(eehci_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            // 2. Check wimp driver's PID must be an existing wimp partition's PID
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            PUSH(wimpdrv_pid);
+            pids_is_existing_wimp_pid();
+            Load(ret, esp, 0);
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            if(ret == const(TRUE))
+            {
+                // 3. Check the wimp driver must be in the same partition with the eEHCI
+                if(wimpdrv_pid == eehci_pid)
+                {
+                    // 4. Write value
+                    Load(tmp, ebp, 3 * ARCH_WORD_BYTES);   // Load <new_v>
+                    PUSH(tmp);
+                    PUSH(eehci_slot);
+                    eehci_write_status();
+                    POP_VOID(2 * ARCH_WORD_BYTES);
+
+                    Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Wimp driver reads the <status> register of the given eEHCI
+// Input params on stack: (eehci_slot:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (wimpdrv_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp, (val:word/uint32) at esp + 1 * ARCH_WORD_BYTES,
+// [NOTE] Needs 100s to verify
+procedure WimpDrv_Read_eEHCI_Status_Impl() {:timeLimitMultiplier 15}
+    reads
+        flags; globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            19 * ARCH_WORD_BYTES +                   // For <pids_is_existing_wimp_pid>
+            2 * ARCH_WORD_BYTES;                     // For params of <pids_is_existing_wimp_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Stack space for function parameters
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+        let val:word := stack_get_val(mem, old(esp) + 1 * ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> wimpdrv_valid_slot_id(wimpdrv_slot);
+        (ret == TRUE) ==> eehci_valid_slot_id(eehci_slot);
+        (ret == TRUE) ==> pids_parse_g_wimp_pids(old(globals))?[wimpdrv_get_pid(old(globals), wimpdrv_slot)];
+            // Property: If return true, then the wimp driver must be in an active wimp partition
+        (ret == TRUE) ==> wimpdrv_get_pid(old(globals), wimpdrv_slot) == eehci_info_get_pid(old(globals), eehci_slot);
+            // Property: If return true, then the wimp driver must be in the same partition with the eEHCI
+        (ret == TRUE) ==> eehci_mem_get_status_reg(old(globals), eehci_slot) == val;
+            // Property: If return true, then the return value is the value in the register
+        global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+        state_equal_except_mstate(old(this), this);
+            // Property: non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let wimpdrv_slot @= ebx;
+    let eehci_slot @= ecx;
+    let ret @= eax;
+    let tmp @= edx;
+    let wimpdrv_pid @= edi;
+    let eehci_pid @= esi;
+    PUSH_Reg1ToReg6();
+
+    Load(wimpdrv_slot, ebp, 1 * ARCH_WORD_BYTES);   // Load <wimpdrv_slot>
+    Load(eehci_slot, ebp, 2 * ARCH_WORD_BYTES);   // Load <eehci_slot>
+
+    // 1. Check the validity of <wimpdrv_slot> and <eehci_slot>
+    wimpdrv_check_slotid(wimpdrv_slot, ret);
+    if(ret == const(TRUE))
+    {
+        eehci_check_slot_id(eehci_slot, ret);
+        if(ret == const(TRUE))
+        {
+            PUSH(wimpdrv_slot);
+            wimpdrv_ops_get_pid_nocheck();
+            Load(wimpdrv_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            MOV_ToReg(ret, eehci_slot);
+            eehci_info_get_pid(ret);        // Get PID of <eehci_slot>
+            Load(eehci_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            // 2. Check wimp driver's PID must be an existing wimp partition's PID
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            PUSH(wimpdrv_pid);
+            pids_is_existing_wimp_pid();
+            Load(ret, esp, 0);
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            if(ret == const(TRUE))
+            {
+                // 3. Check the wimp driver must be in the same partition with the eEHCI
+                if(wimpdrv_pid == eehci_pid)
+                {
+                    // 4. Read value
+                    PUSH(eehci_slot);
+                    eehci_read_status();
+                    Load(tmp, esp, 0);
+                    POP_VOID(1 * ARCH_WORD_BYTES);
+
+                    Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+                    Store(ebp, 2 * ARCH_WORD_BYTES, tmp);                      // Return value
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Wimp driver writes the <intr_enable> register of the given eEHCI
+// Input params on stack: (new_v:word/uint32) at esp + 2 * ARCH_WORD_BYTES,
+// (eehci_slot:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (wimpdrv_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp
+// [NOTE] Needs 100s to verify
+procedure WimpDrv_Write_eEHCI_IntrEnable() {:timeLimitMultiplier 15}
+    reads
+        flags;
+    modifies
+        mem; globals;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            19 * ARCH_WORD_BYTES +                   // For <pids_is_existing_wimp_pid>
+            2 * ARCH_WORD_BYTES;                     // For params of <pids_is_existing_wimp_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Stack space for function parameters
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_v:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> wimpdrv_valid_slot_id(wimpdrv_slot);
+        (ret == TRUE) ==> eehci_valid_slot_id(eehci_slot);
+        (ret == TRUE) ==> pids_parse_g_wimp_pids(old(globals))?[wimpdrv_get_pid(old(globals), wimpdrv_slot)];
+            // Property: If return true, then the wimp driver must be in an active wimp partition
+        (ret == TRUE) ==> wimpdrv_get_pid(old(globals), wimpdrv_slot) == eehci_info_get_pid(old(globals), eehci_slot);
+            // Property: If return true, then the wimp driver must be in the same partition with the eEHCI
+        (ret == TRUE) ==> (
+                let vaddr := AddressOfGlobal(G_EEHCI_MEM()) + eehci_slot * eEHCI_INSTANCE_BYTES + G_EEHCI_Mem_ENTRY_EECHI_IntrEnable_BytesOffset in
+                globals == global_write_word(old(globals), G_EEHCI_MEM(), vaddr, new_v)
+            );
+            // Property: If return true, then the new value is written into eEHCI
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+        (ret != TRUE) ==> state_equal_except_mstate(old(this), this);
+            // Property: If return false, then non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let wimpdrv_slot @= ebx;
+    let eehci_slot @= ecx;
+    let ret @= eax;
+    let tmp @= edx;
+    let wimpdrv_pid @= edi;
+    let eehci_pid @= esi;
+    PUSH_Reg1ToReg6();
+
+    Load(wimpdrv_slot, ebp, 1 * ARCH_WORD_BYTES);   // Load <wimpdrv_slot>
+    Load(eehci_slot, ebp, 2 * ARCH_WORD_BYTES);   // Load <eehci_slot>
+
+    // 1. Check the validity of <wimpdrv_slot> and <eehci_slot>
+    wimpdrv_check_slotid(wimpdrv_slot, ret);
+    if(ret == const(TRUE))
+    {
+        eehci_check_slot_id(eehci_slot, ret);
+        if(ret == const(TRUE))
+        {
+            PUSH(wimpdrv_slot);
+            wimpdrv_ops_get_pid_nocheck();
+            Load(wimpdrv_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            MOV_ToReg(ret, eehci_slot);
+            eehci_info_get_pid(ret);        // Get PID of <eehci_slot>
+            Load(eehci_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            // 2. Check wimp driver's PID must be an existing wimp partition's PID
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            PUSH(wimpdrv_pid);
+            pids_is_existing_wimp_pid();
+            Load(ret, esp, 0);
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            if(ret == const(TRUE))
+            {
+                // 3. Check the wimp driver must be in the same partition with the eEHCI
+                if(wimpdrv_pid == eehci_pid)
+                {
+                    // 4. Check the value to be written
+                    Load(tmp, ebp, 3 * ARCH_WORD_BYTES);   // Load <new_v>
+
+                    if(tmp == const(eEHCI_Intr_Disable))
+                    {
+                        // 5. Write value
+                        Load(tmp, ebp, 3 * ARCH_WORD_BYTES);   // Load <new_v>
+                        PUSH(tmp);
+                        PUSH(eehci_slot);
+                        eehci_write_intr_enable();
+                        POP_VOID(2 * ARCH_WORD_BYTES);
+
+                        Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+                    }
+                    else
+                    {
+                        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                        assert globals == old(globals);
+                        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                    }
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Wimp driver reads the <intr_enable> register of the given eEHCI
+// Input params on stack: (eehci_slot:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (wimpdrv_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp, (val:word/uint32) at esp + 1 * ARCH_WORD_BYTES,
+// [NOTE] Needs 100s to verify
+procedure WimpDrv_Read_eEHCI_IntrEnable() {:timeLimitMultiplier 15}
+    reads
+        flags; globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            19 * ARCH_WORD_BYTES +                   // For <pids_is_existing_wimp_pid>
+            2 * ARCH_WORD_BYTES;                     // For params of <pids_is_existing_wimp_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Stack space for function parameters
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+        let val:word := stack_get_val(mem, old(esp) + 1 * ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> wimpdrv_valid_slot_id(wimpdrv_slot);
+        (ret == TRUE) ==> eehci_valid_slot_id(eehci_slot);
+        (ret == TRUE) ==> pids_parse_g_wimp_pids(old(globals))?[wimpdrv_get_pid(old(globals), wimpdrv_slot)];
+            // Property: If return true, then the wimp driver must be in an active wimp partition
+        (ret == TRUE) ==> wimpdrv_get_pid(old(globals), wimpdrv_slot) == eehci_info_get_pid(old(globals), eehci_slot);
+            // Property: If return true, then the wimp driver must be in the same partition with the eEHCI
+        (ret == TRUE) ==> eehci_mem_get_intr_enable_reg(old(globals), eehci_slot) == val;
+            // Property: If return true, then the return value is the value in the register
+        global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+        state_equal_except_mstate(old(this), this);
+            // Property: non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let wimpdrv_slot @= ebx;
+    let eehci_slot @= ecx;
+    let ret @= eax;
+    let tmp @= edx;
+    let wimpdrv_pid @= edi;
+    let eehci_pid @= esi;
+    PUSH_Reg1ToReg6();
+
+    Load(wimpdrv_slot, ebp, 1 * ARCH_WORD_BYTES);   // Load <wimpdrv_slot>
+    Load(eehci_slot, ebp, 2 * ARCH_WORD_BYTES);   // Load <eehci_slot>
+
+    // 1. Check the validity of <wimpdrv_slot> and <eehci_slot>
+    wimpdrv_check_slotid(wimpdrv_slot, ret);
+    if(ret == const(TRUE))
+    {
+        eehci_check_slot_id(eehci_slot, ret);
+        if(ret == const(TRUE))
+        {
+            PUSH(wimpdrv_slot);
+            wimpdrv_ops_get_pid_nocheck();
+            Load(wimpdrv_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            MOV_ToReg(ret, eehci_slot);
+            eehci_info_get_pid(ret);        // Get PID of <eehci_slot>
+            Load(eehci_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            // 2. Check wimp driver's PID must be an existing wimp partition's PID
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            PUSH(wimpdrv_pid);
+            pids_is_existing_wimp_pid();
+            Load(ret, esp, 0);
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            if(ret == const(TRUE))
+            {
+                // 3. Check the wimp driver must be in the same partition with the eEHCI
+                if(wimpdrv_pid == eehci_pid)
+                {
+                    // 4. Read value
+                    PUSH(eehci_slot);
+                    eehci_read_intr_enable();
+                    Load(tmp, esp, 0);
+                    POP_VOID(1 * ARCH_WORD_BYTES);
+
+                    Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+                    Store(ebp, 2 * ARCH_WORD_BYTES, tmp);                      // Return value
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Wimp driver writes the <intr_target> register of the given eEHCI
+// Input params on stack: (new_v:word/uint32) at esp + 2 * ARCH_WORD_BYTES,
+// (eehci_slot:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (wimpdrv_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp
+// [NOTE] Needs 100s to verify
+procedure WimpDrv_Write_eEHCI_IntrTarget() {:timeLimitMultiplier 15}
+    reads
+        flags;
+    modifies
+        mem; globals;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            19 * ARCH_WORD_BYTES +                   // For <pids_is_existing_wimp_pid>
+            2 * ARCH_WORD_BYTES;                     // For params of <pids_is_existing_wimp_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Stack space for function parameters
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_v:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> wimpdrv_valid_slot_id(wimpdrv_slot);
+        (ret == TRUE) ==> eehci_valid_slot_id(eehci_slot);
+        (ret == TRUE) ==> pids_parse_g_wimp_pids(old(globals))?[wimpdrv_get_pid(old(globals), wimpdrv_slot)];
+            // Property: If return true, then the wimp driver must be in an active wimp partition
+        (ret == TRUE) ==> wimpdrv_get_pid(old(globals), wimpdrv_slot) == eehci_info_get_pid(old(globals), eehci_slot);
+            // Property: If return true, then the wimp driver must be in the same partition with the eEHCI
+        (ret == TRUE) ==> (
+                let vaddr := AddressOfGlobal(G_EEHCI_MEM()) + eehci_slot * eEHCI_INSTANCE_BYTES + G_EEHCI_Mem_ENTRY_EECHI_IntrTarget_BytesOffset in
+                globals == global_write_word(old(globals), G_EEHCI_MEM(), vaddr, new_v)
+            );
+            // Property: If return true, then the new value is written into eEHCI
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+        (ret != TRUE) ==> state_equal_except_mstate(old(this), this);
+            // Property: If return false, then non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let wimpdrv_slot @= ebx;
+    let eehci_slot @= ecx;
+    let ret @= eax;
+    let tmp @= edx;
+    let wimpdrv_pid @= edi;
+    let eehci_pid @= esi;
+    PUSH_Reg1ToReg6();
+
+    Load(wimpdrv_slot, ebp, 1 * ARCH_WORD_BYTES);   // Load <wimpdrv_slot>
+    Load(eehci_slot, ebp, 2 * ARCH_WORD_BYTES);   // Load <eehci_slot>
+
+    // 1. Check the validity of <wimpdrv_slot> and <eehci_slot>
+    wimpdrv_check_slotid(wimpdrv_slot, ret);
+    if(ret == const(TRUE))
+    {
+        eehci_check_slot_id(eehci_slot, ret);
+        if(ret == const(TRUE))
+        {
+            PUSH(wimpdrv_slot);
+            wimpdrv_ops_get_pid_nocheck();
+            Load(wimpdrv_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            MOV_ToReg(ret, eehci_slot);
+            eehci_info_get_pid(ret);        // Get PID of <eehci_slot>
+            Load(eehci_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            // 2. Check wimp driver's PID must be an existing wimp partition's PID
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            PUSH(wimpdrv_pid);
+            pids_is_existing_wimp_pid();
+            Load(ret, esp, 0);
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            if(ret == const(TRUE))
+            {
+                // 3. Check the wimp driver must be in the same partition with the eEHCI
+                if(wimpdrv_pid == eehci_pid)
+                {
+                    // 4. Write value
+                    Load(tmp, ebp, 3 * ARCH_WORD_BYTES);   // Load <new_v>
+                    PUSH(tmp);
+                    PUSH(eehci_slot);
+                    eehci_write_intr_target();
+                    POP_VOID(2 * ARCH_WORD_BYTES);
+
+                    Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Wimp driver reads the <intr_target> register of the given eEHCI
+// Input params on stack: (eehci_slot:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (wimpdrv_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp, (val:word/uint32) at esp + 1 * ARCH_WORD_BYTES,
+// [NOTE] Needs 100s to verify
+procedure WimpDrv_Read_eEHCI_IntrTarget() {:timeLimitMultiplier 15}
+    reads
+        flags; globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            19 * ARCH_WORD_BYTES +                   // For <pids_is_existing_wimp_pid>
+            2 * ARCH_WORD_BYTES;                     // For params of <pids_is_existing_wimp_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Stack space for function parameters
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+        let val:word := stack_get_val(mem, old(esp) + 1 * ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> wimpdrv_valid_slot_id(wimpdrv_slot);
+        (ret == TRUE) ==> eehci_valid_slot_id(eehci_slot);
+        (ret == TRUE) ==> pids_parse_g_wimp_pids(old(globals))?[wimpdrv_get_pid(old(globals), wimpdrv_slot)];
+            // Property: If return true, then the wimp driver must be in an active wimp partition
+        (ret == TRUE) ==> wimpdrv_get_pid(old(globals), wimpdrv_slot) == eehci_info_get_pid(old(globals), eehci_slot);
+            // Property: If return true, then the wimp driver must be in the same partition with the eEHCI
+        (ret == TRUE) ==> eehci_mem_get_intr_target_reg(old(globals), eehci_slot) == val;
+            // Property: If return true, then the return value is the value in the register
+        global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+        state_equal_except_mstate(old(this), this);
+            // Property: non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let wimpdrv_slot @= ebx;
+    let eehci_slot @= ecx;
+    let ret @= eax;
+    let tmp @= edx;
+    let wimpdrv_pid @= edi;
+    let eehci_pid @= esi;
+    PUSH_Reg1ToReg6();
+
+    Load(wimpdrv_slot, ebp, 1 * ARCH_WORD_BYTES);   // Load <wimpdrv_slot>
+    Load(eehci_slot, ebp, 2 * ARCH_WORD_BYTES);   // Load <eehci_slot>
+
+    // 1. Check the validity of <wimpdrv_slot> and <eehci_slot>
+    wimpdrv_check_slotid(wimpdrv_slot, ret);
+    if(ret == const(TRUE))
+    {
+        eehci_check_slot_id(eehci_slot, ret);
+        if(ret == const(TRUE))
+        {
+            PUSH(wimpdrv_slot);
+            wimpdrv_ops_get_pid_nocheck();
+            Load(wimpdrv_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            MOV_ToReg(ret, eehci_slot);
+            eehci_info_get_pid(ret);        // Get PID of <eehci_slot>
+            Load(eehci_pid, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            // 2. Check wimp driver's PID must be an existing wimp partition's PID
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            PUSH(wimpdrv_pid);
+            pids_is_existing_wimp_pid();
+            Load(ret, esp, 0);
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            if(ret == const(TRUE))
+            {
+                // 3. Check the wimp driver must be in the same partition with the eEHCI
+                if(wimpdrv_pid == eehci_pid)
+                {
+                    // 4. Read value
+                    PUSH(eehci_slot);
+                    eehci_read_intr_target();
+                    Load(tmp, esp, 0);
+                    POP_VOID(1 * ARCH_WORD_BYTES);
+
+                    Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+                    Store(ebp, 2 * ARCH_WORD_BYTES, tmp);                      // Return value
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Wimp driver writes the <usbtd_reg> register of the given eEHCI
+// Input params on stack: (new_v:word/uint32) at esp + 3 * ARCH_WORD_BYTES, (usbtd_reg_id:word/uint32) at esp + 2 * ARCH_WORD_BYTES
+// (eehci_slot:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (wimpdrv_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp
+// [NOTE] Needs 600s to verify
+procedure WimpDrv_Write_eEHCI_USBTDReg_Impl() {:timeLimitMultiplier 70}
+    reads
+        flags;
+    modifies
+        mem; globals;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            20 * ARCH_WORD_BYTES +                   // For <_WimpDrv_Write_eEHCI_USBTDReg_check_new_value>
+            2 * ARCH_WORD_BYTES;                     // For params of <_WimpDrv_Write_eEHCI_USBTDReg_check_new_value>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 4 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Stack space for function parameters
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let usbtd_reg_id:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_v:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> wimpdrv_valid_slot_id(wimpdrv_slot);
+        (ret == TRUE) ==> eehci_valid_slot_id(eehci_slot);
+        (ret == TRUE) ==> 0 <= usbtd_reg_id < eEHCI_USBTD_SlotID_NUMS;
+        (ret == TRUE) ==> pids_parse_g_wimp_pids(old(globals))?[wimpdrv_get_pid(old(globals), wimpdrv_slot)];
+            // Property: If return true, then the wimp driver must be in an active wimp partition
+        (ret == TRUE) ==> wimpdrv_get_pid(old(globals), wimpdrv_slot) == eehci_info_get_pid(old(globals), eehci_slot);
+            // Property: If return true, then the wimp driver must be in the same partition with the eEHCI
+        (ret == TRUE) ==> (new_v == USBTD_SlotID_INVALID || usbtd_map_valid_slot_id(new_v));
+            // Property 1: The usbtd_slot must be either USBTD_SlotID_INVALID or in range
+        (ret == TRUE) && usbtd_map_valid_slot_id(new_v) ==>
+            eehci_info_get_pid(old(globals), eehci_slot) == usbtd_map_get_pid(old(globals), new_v);
+            // Property: If return true, then the newly refed USB TD must be in the same partition with eEHCI
+        (ret == TRUE) ==> (
+                let vaddr := AddressOfGlobal(G_EEHCI_MEM()) + eehci_slot * eEHCI_INSTANCE_BYTES + G_EEHCI_Mem_ENTRY_USBTD_Start_BytesOffset + usbtd_reg_id * UINT32_BYTES in
+                globals == global_write_word(old(globals), G_EEHCI_MEM(), vaddr, new_v)
+            );
+            // Property: If return true, then the new value is written into eEHCI
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+        (ret != TRUE) ==> state_equal_except_mstate(old(this), this);
+            // Property: If return false, then non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let tmp1 @= ebx;
+    let eehci_slot @= ecx;
+    let ret @= eax;
+    let tmp2 @= edx;
+    let wimpdrv_pid @= edi;
+    let eehci_pid @= esi;
+    PUSH_Reg1ToReg6();
+
+    Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);   // Load <wimpdrv_slot>
+    Load(eehci_slot, ebp, 2 * ARCH_WORD_BYTES);   // Load <eehci_slot>
+
+    // 1. Check the validity of <wimpdrv_slot>, <eehci_slot> and <usbtd_reg_id>
+    wimpdrv_check_slotid(tmp1, ret);
+    if(ret == const(TRUE))
+    {
+        eehci_check_slot_id(eehci_slot, ret);
+        if(ret == const(TRUE))
+        {
+            Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);   // Load <usbtd_reg_id>
+            eehci_check_usbtd_reg_id(tmp1, ret);
+            if(ret == const(TRUE))
+            {
+                Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);   // Load <wimpdrv_slot>
+                PUSH(tmp1);
+                wimpdrv_ops_get_pid_nocheck();
+                Load(wimpdrv_pid, esp, 0);
+                POP_VOID(1 * ARCH_WORD_BYTES);
+
+                PUSH_VOID(1 * ARCH_WORD_BYTES);
+                MOV_ToReg(ret, eehci_slot);
+                eehci_info_get_pid(ret);        // Get PID of <eehci_slot>
+                Load(eehci_pid, esp, 0);
+                POP_VOID(1 * ARCH_WORD_BYTES);
+
+                // 2. Check wimp driver's PID must be an existing wimp partition's PID
+                PUSH_VOID(1 * ARCH_WORD_BYTES);
+                PUSH(wimpdrv_pid);
+                pids_is_existing_wimp_pid();
+                Load(ret, esp, 0);
+                POP_VOID(2 * ARCH_WORD_BYTES);
+
+                if(ret == const(TRUE))
+                {
+                    // 3. Check the wimp driver must be in the same partition with the eEHCI
+                    if(wimpdrv_pid == eehci_pid)
+                    {
+                        // 4. Check the new value to be written
+                        Load(tmp2, ebp, 4 * ARCH_WORD_BYTES);   // Load <new_v>
+                        PUSH(tmp2);
+                        let in_new_v := tmp2;
+                        PUSH(eehci_slot);
+                        _WimpDrv_Write_eEHCI_USBTDReg_check_new_value();
+                        Load(ret, esp, 0);
+                        POP_VOID(2 * ARCH_WORD_BYTES);
+
+                        if(ret == const(TRUE))
+                        {
+                            assert usbtd_map_valid_slot_id(in_new_v) ==> (
+                                eehci_info_get_pid(globals, eehci_slot) == usbtd_map_get_pid(globals, in_new_v)
+                            );
+
+                            // 5. Write value
+                            Load(tmp2, ebp, 4 * ARCH_WORD_BYTES);   // Load <new_v>
+                            PUSH(tmp2);
+                            Load(tmp2, ebp, 3 * ARCH_WORD_BYTES);   // Load <usbtd_reg_id>
+                            PUSH(tmp2);
+                            PUSH(eehci_slot);
+                            eehci_write_usbtd_slot();
+                            POP_VOID(3 * ARCH_WORD_BYTES);
+
+                            Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+                        }
+                        else
+                        {
+                            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                            assert globals == old(globals);
+                            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                        }
+                    }
+                    else
+                    {
+                        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                        assert globals == old(globals);
+                        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                    }
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Wimp driver reads the <usbtd_reg> register of the given eEHCI
+// Input params on stack: (usbtd_reg_id:word/uint32) at esp + 2 * ARCH_WORD_BYTES, 
+// (eehci_slot:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (wimpdrv_slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp, (val:word/uint32) at esp + 1 * ARCH_WORD_BYTES,
+// [NOTE] Needs 140s to verify
+procedure WimpDrv_Read_eEHCI_USBTDReg_Impl() {:timeLimitMultiplier 15}
+    reads
+        flags; globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            19 * ARCH_WORD_BYTES +                   // For <pids_is_existing_wimp_pid>
+            2 * ARCH_WORD_BYTES;                     // For params of <pids_is_existing_wimp_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Stack space for function parameters
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let eehci_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let usbtd_reg_id:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+        let val:word := stack_get_val(mem, old(esp) + 1 * ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> wimpdrv_valid_slot_id(wimpdrv_slot);
+        (ret == TRUE) ==> eehci_valid_slot_id(eehci_slot);
+        (ret == TRUE) ==> 0 <= usbtd_reg_id < eEHCI_USBTD_SlotID_NUMS;
+        (ret == TRUE) ==> pids_parse_g_wimp_pids(old(globals))?[wimpdrv_get_pid(old(globals), wimpdrv_slot)];
+            // Property: If return true, then the wimp driver must be in an active wimp partition
+        (ret == TRUE) ==> wimpdrv_get_pid(old(globals), wimpdrv_slot) == eehci_info_get_pid(old(globals), eehci_slot);
+            // Property: If return true, then the wimp driver must be in the same partition with the eEHCI
+        (ret == TRUE) ==> eehci_mem_get_usbtd_reg(old(globals), eehci_slot, usbtd_reg_id) == val;
+            // Property: If return true, then the return value is the value in the register
+        global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+        state_equal_except_mstate(old(this), this);
+            // Property: non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let wimpdrv_slot @= ebx;
+    let eehci_slot @= ecx;
+    let ret @= eax;
+    let tmp @= edx;
+    let wimpdrv_pid @= edi;
+    let eehci_pid @= esi;
+    PUSH_Reg1ToReg6();
+
+    Load(wimpdrv_slot, ebp, 1 * ARCH_WORD_BYTES);   // Load <wimpdrv_slot>
+    Load(eehci_slot, ebp, 2 * ARCH_WORD_BYTES);   // Load <eehci_slot>
+
+    // 1. Check the validity of <wimpdrv_slot>, <eehci_slot> and <usbtd_reg_id>
+    wimpdrv_check_slotid(wimpdrv_slot, ret);
+    if(ret == const(TRUE))
+    {
+        eehci_check_slot_id(eehci_slot, ret);
+        if(ret == const(TRUE))
+        {
+            Load(tmp, ebp, 3 * ARCH_WORD_BYTES);   // Load <usbtd_reg_id>
+            eehci_check_usbtd_reg_id(tmp, ret);
+            if(ret == const(TRUE))
+            {
+                PUSH(wimpdrv_slot);
+                wimpdrv_ops_get_pid_nocheck();
+                Load(wimpdrv_pid, esp, 0);
+                POP_VOID(1 * ARCH_WORD_BYTES);
+
+                PUSH_VOID(1 * ARCH_WORD_BYTES);
+                MOV_ToReg(ret, eehci_slot);
+                eehci_info_get_pid(ret);        // Get PID of <eehci_slot>
+                Load(eehci_pid, esp, 0);
+                POP_VOID(1 * ARCH_WORD_BYTES);
+
+                // 2. Check wimp driver's PID must be an existing wimp partition's PID
+                PUSH_VOID(1 * ARCH_WORD_BYTES);
+                PUSH(wimpdrv_pid);
+                pids_is_existing_wimp_pid();
+                Load(ret, esp, 0);
+                POP_VOID(2 * ARCH_WORD_BYTES);
+
+                if(ret == const(TRUE))
+                {
+                    // 3. Check the wimp driver must be in the same partition with the eEHCI
+                    if(wimpdrv_pid == eehci_pid)
+                    {
+                        // 4. Read value
+                        Load(tmp, ebp, 3 * ARCH_WORD_BYTES);   // Load <usbtd_reg_id>
+                        PUSH(tmp);
+                        PUSH(eehci_slot);
+                        eehci_read_usbtd_slot();
+                        Load(tmp, esp, 0);
+                        POP_VOID(2 * ARCH_WORD_BYTES);
+
+                        Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+                        Store(ebp, 2 * ARCH_WORD_BYTES, tmp);                      // Return value
+
+                        assert globals == old(globals);
+                        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                    }
+                    else
+                    {
+                        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                        assert globals == old(globals);
+                        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                    }
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+
+
+
+/*********************** Utility Predicates and Private Lemmas ********************/
+#verbatim
+predicate eechi_activate_globalvars_relation(old_globals:globalsmap, new_globals:globalsmap, eehci_slot:word, eehci_id:word, eehci_handle:word, new_pid:word)
+    requires WK_ValidGlobalVars_Decls(old_globals)
+    requires WK_ValidGlobalVars_Decls(new_globals)
+    requires eehci_valid_slot_id(eehci_slot)
+{
+    // Only <g_eehci_mem> and <g_eehci_info> is changed
+    globals_other_gvar_unchanged_2vars(old_globals, new_globals, G_EEHCI_MEM(), G_EEHCIs_Info()) &&
+
+    // Other slots in <g_eehci_mem> and <g_eehci_info> is unchanged
+    (forall i :: eehci_valid_slot_id(i) && i != eehci_slot
+        ==> (p_eehci_mem_equal(old_globals, new_globals, i) && eechi_info_equal(old_globals, new_globals, i))
+    ) &&
+
+    // The info of eEHCI slot in <g_eehci_info> is modified correctly
+    eehci_info_get_reserved(new_globals, eehci_slot) == 0 &&
+    eehci_info_get_pid(new_globals, eehci_slot) == WS_PartitionID(new_pid) &&
+
+    // The eEHCI slot in <g_eehci_mem> is modified correctly
+    eehci_mem_get_eehci_id(new_globals, eehci_slot) == eehci_id &&
+    eehci_mem_get_handle_reg(new_globals, eehci_slot) == eehci_handle &&
+    eehci_mem_get_config_reg(new_globals, eehci_slot) == eEHCI_Config_Disable &&
+    eehci_mem_get_status_reg(new_globals, eehci_slot) == 0 &&
+    eehci_mem_get_intr_enable_reg(new_globals, eehci_slot) == eEHCI_Intr_Disable &&
+    eehci_mem_get_intr_target_reg(new_globals, eehci_slot) == 0 &&
+    (forall i :: 0 <= i < eEHCI_USBTD_SlotID_NUMS ==> eehci_mem_get_usbtd_reg(new_globals, eehci_slot, i) == USBTD_SlotID_INVALID) &&
+
+    (true)
+}
+
+predicate eechi_deactivate_globalvars_relation(old_globals:globalsmap, new_globals:globalsmap, eehci_slot:word)
+    requires WK_ValidGlobalVars_Decls(old_globals)
+    requires WK_ValidGlobalVars_Decls(new_globals)
+    requires eehci_valid_slot_id(eehci_slot)
+{
+    // Only <g_eehci_mem> and <g_eehci_info> is changed
+    globals_other_gvar_unchanged_2vars(old_globals, new_globals, G_EEHCI_MEM(), G_EEHCIs_Info()) &&
+
+    // Other slots in <g_eehci_mem> and <g_eehci_info> is unchanged
+    (forall i :: eehci_valid_slot_id(i) && i != eehci_slot
+        ==> (p_eehci_mem_equal(old_globals, new_globals, i) && eechi_info_equal(old_globals, new_globals, i))
+    ) &&
+
+    // The info of eEHCI slot in <g_eehci_info> is modified correctly
+    eehci_info_get_reserved(new_globals, eehci_slot) == 0 &&
+    eehci_info_get_pid(new_globals, eehci_slot) == WS_PartitionID(PID_INVALID) &&
+
+    // The eEHCI slot in <g_eehci_mem> is modified correctly
+    eehci_mem_get_eehci_id(new_globals, eehci_slot) == eEHCI_ID_INVALID &&
+    eehci_mem_get_handle_reg(new_globals, eehci_slot) == eehci_mem_get_handle_reg(old_globals, eehci_slot) &&
+    eehci_mem_get_config_reg(new_globals, eehci_slot) == eehci_mem_get_config_reg(old_globals, eehci_slot) &&
+    eehci_mem_get_status_reg(new_globals, eehci_slot) == eehci_mem_get_status_reg(old_globals, eehci_slot) &&
+    eehci_mem_get_intr_enable_reg(new_globals, eehci_slot) == eehci_mem_get_intr_enable_reg(old_globals, eehci_slot) &&
+    eehci_mem_get_intr_target_reg(new_globals, eehci_slot) == eehci_mem_get_intr_target_reg(old_globals, eehci_slot) &&
+    (forall i :: 0 <= i < eEHCI_USBTD_SlotID_NUMS ==> p_eehci_mem_usbtd_regs_equal(old_globals, new_globals, i)) &&
+
+    (true)
+}
+
+// Prove the property 2 of <EEHCI_Activate>
+lemma Lemma_EEHCI_Activate_ProveProperty2(
+    old_globals:globalsmap, globals1:globalsmap, new_globals:globalsmap, slot:word, new_eehci_id:word, new_handle:word, new_pid:word
+)
+    requires WK_ValidGlobalVars_Decls(old_globals)
+    requires WK_ValidGlobalVars_Decls(globals1)
+    requires WK_ValidGlobalVars_Decls(new_globals)
+
+    requires eehci_valid_slot_id(slot)
+
+    requires var vaddr1 := AddressOfGlobal(G_EEHCI_MEM()) + slot * eEHCI_INSTANCE_BYTES + G_EEHCI_Mem_ENTRY_EECHI_ID_BytesOffset;
+             is_gvar_valid_addr(G_EEHCI_MEM(), vaddr1)
+
+    requires ffi_eehci_activate_globals_relationship(old_globals, globals1, slot, new_eehci_id, new_handle, TRUE);
+    requires eehci_info_only_change_slot_newvalue(globals1, new_globals, slot, 0, new_pid);
+
+    ensures eechi_activate_globalvars_relation(old_globals, new_globals, slot, new_eehci_id, new_handle, new_pid)
+{
+    reveal eehci_mem_cleared_all_regs();
+
+    var vaddr1 := AddressOfGlobal(G_EEHCI_MEM()) + slot * eEHCI_INSTANCE_BYTES + G_EEHCI_Mem_ENTRY_EECHI_ID_BytesOffset;
+    var vaddr2 := AddressOfGlobal(G_EEHCI_MEM()) + slot * eEHCI_INSTANCE_BYTES + G_EEHCI_Mem_ENTRY_EECHI_Handle_BytesOffset;
+
+    var new_globals1 := global_write_word(old_globals, G_EEHCI_MEM(), vaddr1, new_eehci_id);
+    var new_globals2 := global_write_word(new_globals1, G_EEHCI_MEM(), vaddr2, new_handle);
+    assert eehci_mem_cleared_all_regs(new_globals2, globals1, slot);
+    
+    reveal p_eehci_mem_equal();
+    reveal p_eehci_mem_usbtd_regs_equal();
+    reveal eechi_info_equal();
+    forall i | eehci_valid_slot_id(i) && i != slot
+        ensures p_eehci_mem_equal(old_globals, new_globals, i)
+        ensures eechi_info_equal(old_globals, new_globals, i)
+    {
+        // Prove p_eehci_mem_equal(old_globals, new_globals, i)
+        assert p_eehci_mem_equal(old_globals, new_globals1, i);
+        assert p_eehci_mem_equal(new_globals1, new_globals2, i);
+        assert p_eehci_mem_equal(new_globals2, globals1, i);
+
+        assert global_read_fullval(globals1, G_EEHCI_MEM()) == global_read_fullval(new_globals, G_EEHCI_MEM());
+        assert p_eehci_mem_equal(old_globals, new_globals, i);
+
+        // Prove eechi_info_equal(old_globals, new_globals, i)
+        assert eechi_info_equal(old_globals, new_globals, i);
+    }
+}
+
+// Prove the property 2 of <EEHCI_Deactivate>
+lemma Lemma_EEHCI_Deactivate_ProveProperty2(
+    old_globals:globalsmap, globals1:globalsmap, new_globals:globalsmap, slot:word
+)
+    requires WK_ValidGlobalVars_Decls(old_globals)
+    requires WK_ValidGlobalVars_Decls(globals1)
+    requires WK_ValidGlobalVars_Decls(new_globals)
+
+    requires eehci_valid_slot_id(slot)
+
+    requires var vaddr1 := AddressOfGlobal(G_EEHCI_MEM()) + slot * eEHCI_INSTANCE_BYTES + G_EEHCI_Mem_ENTRY_EECHI_ID_BytesOffset;
+             is_gvar_valid_addr(G_EEHCI_MEM(), vaddr1)
+
+    requires eehci_info_only_change_slot_newvalue(old_globals, globals1, slot, 0, PID_INVALID);
+    requires ffi_eehci_deactivate_globals_relationship(globals1, new_globals, slot);
+
+    ensures eechi_deactivate_globalvars_relation(old_globals, new_globals, slot)
+{
+    reveal eehci_mem_cleared_all_regs();
+
+    var vaddr1 := AddressOfGlobal(G_EEHCIs_Info()) + slot * EEHCI_Info_ENTRY_SZ + G_EEHCI_Info_ENTRY_Reserved_BytesOffset;
+    var vaddr2 := AddressOfGlobal(G_EEHCIs_Info()) + slot * EEHCI_Info_ENTRY_SZ + G_EEHCI_INFO_ENTRY_PID_BytesOffset;
+
+    // Apply eehci_info_only_change_slot_newvalue
+    assert eehci_info_only_change_slot_newvalue(old_globals, globals1, slot, 0, PID_INVALID);
+    var t_globals1 := global_write_word(old_globals, G_EEHCIs_Info(), vaddr1, 0);
+    assert globals1 == global_write_word(t_globals1, G_EEHCIs_Info(), vaddr2, PID_INVALID);
+    
+    reveal p_eehci_mem_equal();
+    reveal p_eehci_mem_usbtd_regs_equal();
+    reveal eechi_info_equal();
+}
+#endverbatim

@@ -1,0 +1,59 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/eehci_ops_impl_private.gen.dfy
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\ins\x86\..\util\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\ins\x86\..\util\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.705115 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.va__code____WimpDrv__Write__eEHCI__USBTDReg__check__new__value ...
+  [7.150 s, 162 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma____WimpDrv__Write__eEHCI__USBTDReg__check__new__value ...
+  [9.664 s, 1054 proof obligations]  verified
+Linearising   [1.7882161 s]
+
+Verifying Impl$$_module.__default.va__lemma____WimpDrv__Write__eEHCI__USBTDReg__check__new__value ...
+  [639.267 s, 5932 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code____WimpDrv__Write__eEHCI__USBTDReg__check__new__value__CheckProperty1 ...
+  [7.244 s, 55 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma____WimpDrv__Write__eEHCI__USBTDReg__check__new__value__CheckProperty1 ...
+  [5.416 s, 471 proof obligations]  verified
+Linearising   [0.5235998 s]
+
+Verifying Impl$$_module.__default.va__lemma____WimpDrv__Write__eEHCI__USBTDReg__check__new__value__CheckProperty1 ...
+  [29.310 s, 1522 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code____WimpDrv__Write__eEHCI__USBTDReg__check__new__value__CheckProperty2 ...
+  [3.395 s, 62 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma____WimpDrv__Write__eEHCI__USBTDReg__check__new__value__CheckProperty2 ...
+  [6.946 s, 623 proof obligations]  verified
+Linearising   [0.7789161 s]
+
+Verifying Impl$$_module.__default.va__lemma____WimpDrv__Write__eEHCI__USBTDReg__check__new__value__CheckProperty2 ...
+  [53.896 s, 2522 proof obligations]  verified
+
+Dafny program verifier finished with 9 verified, 0 errors

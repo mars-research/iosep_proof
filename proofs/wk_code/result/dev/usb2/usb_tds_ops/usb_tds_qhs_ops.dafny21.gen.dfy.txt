@@ -1,0 +1,57 @@
+[TRACE] Using prover: E:\utils\dafny-v2.1\z3\bin\z3.exe
+Dafny 2.1.1.10209
+Parsing dev/usb2/usb_tds_ops/usb_tds_qhs_ops.dafny21.gen.dfy
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\state_mapping\..\..\..\utils\model\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\state_mapping\..\..\..\utils\model\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.5684797 s]
+[TRACE] Using prover: E:\utils\dafny-v2.1\z3\bin\z3.exe
+
+Verifying CheckWellformed$$_module.__default.va__code____usbtd__slot__submit__and__verify__qh32__inner ...
+  [10.831 s, 166 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma____usbtd__slot__submit__and__verify__qh32__inner ...
+  [24.537 s, 2005 proof obligations]  verified
+Linearising   [3.7280279 s]
+
+Verifying Impl$$_module.__default.va__lemma____usbtd__slot__submit__and__verify__qh32__inner ...
+  [1441.665 s, 8535 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtd__slot__submit__and__verify__qh32__inner__impl__ProveIDUniquenessForTempUSBTD ...
+  [10.992 s, 18 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtd__slot__submit__and__verify__qh32__inner__impl__ProveIDUniquenessForTempUSBTD ...
+  [5.384 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma____usbtd__slot__submit__and__verify__qh32__inner__ProveProperty1 ...
+  [4.032 s, 32 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma____usbtd__slot__submit__and__verify__qh32__inner__ProveProperty1 ...
+  [7.336 s, 41 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma____usbtd__slot__submit__and__verify__qh32__inner__ProveProperty2 ...
+  [4.421 s, 14 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma____usbtd__slot__submit__and__verify__qh32__inner__ProveProperty2 ...
+  [4.351 s, 2 proof obligations]  verified
+
+Dafny program verifier finished with 9 verified, 0 errors

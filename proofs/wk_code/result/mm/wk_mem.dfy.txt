@@ -1,0 +1,23 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing mm/wk_mem.dfy
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0508645 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.WK__ValidMemState ...
+  [0.721 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.IsAddrInStack ...
+  [0.267 s, 5 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__IsAddrInStack__Property ...
+  [0.281 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__IsAddrInStack__Property ...
+  [0.308 s, 10 proof obligations]  verified
+
+Dafny program verifier finished with 4 verified, 0 errors

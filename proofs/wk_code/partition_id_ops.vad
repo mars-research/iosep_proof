@@ -1,0 +1,698 @@
+include "ins/x86/ins_wrapper.vad"
+include {:verbatim} "wk_ops_commons.dfy"
+include {:verbatim} "partition_id.s.dfy"
+include {:verbatim} "dev/usb2/eehci_info.i.dfy"
+include {:verbatim} "dev/usb2/usb_tds.i.dfy"
+include {:verbatim} "dev/usb2/usb_pdev.i.dfy"
+include {:verbatim} "drv/public/wimpdrv_lemmas.i.dfy"
+include {:verbatim} "drv/drv.i.dfy"
+
+// Return a new PID not equal to PID_RESERVED_OS_PARTITION (== 1).
+// If PID_MAX has not reached, return new partition number not equal to 1. Otherwise, return PID_GENERATE_FUNC_ERROR (== 1)
+procedure pid_generate(
+    out ret:reg     
+)
+    reads
+        flags;
+    modifies
+        esp; globals; mem;
+        esi; edi;                                   // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        @ret == Reg1;
+    requires
+        IsAddrInStack(esp - 2 * ARCH_WORD_BYTES); // Stack must have free space for two words
+    requires
+        gvar_read_word_byoffset(this.wk_mstate, G_PID_Counter(), 0) != PID_RESERVED_OS_PARTITION - 1;
+            // the current value of global variable <g_pid_counter> must not be PID_RESERVED_OS_PARTITION - 1 ( == 0)
+        PID_INVALID == 0;
+            // Otherwise, the current <g_pid_counter> cannot be PID_INVALID - 1 either
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        globals_other_gvar_unchanged(old(globals), globals, G_PID_Counter());
+            // Property: Only <g_pid_counter> is changed
+        ret != PID_INVALID;
+        (ret != PID_GENERATE_FUNC_ERROR) ==> !pids_parse_g_wimp_pids(globals)?[WS_PartitionID(ret)];
+        (ret != PID_GENERATE_FUNC_ERROR) ==> 
+            (forall (pid:WS_PartitionID) (pids_parse_g_wimp_pids(globals)?[pid])
+                ==> (pid.v != ret));
+            // Property: On success returns, the returned PID must be not in existing PIDs
+        (ret != PID_GENERATE_FUNC_ERROR) ==> ret <= pids_parse_g_pid_counter(globals).v;
+            // Property: <ret> must not be greater than the <g_pid_counter>
+        (ret == PID_GENERATE_FUNC_ERROR) ==> globals == old(globals);
+            // Property: On error returns, the global variables are not changed
+    ensures
+        esi == old(esi); edi == old(edi); esp == old(esp); // temp registers are correctly restored
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    let tmp @= esi;
+    let tmp_addr @= edi;
+
+    PUSH_TwoRegs(tmp_addr, tmp);
+
+    // tmp = G_PID_Counter;
+    LDRglobaladdr_ToReg(tmp_addr, G_PID_Counter());            // tmp_addr == &g_pid_counter
+    LDRglobal(tmp, G_PID_Counter(), tmp_addr, 0);        // tmp == g_pid_counter
+
+    if (tmp == const(PID_MAX))                      // if tmp == PID_MAX then
+    {
+        MOV_ToReg(ret, const(PID_GENERATE_FUNC_ERROR));   // ret = error;
+    }
+    else  
+    {
+        ADD(tmp, 1);                                // tmp += 1;
+
+        // Prove ins_valid_strglobal_word
+        let new_globals := global_write_word(globals, G_PID_Counter(), tmp_addr, tmp);
+        let new_this := this.(wk_mstate := this.wk_mstate.(globals := new_globals));
+        Lemma_pids_g_existing_pids_no_duplicate_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals);
+        Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfGExistingPIDsUnchanged(globals, new_globals);
+
+        assert global_read_fullval(new_globals, G_WimpDrvs_Info()) == global_read_fullval(globals, G_WimpDrvs_Info());
+        Lemma_WK_WimpDrvs_ValidGlobalVarValues_IDWords_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals);
+        Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals);
+        Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals);
+
+        Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfGExistingPIDsAndEECHIInfoUnchanged(globals, new_globals);
+        Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfGExistingPIDsAndUSBTDMapMemUnchanged(globals, new_globals);
+        Lemma_WK_WimpUSBPDev_ValidGlobalVarValues_PreserveInNewState_IfGWimpPDevsInfoUnchanged(globals, new_globals);
+        Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(globals, new_globals);
+
+        Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this);
+        Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this);
+        assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_PID_Counter(), tmp_addr, tmp);
+
+        // Write the global variable
+        STRglobal(G_PID_Counter(), tmp_addr, 0, tmp);    // g_pid_counter = tmp;
+
+        // Prove security properties
+        Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfUSBTDsAndWimpDrvsAndUSBPDevsAreUnchanged(old(globals), globals);
+        Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+        MOV_ToReg(ret, tmp);                              // ret =  g_pid_counter;
+    }
+
+    POP_TwoRegs(tmp_addr, tmp);
+}
+
+// Read the PID of the given slot in <g_existing_pids>
+// Input params on stack: (slot:word/uint32) at esp
+// Return params on stack: (pid:word/WS_PartitionID) at esp
+procedure pid_existing_read_pid()
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem;
+        esi; edi; eax; ebx; ecx; edx;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        pids_valid_slot(slot);
+            // <slot> is valid
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let in_slot:word := stack_get_val(old(mem), old(esp));
+        let out_pid:word := stack_get_val(mem, old(esp));
+        out_pid == pids_get_pid(globals, in_slot).v;
+            // Property: Return the correct PID of the given slot
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+        esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= edx;
+    let tmp1 @= edi;
+    let ret @= esi;
+    PUSH_TwoRegs(base, tmp1);
+    PUSH_OneReg(ret);
+
+    LDRglobaladdr_ToReg(base, G_Existing_PIDs());
+
+    // Calc the byte offset for the type field
+    Load(tmp1, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp1;
+    Lemma_NatMul_Ineq_4var(slot, WK_Existing_PID_ENTRY_SZ, WK_Existing_PIDs_ENTRIES, WK_Existing_PID_ENTRY_SZ);
+    assert isUInt32(slot * WK_Existing_PID_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp1, const(WK_Existing_PID_ENTRY_SZ));            // tmp1 := slot * WK_Existing_PID_ENTRY_SZ
+
+    ADD(tmp1, const(G_Existing_PIDs_Entry_PID_BytesOffset));
+    
+    // Read the PID field and output the result  
+    LDRglobal(ret, G_Existing_PIDs(), base, tmp1);              // Read the value at byte offset <tmp1>
+    Store(ebp, ARCH_WORD_BYTES, ret);                           // [NOTE] ebp == old_esp - ARCH_WORD_BYTES;
+
+
+    POP_OneReg(ret);
+    POP_TwoRegs(base, tmp1);
+    POP_OneReg(ebp);
+}
+
+// Write <g_existing_pids> with the given values
+// Input params on stack: (new_pid:word) at esp + ARCH_WORD_BYTES, (slot:word) at esp
+// Return params on stack: None
+procedure pid_existing_write_pid()
+    reads
+        flags;
+    modifies
+        globals;
+    modifies
+        ebp; esp; mem;
+        esi; edi; eax; ebx; ecx; edx;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            5 * ARCH_WORD_BYTES +                       // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let new_pid:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        pids_valid_slot(slot);
+            // <slot> is valid
+        !pids_is_os_pid(new_pid);
+            // Requirement 1: <new_pid> must not be the OS partition's PID
+        new_pid <= pids_parse_g_pid_counter(globals).v;
+            // Requirement 2: <new_pid> must not be greater than the <g_pid_counter>
+        forall (pid:WS_PartitionID) (pids_parse_g_wimp_pids(globals)?[pid])
+            ==> (pid.v != new_pid);
+            // Requirement 3: No duplicate PID after writting <new_pid>
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let new_pid:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let old_pid := pids_get_pid(globals, slot);
+        forall (i:int) (0 <= i < WimpDrv_Info_ENTRIES)
+            ==> (wimpdrv_get_pid(globals, i) == WS_PartitionID(PID_INVALID) || 
+                 wimpdrv_get_pid(globals, i) != old_pid);
+        forall (i:int) (0 <= i < USB_TD_ENTRY_NUM)
+            ==> (usbtd_map_get_pid(globals, i) == WS_PartitionID(PID_INVALID) || 
+                 usbtd_map_get_pid(globals, i) != old_pid);
+        forall (i:int) (0 <= i < eEHCI_INSTANCE_NUM)
+            ==> (eehci_info_get_pid(globals, i) == WS_PartitionID(PID_INVALID) || 
+                 eehci_info_get_pid(globals, i) != old_pid);
+        forall (i:int) (0 <= i < WimpUSBPDev_Info_ENTRIES)
+            ==> (usbpdev_get_pid(globals, i) == WS_PartitionID(PID_INVALID) || 
+                 usbpdev_get_pid(globals, i) != old_pid);
+            // Requirement 4: The partition of the overwritten PID must be empty
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let new_pid:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        new_pid == pids_get_pid(globals, slot).v;
+            // Property: the slot is changed
+        pid_existing_updateslot_update_one_slot_only(old(globals), globals, slot);
+            // Property: Other slots are unchanged
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+        esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+    ensures
+        let stack_retval_space := 0 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= ebx;
+    let tmp1 @= edi;
+    let new_pid @= esi;
+    let vaddr @= ecx;
+    PUSH_OneReg(base);
+    PUSH_TwoRegs(tmp1, new_pid);
+    PUSH_OneReg(vaddr);
+
+    LDRglobaladdr_ToReg(base, G_Existing_PIDs());
+
+    // Calc the byte offset for the type field
+    Load(new_pid, ebp, 2 * ARCH_WORD_BYTES);                        // Load <new_pid>
+    Load(tmp1, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp1;
+    Lemma_NatMul_Ineq_4var(slot, WK_Existing_PID_ENTRY_SZ, WK_Existing_PIDs_ENTRIES, WK_Existing_PID_ENTRY_SZ);
+    assert isUInt32(slot * WK_Existing_PID_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp1, const(WK_Existing_PID_ENTRY_SZ));            // tmp1 := slot * WK_Existing_PID_ENTRY_SZ
+
+    ADD(tmp1, const(G_Existing_PIDs_Entry_PID_BytesOffset));
+    
+    MOV_ToReg(vaddr, base);
+    ADD(vaddr, tmp1);                           // Get vaddr
+
+    // Prove ins_valid_strglobal_word
+    let old_pid := global_read_word(globals, G_Existing_PIDs(), vaddr);
+    let new_globals := global_write_word(globals, G_Existing_PIDs(), vaddr, new_pid);
+    let new_this := this.(wk_mstate := this.wk_mstate.(globals := new_globals));
+    Lemma_pids_g_existing_pids_no_duplicate_HoldAfterWritingNonDuplicateValue(globals, new_globals, vaddr, new_pid);
+
+    assert global_read_fullval(new_globals, G_WimpDrvs_Info()) == global_read_fullval(globals, G_WimpDrvs_Info());
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_HoldIfOverwritePIDOfPartitionHavingNoWimpDrvs(
+        globals, new_globals, vaddr, old_pid, new_pid);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals);
+    Lemma_P_WimpUSBPDev_ValidGlobalVarValues_PIDs_HoldIfOverwritePIDOfPartitionHavingNoWimpDrvs(
+        globals, new_globals, vaddr, old_pid, new_pid);
+    Lemma_P_WimpUSBPDev_ValidGlobalVarValues_Addrs_IfGWimpPDevInfoUnchanged(globals, new_globals);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfNotWritingInOSPID(
+        globals, new_globals, vaddr, new_pid);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfOverwritePIDOfPartitionHavingNoEEHCI(
+        globals, new_globals, vaddr, old_pid, new_pid);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfOverwritePIDOfPartitionHavingNoUSBTD(
+        globals, new_globals, vaddr, old_pid, new_pid);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(globals, new_globals);
+
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_Existing_PIDs(), vaddr, new_pid);
+
+    // Write the global variable
+    STRglobal(G_Existing_PIDs(), vaddr, 0, new_pid);
+
+    // Prove security properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfUSBTDsAndWimpDrvsAndUSBPDevsAreUnchanged(old(globals), globals);
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+
+    POP_OneReg(vaddr);
+    POP_TwoRegs(tmp1, new_pid);
+    POP_OneReg(base);
+    POP_OneReg(ebp);
+}
+
+// Write <g_existing_pids> with the given values. The new_pid must be PID_INVALID.
+// Input params on stack: (new_pid:word) at esp + ARCH_WORD_BYTES, (slot:word) at esp
+// Return params on stack: None
+procedure pid_existing_write_pid_invalid()
+    reads
+        flags;
+    modifies
+        globals;
+    modifies
+        ebp; esp; mem;
+        esi; edi; eax; ebx; ecx; edx;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            5 * ARCH_WORD_BYTES +                       // For local variables
+            2 * ARCH_WORD_BYTES;                    // For MUL_Reg_32BitsResult
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let new_pid:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        pids_valid_slot(slot);
+            // <slot> is valid
+        new_pid == PID_INVALID;
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let new_pid:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let old_pid := pids_get_pid(globals, slot);
+        forall (i:int) (0 <= i < WimpDrv_Info_ENTRIES)
+            ==> (wimpdrv_get_pid(globals, i) == WS_PartitionID(PID_INVALID) || 
+                 wimpdrv_get_pid(globals, i) != old_pid);
+        forall (i:int) (0 <= i < USB_TD_ENTRY_NUM)
+            ==> (usbtd_map_get_pid(globals, i) == WS_PartitionID(PID_INVALID) || 
+                 usbtd_map_get_pid(globals, i) != old_pid);
+        forall (i:int) (0 <= i < eEHCI_INSTANCE_NUM)
+            ==> (eehci_info_get_pid(globals, i) == WS_PartitionID(PID_INVALID) || 
+                 eehci_info_get_pid(globals, i) != old_pid);
+        forall (i:int) (0 <= i < WimpUSBPDev_Info_ENTRIES)
+            ==> (usbpdev_get_pid(globals, i) == WS_PartitionID(PID_INVALID) || 
+                 usbpdev_get_pid(globals, i) != old_pid);
+            // Requirement 4: The partition of the overwritten PID must be empty
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let new_pid:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let old_pid:word := pids_get_pid(old(globals), slot).v;
+
+        new_pid == pids_get_pid(globals, slot).v;
+            // Property 1: the slot is changed
+        pid_existing_updateslot_update_one_slot_only(old(globals), globals, slot);
+            // Property 2: Other slots are unchanged
+        pid_existing_write_pid_invalid_property3(old(globals), globals, old_pid);
+            // Property 3: Old partition ID is removed from G_Existing_PIDs()
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+        esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+    ensures
+        let stack_retval_space := 0 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let base @= ebx;
+    let tmp1 @= edi;
+    let new_pid @= esi;
+    let vaddr @= ecx;
+    PUSH_OneReg(base);
+    PUSH_TwoRegs(tmp1, new_pid);
+    PUSH_OneReg(vaddr);
+
+    LDRglobaladdr_ToReg(base, G_Existing_PIDs());
+
+    // Calc the byte offset for the type field
+    Load(new_pid, ebp, 2 * ARCH_WORD_BYTES);                        // Load <new_pid>
+    Load(tmp1, ebp, ARCH_WORD_BYTES);                               // tmp1 := ebp + ARCH_WORD_BYTES := slot
+    let slot := tmp1;
+    Lemma_NatMul_Ineq_4var(slot, WK_Existing_PID_ENTRY_SZ, WK_Existing_PIDs_ENTRIES, WK_Existing_PID_ENTRY_SZ);
+    assert isUInt32(slot * WK_Existing_PID_ENTRY_SZ);
+    MUL_Reg_32BitsResult(tmp1, const(WK_Existing_PID_ENTRY_SZ));            // tmp1 := slot * WK_Existing_PID_ENTRY_SZ
+
+    ADD(tmp1, const(G_Existing_PIDs_Entry_PID_BytesOffset));
+    
+    MOV_ToReg(vaddr, base);
+    ADD(vaddr, tmp1);                           // Get vaddr
+    let pid_vaddr := vaddr;
+
+    // Prove ins_valid_strglobal_word
+    assert globals == old(globals);
+    assert new_pid == PID_INVALID;
+    
+    let old_pid := global_read_word(globals, G_Existing_PIDs(), vaddr);
+    let new_globals := global_write_word(globals, G_Existing_PIDs(), vaddr, new_pid);
+    let new_this := this.(wk_mstate := this.wk_mstate.(globals := new_globals));
+    Lemma_pids_g_existing_pids_no_duplicate_HoldAfterWritingNonDuplicateValue(globals, new_globals, vaddr, new_pid);
+
+    assert global_read_fullval(new_globals, G_WimpDrvs_Info()) == global_read_fullval(globals, G_WimpDrvs_Info());
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_PIDs_HoldIfOverwritePIDOfPartitionHavingNoWimpDrvs(
+        globals, new_globals, vaddr, old_pid, new_pid);
+    Lemma_WK_WimpDrvs_ValidGlobalVarValues_DOPAddrs_PreserveInNewState_IfGWimpDrvsInfoUnchanged(globals, new_globals);
+    Lemma_P_WimpUSBPDev_ValidGlobalVarValues_PIDs_HoldIfOverwritePIDOfPartitionHavingNoWimpDrvs(
+        globals, new_globals, vaddr, old_pid, new_pid);
+    Lemma_P_WimpUSBPDev_ValidGlobalVarValues_Addrs_IfGWimpPDevInfoUnchanged(globals, new_globals);
+    Lemma_pids_g_existing_pids_exclude_os_pid_PreserveInNewState_IfNotWritingInOSPID(
+        globals, new_globals, vaddr, new_pid);
+
+    Lemma_WK_EEHCI_INFO_ValidGlobalVarValues_HoldIfOverwritePIDOfPartitionHavingNoEEHCI(
+        globals, new_globals, vaddr, old_pid, new_pid);
+    Lemma_WK_USB_TD_Map_ValidGlobalVarValues_HoldIfOverwritePIDOfPartitionHavingNoUSBTD(
+        globals, new_globals, vaddr, old_pid, new_pid);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(globals, new_globals);
+
+    Lemma_WK_ValidObjAddrs_WimpDrv_DOPAddrs_OnWKMStateModification_IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID(this, new_this);
+    Lemma_WK_ValidGlobalVarValues_USBPDevs_OnWKMStateSubjectsModification_IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged(this, new_this);
+    assert ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, G_Existing_PIDs(), vaddr, new_pid);
+
+    // Write the global variable
+    STRglobal(G_Existing_PIDs(), vaddr, 0, new_pid);
+
+    // Prove security properties
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfUSBTDsAndWimpDrvsAndUSBPDevsAreUnchanged(old(globals), globals);
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+
+    // Prove property 3
+    Lemma_pids_parse_g_wimp_pids_CorrectnessOfSetChange(old(globals), globals, pid_vaddr, old_pid, PID_INVALID);
+
+    POP_OneReg(vaddr);
+    POP_TwoRegs(tmp1, new_pid);
+    POP_OneReg(base);
+    POP_OneReg(ebp);
+}
+
+// Return the slot of <g_existing_pids> that points to the given PID.
+// If no slot is found, return PID_SlotID_INVALID and false.
+// Input params on stack: (pid:word/WS_PartitionID) at esp
+// Return params on stack: (ret:word/bool) at esp, (result_slot:uint32) at esp + ARCH_WORD_BYTES
+// [NOTE] Needs 30s to verify
+procedure pid_existing_find_pid_slot() {:timeLimitMultiplier 5}
+    reads
+        globals; flags;
+    modifies
+        edi; esi; esp; ebp; mem;
+        eax; ebx; ecx; edx;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            5 * ARCH_WORD_BYTES +                   // For local variables
+            6 * ARCH_WORD_BYTES +                   // For <pid_existing_read_pid>
+            2 * ARCH_WORD_BYTES;                    // For params of <pid_existing_read_pid>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space for two words
+        let stack_retval_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let pid:word := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+        let result_slot:uint32 := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> (
+                pids_valid_slot(result_slot) &&
+                pids_get_pid(globals, result_slot) == WS_PartitionID(pid)
+            );
+    ensures
+        esi == old(esi); edi == old(edi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+        esp == old(esp); ebp == old(ebp);// temp registers are correctly restored
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);  
+
+    let val @= eax;
+    let run @= ebx;
+    let i @= edx;
+    let pid @= esi;
+    PUSH_TwoRegs(val, run);
+    PUSH_TwoRegs(i, pid);
+    let begin_state := this;
+    let orig_ebp := ebp;
+
+    Load(pid, ebp, ARCH_WORD_BYTES);
+    let orig_esi := pid;
+
+    MOV_ToReg(i, 0);                                                    // uint32 i = 0
+    MOV_ToReg(run, const(TRUE));                                        // bool run = TRUE
+
+    PUSH(i);
+    pid_existing_read_pid();                                            // val = pid_existing_read_pid(i)
+    Load(val, esp, 0);
+    POP_VOID(1 * ARCH_WORD_BYTES);
+
+    while (run == const(TRUE))
+        invariant
+            0 <= i <= WK_Existing_PIDs_ENTRIES;
+
+            let vaddr1 := AddressOfGlobal(G_Existing_PIDs()) + i * WK_Existing_PID_ENTRY_SZ;
+            run == TRUE ==> is_valid_addr(vaddr1);
+            run == TRUE ==> is_valid_vaddr(vaddr1);
+            run == TRUE ==> is_gvar_valid_vaddr(G_Existing_PIDs(), vaddr1);
+                // Invariant: Needed by <gvar_read_word_byaddr>
+                
+            run != TRUE ==> (val == pid || i == WK_Existing_PIDs_ENTRIES-1);
+                // Invariant: When using this schema of while-loop, one has to describe the definition of run != TRUE
+            run != TRUE && val == pid
+                ==> (i <= WK_Existing_PIDs_ENTRIES-1) &&
+                    (gvar_read_word_byaddr(this.wk_mstate, G_Existing_PIDs(), vaddr1) == pid);
+                // Invariant: When found the slot, the value at the slot must be pid 
+
+            esp == old(esp) - 5 * ARCH_WORD_BYTES;
+            stack_under_sp_is_unchanged(begin_state.wk_mstate.m, this.wk_mstate.m, esp);
+                // Invariant: Earlier stack are unchanged in this while-loop
+
+            esi == orig_esi;
+            ebp == orig_ebp;
+            edi == old(edi); ecx == old(ecx);
+            state_equal_except_mstate(old(this), this);
+        decreases
+            (WK_Existing_PIDs_ENTRIES - i), run;
+    {
+        PUSH(i);
+        pid_existing_read_pid();                                            // val = pid_existing_read_pid(i)
+        Load(val, esp, 0);
+        POP_VOID(1 * ARCH_WORD_BYTES);
+
+        if(val == pid)                            // Stop conditions of while-loop
+        {
+            MOV_ToReg(run, const(FALSE));
+        }  
+        else if(i == const(WK_Existing_PIDs_ENTRIES - 1))                //// i + 1 == WK_Existing_PIDs_ENTRIES
+        {
+            MOV_ToReg(run, const(FALSE));
+        }
+        else                                                            // Add 1 when there is next run
+        {
+            ADD(i, 1);                                                  // i += 1
+        }
+    }
+
+    // Out of while-loop
+    if(val == pid)
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(TRUE));                       // Return TRUE
+        Store(ebp, 2 * ARCH_WORD_BYTES, i); 
+    }
+    else
+    {
+        assert i == WK_Existing_PIDs_ENTRIES - 1;
+
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                       // Return FALSE
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(PID_SlotID_INVALID));
+    }
+
+
+    POP_TwoRegs(i, pid);
+    POP_TwoRegs(val, run);
+    POP_OneReg(ebp);
+}
+
+// Check if the given pid is an existing wimp partition's PID
+// Input params on stack: (pid:word/WS_PartitionID) at esp
+// Return params on stack: (result_slot:uint32) at esp + ARCH_WORD_BYTES, (ret:word/bool) at esp
+// [NOTE] Needs 20s to verify
+procedure pids_is_existing_wimp_pid() {:timeLimitMultiplier 3}
+    reads
+        globals; flags;
+    modifies
+        ebp; esp; mem; esi; edi; edx; 
+        ecx; ebx; eax;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            4 * ARCH_WORD_BYTES +                   // For local variables
+            13 * ARCH_WORD_BYTES +                   // For pid_existing_find_pid_slot
+            2 * ARCH_WORD_BYTES;                    // For params of pid_existing_write_pid
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space for two words
+        let stack_retval_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let pid:word := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+        let result_slot:uint32 := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> pids_is_existing_wimp_pid(old(globals), pid);
+        (ret == TRUE) ==> (
+                pids_valid_slot(result_slot) &&
+                pids_get_pid(old(globals), result_slot) == WS_PartitionID(pid)
+            );
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); 
+        edx == old(edx); esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp);// temp registers are correctly restored
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let pid @= eax;
+    let result_slot @= ebx;
+    let result_ret @= ecx;
+    PUSH_OneReg(pid);
+    PUSH_TwoRegs(result_slot, result_ret);
+
+
+    Load(pid, ebp, ARCH_WORD_BYTES); 
+    if(pid != const(PID_INVALID))
+    {
+        PUSH_VOID(1 * ARCH_WORD_BYTES);
+        PUSH(pid);
+        pid_existing_find_pid_slot();
+        Load(result_ret, esp, 0);
+        Load(result_slot, esp, ARCH_WORD_BYTES);
+        POP_VOID(2 * ARCH_WORD_BYTES);
+
+        if(result_ret == const(TRUE))
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(TRUE));              // ret := TRUE
+            Store(ebp, 2 * ARCH_WORD_BYTES, result_slot);
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));              // ret := FALSE
+            Store(ebp, 2 * ARCH_WORD_BYTES, const(PID_SlotID_INVALID));
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));              // ret := FALSE
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(PID_SlotID_INVALID));
+    }
+
+
+    POP_TwoRegs(result_slot, result_ret);
+    POP_OneReg(pid);
+    POP_OneReg(ebp);
+}
+
+
+
+
+/*********************** Utility Predicates and Properties ********************/
+#verbatim
+// Predicate: The global variables are modified as expected
+predicate pid_existing_write_pid_invalid_property3(globals1:globalsmap, globals2:globalsmap, old_pid:word)
+    requires WK_ValidGlobalVars_Decls(globals1)
+    requires WK_ValidGlobalVars_Decls(globals2)
+{
+    pids_parse_g_wimp_pids(globals2) == pids_parse_g_wimp_pids(globals1) - {WS_PartitionID(old_pid)}
+}
+#endverbatim

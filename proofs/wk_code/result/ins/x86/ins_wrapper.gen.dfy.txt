@@ -1,0 +1,175 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing ins/x86/ins_wrapper.gen.dfy
+ins\x86\..\util\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\util\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+ins\x86\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+ins\x86\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+ins\x86\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+ins\x86\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.4029222 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.va__code__PUSH__VOID ...
+  [5.347 s, 5 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__PUSH__VOID ...
+  [3.607 s, 160 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__PUSH__VOID ...
+  [4.215 s, 258 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__PUSH__IMM ...
+  [2.863 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__PUSH__IMM ...
+  [3.477 s, 373 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__PUSH__IMM ...
+  [3.915 s, 267 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__PUSH__OneReg ...
+  [2.876 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__PUSH__OneReg ...
+  [3.831 s, 649 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__PUSH__OneReg ...
+  [4.240 s, 268 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__PUSH__TwoRegs ...
+  [3.060 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__PUSH__TwoRegs ...
+  [6.461 s, 1005 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__PUSH__TwoRegs ...
+  [6.065 s, 356 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__PUSH__Reg1ToReg6 ...
+  [2.889 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__PUSH__Reg1ToReg6 ...
+  [8.526 s, 785 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__PUSH__Reg1ToReg6 ...
+  [8.229 s, 702 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__POP__VOID ...
+  [2.918 s, 5 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__POP__VOID ...
+  [3.041 s, 148 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__POP__VOID ...
+  [4.117 s, 258 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__POP__OneReg ...
+  [3.122 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__POP__OneReg ...
+  [5.168 s, 294 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__POP__OneReg ...
+  [3.279 s, 267 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__POP__TwoRegs ...
+  [2.814 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__POP__TwoRegs ...
+  [5.191 s, 442 proof obligations]  verified
+Linearising   [0.5285862 s]
+
+Verifying Impl$$_module.__default.va__lemma__POP__TwoRegs ...
+  [5.883 s, 355 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__POP__Reg1ToReg6 ...
+  [2.970 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__POP__Reg1ToReg6 ...
+  [7.949 s, 608 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__POP__Reg1ToReg6 ...
+  [15.465 s, 707 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__MOV__ToReg ...
+  [3.032 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__MOV__ToReg ...
+  [3.921 s, 412 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__MOV__ToReg ...
+  [3.759 s, 176 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__LDRglobaladdr__ToReg ...
+  [2.994 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__LDRglobaladdr__ToReg ...
+  [3.169 s, 216 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__LDRglobaladdr__ToReg ...
+  [4.475 s, 176 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__ADD__SHL__ToReg ...
+  [2.954 s, 18 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__ADD__SHL__ToReg ...
+  [3.510 s, 515 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__ADD__SHL__ToReg ...
+  [8.696 s, 826 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__MUL__Reg__32BitsResult ...
+  [3.130 s, 17 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__MUL__Reg__32BitsResult ...
+  [4.290 s, 515 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__MUL__Reg__32BitsResult ...
+  [11.558 s, 828 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__SetBit ...
+  [3.161 s, 17 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__SetBit ...
+  [3.369 s, 446 proof obligations]  verified
+Linearising   [0.9963358 s]
+
+Verifying Impl$$_module.__default.va__lemma__SetBit ...
+  [9.119 s, 756 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__ClearBit ...
+  [3.066 s, 19 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__ClearBit ...
+  [3.409 s, 446 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__ClearBit ...
+  [8.045 s, 832 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__TestBit ...
+  [2.874 s, 36 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__TestBit ...
+  [3.405 s, 446 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__TestBit ...
+  [18.253 s, 1080 proof obligations]  verified
+
+Dafny program verifier finished with 48 verified, 0 errors

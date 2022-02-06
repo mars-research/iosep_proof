@@ -1,0 +1,886 @@
+include "usb_tds_ops_impl.vad"
+include "usb_tds_qtds_ops_impl.vad"
+include "usb_tds_qhs_ops_impl.vad"
+include {:verbatim} "../../../transition_constraints.s.dfy"
+include {:verbatim} "../../../proof/wkapi_commutative_diagram.i.dfy"
+
+// Allocate one slot in <g_usbtd_mem_map> by finding one empty slot, and setting its PID to the given <pid> 
+// Input params on stack: (td_type:word/uint32) at esp + ARCH_WORD_BYTES, (pid:word/WS_PartitionID) at esp
+// Return params on stack: (ret:word/bool) at esp, (slot:word/uint32) at esp + ARCH_WORD_BYTES
+procedure USBTD_slot_allocate_1slot() returns (ghost out_new_idword:word)
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        esi; edi;
+        eax; ebx; ecx; edx;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space :=
+            4 * ARCH_WORD_BYTES +                    // For local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         // For <_usbtd_slot_allocate_1slot_private>
+            14 * ARCH_WORD_BYTES +                    
+            3 * ARCH_WORD_BYTES;                     // For the params of <_usbtd_slot_allocate_1slot_private>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        let td_type:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        (td_type == USBTDs_TYPE_QTD32) || (td_type == USBTDs_TYPE_QH32) || 
+        (td_type == USBTDs_TYPE_iTD32) || (td_type == USBTDs_TYPE_siTD32);
+            // Requirement: <td_type> must be one of the four types
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 2 * ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let td_type:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let pid:word := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+        let new_td_slot:uint32 := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        WK_USBTD_Allocate1Slot_CommutativeDiagram_Property(old(this), dm, dm', out_new_idword, pid, ret);
+            // Prove the commutative diagram
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    out_new_idword := USBTD_slot_allocate_1slot_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    let td_type:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+    let pid:word := stack_get_val(old(mem), old(esp));
+    let ret:uint32 := stack_get_val(mem, old(esp));
+    let new_td_slot:uint32 := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 2 * ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions_IfOSSubjsObjsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_OnUSBTDAllocation(s, s', new_td_slot, out_new_idword, td_type, pid, ret);
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_OnUSBTDAllocation(s, s', new_td_slot, out_new_idword, td_type, pid, ret);
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    ghost if (ret == TRUE)
+    {
+        let dm := WSM_MapSecureState(s);
+        Lemma_USBTD_Allocate1Slot_ProveCommutativeDiagram_ProvePreCondition(s, out_new_idword);
+        Lemma_USBTD_Allocate1Slot_ProveCommutativeDiagram(s, dm, new_td_slot, out_new_idword, td_type, pid, s');
+        let dm' := WSM_MapSecureState(this);
+        assert WK_USBTD_Allocate1Slot_CommutativeDiagram_Property(old(this), dm, dm', out_new_idword, pid, ret);
+    }
+    else
+    {
+        Lemma_usbtd_slot_allocate_1slot_globals_relationship_False_Properties(s, s');
+        Lemma_WKAPI_ChangeTempGVarsAndCounters_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}
+
+// Deallocate one slot in <g_usbtd_mem_map>, and setting its PID to PID_INVALID
+// Input params on stack: (td_slot:word/uint32) at esp
+// Return params on stack: (ret:word/bool) at esp
+procedure USBTD_slot_deallocate_1slot()
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        esi; edi;
+        eax; ebx; ecx; edx;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            10 * ARCH_WORD_BYTES +                   // For <_usbtd_find_referencing_secure_slot>
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +
+            FFI_USBTD_IsRefTargetUSBTD_StackParamsWords * ARCH_WORD_BYTES + 
+            2 * ARCH_WORD_BYTES;                     // For the params of <_usbtd_find_referencing_secure_slot>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 2 * ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let td_slot:word := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        WK_USBTD_Deallocate1Slot_CommutativeDiagram_Property(old(this), dm, dm', td_slot, ret);
+            // Prove the commutative diagram
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    USBTD_slot_deallocate_1slot_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    let td_slot:word := stack_get_val(old(mem), old(esp));
+    let ret:uint32 := stack_get_val(mem, old(esp));
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 2 * ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions_IfOSSubjsObjsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_OnUSBTDDeallocation(s, s', td_slot, ret);
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_OnUSBTDDeallocation(s, s', td_slot, ret);
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    ghost if (ret == TRUE)
+    {
+        let dm := WSM_MapSecureState(s);
+        Lemma_USBTD_Deallocate1Slot_ProveCommutativeDiagram_ProvePreCondition(s, td_slot);
+        Lemma_USBTD_Deallocate1Slot_ProveCommutativeDiagram(s, dm, td_slot, s');
+        let dm' := WSM_MapSecureState(this);
+        assert WK_USBTD_Deallocate1Slot_CommutativeDiagram_Property(old(this), dm, dm', td_slot, ret);
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}
+
+// Handle QTD32 submitted by a wimp driver
+// Input params on stack: (new_input_param3:word/uint32) at esp + 7 * ARCH_WORD_BYTES, 
+// (new_input_param2:word/uint32) at esp + 6 * ARCH_WORD_BYTES, (new_input_param1:word/uint32) at esp + 5 * ARCH_WORD_BYTES, 
+// (td_paddr:paddr) at esp + 4 * ARCH_WORD_BYTES, (eehci_id:word) at esp + 3 * ARCH_WORD_BYTES,
+// (wimpdrv_id:word) at esp + 2 * ARCH_WORD_BYTES, (wimpdrv_slot_id:word) at esp + ARCH_WORD_BYTES, 
+// (td_slot:word/uint32) at esp
+// Return params on stack: (ret:uint32) at esp
+procedure USBTD_slot_submit_and_verify_qtd32()
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        esi; edi;
+        eax; ebx; ecx; edx;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            53 * ARCH_WORD_BYTES +                    // For <_usbtd_slot_submit_and_verify_qtd32_private>
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         
+            FFI_USBTD_Qtd32_ParseDataBufPtrs_ReturnWords * ARCH_WORD_BYTES +
+            8 * ARCH_WORD_BYTES;                    // For params of <_usbtd_slot_submit_and_verify_qtd32_private>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            8 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+
+        wimpdrv_valid_slot_id(wimpdrv_slot)
+            ==> wimpdrv_do_get_flag(globals, wimpdrv_slot) == WimpDrv_Slot_UpdateFlag_Complete;
+        wimpdrv_valid_slot_id(wimpdrv_slot)
+            ==> (
+                let wimpdrv_idword := wimpdrv_get_id_word(globals, wimpdrv_slot) in
+                wimpdrv_idword != WimpDrv_ID_RESERVED_EMPTY &&
+                (let wimpdrv_id:Drv_ID := WimpDrv_IDWord_ToDrvID(this.subjects, this.objects, this.id_mappings, wimpdrv_idword) in
+                 this.subjects.wimp_drvs?[wimpdrv_id])
+            );
+            // Requirement: The wimp driver issuing the access must exist in the system
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 3 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 3 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 4 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 4 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 5 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 5 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 6 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 6 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 7 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 7 * ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let wimpdrv_slot_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let input_param1:uint32 := stack_get_val(old(mem), old(esp) + 5 * ARCH_WORD_BYTES);
+        let input_param2:uint32 := stack_get_val(old(mem), old(esp) + 6 * ARCH_WORD_BYTES);
+        let input_param3:uint32 := stack_get_val(old(mem), old(esp) + 7 * ARCH_WORD_BYTES);
+        let eehci_id:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        WK_USBTD_Slot_SubmitAndVerify_CommutativeDiagram_Property(old(this), dm, this, dm', wimpdrv_slot_id, td_slot, ret);
+            // Prove the commutative diagram
+        WK_USBTD_Slot_SubmitAndVerify_SubjAndObjsInSamePartition(old(this), dm, this, dm', wimpdrv_slot_id, td_slot, ret);
+            // If return true, then the subject and objects being accessed must be in the same partition
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    USBTD_slot_submit_and_verify_qtd32_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    let wimpdrv_slot_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+    let input_param1:uint32 := stack_get_val(old(mem), old(esp) + 5 * ARCH_WORD_BYTES);
+    let input_param2:uint32 := stack_get_val(old(mem), old(esp) + 6 * ARCH_WORD_BYTES);
+    let input_param3:uint32 := stack_get_val(old(mem), old(esp) + 7 * ARCH_WORD_BYTES);
+    let eehci_id:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+    let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+    let ret:uint32 := stack_get_val(mem, old(esp));
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 7 * ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+    Lemma_IsAddrInStack_Property(old(esp), 7 * ARCH_WORD_BYTES, 2 * ARCH_WORD_BYTES);
+    Lemma_IsAddrInStack_Property(old(esp), 7 * ARCH_WORD_BYTES, 3 * ARCH_WORD_BYTES);
+    Lemma_IsAddrInStack_Property(old(esp), 7 * ARCH_WORD_BYTES, 4 * ARCH_WORD_BYTES);
+    Lemma_IsAddrInStack_Property(old(esp), 7 * ARCH_WORD_BYTES, 5 * ARCH_WORD_BYTES);
+    Lemma_IsAddrInStack_Property(old(esp), 7 * ARCH_WORD_BYTES, 6 * ARCH_WORD_BYTES);
+    Lemma_IsAddrInStack_Property(old(esp), 7 * ARCH_WORD_BYTES, 7 * ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions_IfOSSubjsObjsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_OnUSBTDModification(s, s', td_slot, wimpdrv_slot_id, WimpUSBPDev_SlotID_EMPTY, 
+        input_param1, input_param2, input_param3, USBTDs_TYPE_QTD32, eehci_id, ret);
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_OnUSBTDModification(s, s', td_slot, wimpdrv_slot_id, WimpUSBPDev_SlotID_EMPTY, 
+        input_param1, input_param2, input_param3, USBTDs_TYPE_QTD32, eehci_id, ret);
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    ghost if (ret == TRUE)
+    {
+        let dm := WSM_MapSecureState(s);
+        Lemma_USBTD_Slot_SubmitAndVerify_ProveCommutativeDiagram(s, dm, wimpdrv_slot_id, td_slot, USBTDs_TYPE_QTD32, 
+            WimpUSBPDev_SlotID_EMPTY, input_param1, input_param2, input_param3, eehci_id, s');
+        let dm' := WSM_MapSecureState(this);
+        assert WK_USBTD_Slot_SubmitAndVerify_CommutativeDiagram_Property(old(this), dm, this, dm', wimpdrv_slot_id, td_slot, ret);
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}
+
+// Handle QH32 submitted by a wimp driver
+// Input params on stack: 
+// (usbpdev_slot:word/uint32) at esp + 8 * ARCH_WORD_BYTES, (new_input_param3:word/uint32) at esp + 7 * ARCH_WORD_BYTES, 
+// (new_input_param2:word/uint32) at esp + 6 * ARCH_WORD_BYTES, (new_input_param1:word/uint32) at esp + 5 * ARCH_WORD_BYTES, 
+// (td_paddr:paddr) at esp + 4 * ARCH_WORD_BYTES, (eehci_id:word) at esp + 3 * ARCH_WORD_BYTES,
+// (wimpdrv_id:word) at esp + 2 * ARCH_WORD_BYTES, (wimpdrv_slot_id:word) at esp + ARCH_WORD_BYTES, 
+// (td_slot:word/uint32) at esp
+// Return params on stack: (ret:uint32) at esp
+procedure USBTD_slot_submit_and_verify_qh32()
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        esi; edi;
+        eax; ebx; ecx; edx;
+    requires
+        OpsSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            52 * ARCH_WORD_BYTES +                    // For <_usbtd_slot_submit_and_verify_qh32_private>
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         
+            FFI_USBTD_Qh32_ParseDataBufPtrs_ReturnWords * ARCH_WORD_BYTES +
+            9 * ARCH_WORD_BYTES;                    // For params of <_usbtd_slot_submit_and_verify_qh32_private>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            9 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let wimpdrv_slot:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+
+        wimpdrv_valid_slot_id(wimpdrv_slot)
+            ==> wimpdrv_do_get_flag(globals, wimpdrv_slot) == WimpDrv_Slot_UpdateFlag_Complete;
+        wimpdrv_valid_slot_id(wimpdrv_slot)
+            ==> (
+                let wimpdrv_idword := wimpdrv_get_id_word(globals, wimpdrv_slot) in
+                wimpdrv_idword != WimpDrv_ID_RESERVED_EMPTY &&
+                (let wimpdrv_id:Drv_ID := WimpDrv_IDWord_ToDrvID(this.subjects, this.objects, this.id_mappings, wimpdrv_idword) in
+                 this.subjects.wimp_drvs?[wimpdrv_id])
+            );
+            // Requirement: The wimp driver issuing the access must exist in the system
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        OpsSaneState(this);
+        WSM_IsSecureOps(old(this), this);
+    ensures
+        is_valid_addr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 1 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 2 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 3 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 3 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 4 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 4 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 5 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 5 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 6 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 6 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 7 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 7 * ARCH_WORD_BYTES);
+        is_valid_addr(old(esp) + 8 * ARCH_WORD_BYTES);
+        is_valid_vaddr(old(esp) + 8 * ARCH_WORD_BYTES);
+            // Properties needed by the following properites
+    ensures
+        let wimpdrv_slot_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let usbpdev_slot:word := stack_get_val(old(mem), old(esp) + 8 * ARCH_WORD_BYTES);
+        let input_param1:uint32 := stack_get_val(old(mem), old(esp) + 5 * ARCH_WORD_BYTES);
+        let input_param2:uint32 := stack_get_val(old(mem), old(esp) + 6 * ARCH_WORD_BYTES);
+        let input_param3:uint32 := stack_get_val(old(mem), old(esp) + 7 * ARCH_WORD_BYTES);
+        let eehci_id:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+
+        let dm := WSM_MapSecureState(old(this));
+        let dm' := WSM_MapSecureState(this);
+
+        WK_USBTD_Slot_SubmitAndVerify_CommutativeDiagram_Property(old(this), dm, this, dm', wimpdrv_slot_id, td_slot, ret);
+            // Prove the commutative diagram
+        WK_USBTD_Slot_SubmitAndVerify_SubjAndObjsInSamePartition(old(this), dm, this, dm', wimpdrv_slot_id, td_slot, ret);
+            // If return true, then the subject and objects being accessed must be in the same partition
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    USBTD_slot_submit_and_verify_qh32_Impl();
+
+    let s := old(this);
+    let s' := this;
+
+    let wimpdrv_slot_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+    let usbpdev_slot:word := stack_get_val(old(mem), old(esp) + 8 * ARCH_WORD_BYTES);
+    let input_param1:uint32 := stack_get_val(old(mem), old(esp) + 5 * ARCH_WORD_BYTES);
+    let input_param2:uint32 := stack_get_val(old(mem), old(esp) + 6 * ARCH_WORD_BYTES);
+    let input_param3:uint32 := stack_get_val(old(mem), old(esp) + 7 * ARCH_WORD_BYTES);
+    let eehci_id:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+    let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+    let ret:uint32 := stack_get_val(mem, old(esp));
+
+    // Immediate properties from <WK_EmptyPartitionCreate_Impl>
+    assert InstSaneState(s');
+    Lemma_IsAddrInStack_Property(old(esp), 8 * ARCH_WORD_BYTES, ARCH_WORD_BYTES);
+    assert IsAddrInStack(old(esp) + ARCH_WORD_BYTES);
+    Lemma_IsAddrInStack_Property(old(esp), 8 * ARCH_WORD_BYTES, 2 * ARCH_WORD_BYTES);
+    Lemma_IsAddrInStack_Property(old(esp), 8 * ARCH_WORD_BYTES, 3 * ARCH_WORD_BYTES);
+    Lemma_IsAddrInStack_Property(old(esp), 8 * ARCH_WORD_BYTES, 4 * ARCH_WORD_BYTES);
+    Lemma_IsAddrInStack_Property(old(esp), 8 * ARCH_WORD_BYTES, 5 * ARCH_WORD_BYTES);
+    Lemma_IsAddrInStack_Property(old(esp), 8 * ARCH_WORD_BYTES, 6 * ARCH_WORD_BYTES);
+    Lemma_IsAddrInStack_Property(old(esp), 8 * ARCH_WORD_BYTES, 7 * ARCH_WORD_BYTES);
+    Lemma_IsAddrInStack_Property(old(esp), 8 * ARCH_WORD_BYTES, 8 * ARCH_WORD_BYTES);
+
+    // Prove OpsSaneStateSubset(s')
+    reveal global_non_scratchpad_vars_are_unchanged;
+    Lemma_WK_OpsSaneStateSubset_Validity_OSObjsCannotBeActiveInWimpPartitions_IfOSSubjsObjsAreUnchanged(s, s');
+    Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_OnUSBTDModification(s, s', td_slot, wimpdrv_slot_id, usbpdev_slot, 
+        input_param1, input_param2, input_param3, USBTDs_TYPE_QH32, eehci_id, ret);
+    Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_OnUSBTDModification(s, s', td_slot, wimpdrv_slot_id, usbpdev_slot, 
+        input_param1, input_param2, input_param3, USBTDs_TYPE_QH32, eehci_id, ret);
+    assert OpsSaneStateSubset(s');
+
+    // Prove commutative diagram
+    ghost if (ret == TRUE)
+    {
+        let dm := WSM_MapSecureState(s);
+        Lemma_USBTD_Slot_SubmitAndVerify_ProveCommutativeDiagram(s, dm, wimpdrv_slot_id, td_slot, USBTDs_TYPE_QH32, 
+            usbpdev_slot, input_param1, input_param2, input_param3, eehci_id, s');
+        let dm' := WSM_MapSecureState(this);
+        assert WK_USBTD_Slot_SubmitAndVerify_CommutativeDiagram_Property(old(this), dm, this, dm', wimpdrv_slot_id, td_slot, ret);
+    }
+    else
+    {
+        Lemma_WKAPI_ChangeTempGVars_MapToSameDMState(s, s');
+        assert OpsSaneState(s);
+        assert WSM_IsSecureOps(s, s');
+    }
+}
+
+
+
+
+/*********************** Private Lemmas And Predicates - USBTD_slot_allocate_1slot ********************/
+#verbatim
+lemma Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_OnUSBTDAllocation(
+    s1:state, s2:state,
+    new_td_slot:word, new_idword:word, new_td_type:word, new_pid:word, ret:word
+)
+    requires OpsSaneStateSubset(s1)
+    requires InstSaneState(s2)
+
+    requires ret == TRUE ==> usbtd_map_valid_slot_id(new_td_slot)
+    requires (new_td_type == USBTDs_TYPE_QTD32) || (new_td_type == USBTDs_TYPE_QH32) || 
+        (new_td_type == USBTDs_TYPE_iTD32) || (new_td_type == USBTDs_TYPE_siTD32)
+        // Requirements needed by the following requirements
+    requires var globals := wkm_get_globals(s1.wk_mstate);
+             var globals' := wkm_get_globals(s2.wk_mstate);
+             usbtd_slot_allocate_1slot_globals_relationship(globals, globals', new_td_slot, new_idword, new_td_type, new_pid, ret)
+
+    ensures WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification(wkm_get_globals(s2.wk_mstate))
+{
+    reveal WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification();
+
+    var globals := wkm_get_globals(s1.wk_mstate);
+    var globals' := wkm_get_globals(s2.wk_mstate);
+
+    if(ret == TRUE)
+    {
+        forall i | usbtd_map_valid_slot_id(i) &&
+                TestBit(usbtd_map_get_flags(globals', i), USBTD_SLOT_FLAG_SlotSecure_Bit)
+            ensures (usbtd_map_get_type(globals', i) == USBTDs_TYPE_QTD32 || usbtd_map_get_type(globals', i) == USBTDs_TYPE_QH32)
+        {
+            reveal p_usbtd_equal();
+            if(i != new_td_slot)
+            {
+                assert usbtd_map_get_flags(globals', i) == usbtd_map_get_flags(globals, i);
+                assert usbtd_map_get_type(globals', i) == usbtd_map_get_type(globals, i);
+            }
+            else
+            {
+                assert usbtd_map_get_flags(globals', i) == 0;
+                Lemma_TestBit_ReturnFalseIfANumberIs0();
+                assert TestBit(usbtd_map_get_flags(globals', i), USBTD_SLOT_FLAG_SlotSecure_Bit) == false;
+            }
+        }
+    }
+}
+
+lemma Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_OnUSBTDAllocation(
+    s1:state, s2:state,
+    new_td_slot:word, new_idword:word, new_td_type:word, new_pid:word, ret:word
+)
+    requires OpsSaneStateSubset(s1)
+    requires InstSaneState(s2)
+
+    requires ret == TRUE ==> usbtd_map_valid_slot_id(new_td_slot)
+    requires (new_td_type == USBTDs_TYPE_QTD32) || (new_td_type == USBTDs_TYPE_QH32) || 
+        (new_td_type == USBTDs_TYPE_iTD32) || (new_td_type == USBTDs_TYPE_siTD32)
+        // Requirements needed by the following requirements
+    requires var globals := wkm_get_globals(s1.wk_mstate);
+             var globals' := wkm_get_globals(s2.wk_mstate);
+             usbtd_slot_allocate_1slot_globals_relationship(globals, globals', new_td_slot, new_idword, new_td_type, new_pid, ret)
+
+    ensures WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure(wkm_get_globals(s2.wk_mstate))
+{
+    reveal WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure();
+
+    var globals1 := wkm_get_globals(s1.wk_mstate);
+    var globals2 := wkm_get_globals(s2.wk_mstate);
+
+    if(ret == TRUE)
+    {
+        forall td_slot | usbtd_map_valid_slot_id(td_slot) &&
+                usbtd_map_get_pid(globals2, td_slot) != WS_PartitionID(PID_INVALID)
+            ensures (var td_type := usbtd_map_get_type(globals2, td_slot);
+                assert usbtd_slot_valid_type(globals2, td_slot);
+                usbtd_has_clear_content(globals2, td_slot, td_type) || 
+                (usbtd_map_get_flags(globals2, td_slot) == SetBit(SetBit(0, USBTD_SLOT_FLAG_SubmitDone_Bit), USBTD_SLOT_FLAG_SlotSecure_Bit)))
+        {
+            reveal p_usbtd_equal();
+            reveal p_usbtd_content_equal();
+            if(td_slot != new_td_slot)
+            {
+                var td_type := usbtd_map_get_type(globals2, td_slot);
+                assert usbtd_slot_valid_type(globals2, td_slot);
+                assert usbtd_slot_valid_type(globals2, td_slot) == usbtd_slot_valid_type(globals1, td_slot);
+                
+                assert p_usbtd_content_equal(globals1, globals2, td_slot);
+                reveal ffi_usbtd_clear_content_stack_and_globals_qtd32();
+                reveal ffi_usbtd_clear_content_stack_and_globals_qh32();
+                assert usbtd_has_clear_content(globals2, td_slot, td_type) == usbtd_has_clear_content(globals1, td_slot, td_type);
+                assert usbtd_map_get_flags(globals2, td_slot) == usbtd_map_get_flags(globals1, td_slot);
+
+                assert usbtd_has_clear_content(globals2, td_slot, td_type) || 
+                    (usbtd_map_get_flags(globals2, td_slot) == SetBit(SetBit(0, USBTD_SLOT_FLAG_SubmitDone_Bit), USBTD_SLOT_FLAG_SlotSecure_Bit));
+            }
+        }
+    }
+    else
+    {
+        Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s1, s2);
+    }
+}
+
+lemma Lemma_USBTD_Allocate1Slot_ProveCommutativeDiagram_ProvePreCondition(s:state, usbtd_idword:word)
+    requires OpsSaneState(s)
+    requires usbtd_idword != USBTD_ID_INVALID
+
+    ensures usbtd_idword in s.id_mappings.usbtd_to_td
+    ensures usbtd_idword in s.id_mappings.usbtd_to_fd
+    ensures usbtd_idword in s.id_mappings.usbtd_to_do
+{
+    assert WK_ValidIDMappings(s.subjects, s.objects, s.id_mappings);
+    reveal WK_ValidIDMappings();
+}
+
+lemma Lemma_usbtd_slot_allocate_1slot_globals_relationship_False_Properties(s:state, s':state)
+    requires WK_ValidGlobalVars_Decls(wkm_get_globals(s.wk_mstate))
+    requires WK_ValidGlobalVars_Decls(wkm_get_globals(s'.wk_mstate))
+
+    requires state_equal_except_mstate(s, s')
+    requires var globals := wkm_get_globals(s.wk_mstate);
+             var globals' := wkm_get_globals(s'.wk_mstate);
+             globals_other_gvar_unchanged(globals, globals', G_USBTD_ID_Counter())
+
+    ensures state_equal_except_tempgvar_regs_stack_counters(s, s')
+{
+    reveal global_non_scratchpad_vars_except_counters_are_unchanged();
+}
+#endverbatim
+
+
+
+
+/*********************** Private Lemmas And Predicates - USBTD_slot_deallocate_1slot ********************/
+#verbatim
+lemma Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_OnUSBTDDeallocation(
+    s1:state, s2:state,
+    td_slot:word, ret:word
+)
+    requires OpsSaneStateSubset(s1)
+    requires InstSaneState(s2)
+
+    requires ret == TRUE ==> usbtd_map_valid_slot_id(td_slot)
+        // Requirements needed by the following requirements
+    requires var globals := wkm_get_globals(s1.wk_mstate);
+             var globals' := wkm_get_globals(s2.wk_mstate);
+             usbtd_slot_deallocate_1slot_globals_relationship(globals, globals', td_slot, ret)
+
+    ensures WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification(wkm_get_globals(s2.wk_mstate))
+{
+    reveal WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification();
+
+    var globals := wkm_get_globals(s1.wk_mstate);
+    var globals' := wkm_get_globals(s2.wk_mstate);
+
+    if(ret == TRUE)
+    {
+        forall i | usbtd_map_valid_slot_id(i) &&
+                TestBit(usbtd_map_get_flags(globals', i), USBTD_SLOT_FLAG_SlotSecure_Bit)
+            ensures (usbtd_map_get_type(globals', i) == USBTDs_TYPE_QTD32 || usbtd_map_get_type(globals', i) == USBTDs_TYPE_QH32)
+        {
+            reveal p_usbtd_equal();
+            if(i != td_slot)
+            {
+                assert usbtd_map_get_flags(globals', i) == usbtd_map_get_flags(globals, i);
+                assert usbtd_map_get_type(globals', i) == usbtd_map_get_type(globals, i);
+            }
+            else
+            {
+                assert usbtd_map_get_flags(globals', i) == 0;
+                Lemma_TestBit_ReturnFalseIfANumberIs0();
+                assert TestBit(usbtd_map_get_flags(globals', i), USBTD_SLOT_FLAG_SlotSecure_Bit) == false;
+            }
+        }
+    }
+    else
+    {
+        assert global_non_scratchpad_vars_are_unchanged(globals, globals');
+        reveal global_non_scratchpad_vars_are_unchanged();
+        Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_IfUSBTDsAreUnchanged(s1, s2);
+    }
+}
+
+lemma Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_OnUSBTDDeallocation(
+    s1:state, s2:state,
+    in_td_slot:word, ret:word
+)
+    requires OpsSaneStateSubset(s1)
+    requires InstSaneState(s2)
+
+    requires ret == TRUE ==> usbtd_map_valid_slot_id(in_td_slot)
+        // Requirements needed by the following requirements
+    requires var globals := wkm_get_globals(s1.wk_mstate);
+             var globals' := wkm_get_globals(s2.wk_mstate);
+             usbtd_slot_deallocate_1slot_globals_relationship(globals, globals', in_td_slot, ret)
+
+    ensures WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure(wkm_get_globals(s2.wk_mstate))
+{
+    reveal WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure();
+
+    var globals1 := wkm_get_globals(s1.wk_mstate);
+    var globals2 := wkm_get_globals(s2.wk_mstate);
+
+    if(ret == TRUE)
+    {
+        forall td_slot | usbtd_map_valid_slot_id(td_slot) &&
+                usbtd_map_get_pid(globals2, td_slot) != WS_PartitionID(PID_INVALID)
+            ensures (var td_type := usbtd_map_get_type(globals2, td_slot);
+                assert usbtd_slot_valid_type(globals2, td_slot);
+                usbtd_has_clear_content(globals2, td_slot, td_type) || 
+                (usbtd_map_get_flags(globals2, td_slot) == SetBit(SetBit(0, USBTD_SLOT_FLAG_SubmitDone_Bit), USBTD_SLOT_FLAG_SlotSecure_Bit)))
+        {
+            reveal p_usbtd_equal();
+            reveal p_usbtd_content_equal();
+            if(td_slot != in_td_slot)
+            {
+                var td_type := usbtd_map_get_type(globals2, td_slot);
+                assert usbtd_slot_valid_type(globals2, td_slot);
+                assert usbtd_slot_valid_type(globals2, td_slot) == usbtd_slot_valid_type(globals1, td_slot);
+                
+                assert p_usbtd_content_equal(globals1, globals2, td_slot);
+                reveal ffi_usbtd_clear_content_stack_and_globals_qtd32();
+                reveal ffi_usbtd_clear_content_stack_and_globals_qh32();
+                assert usbtd_has_clear_content(globals2, td_slot, td_type) == usbtd_has_clear_content(globals1, td_slot, td_type);
+                assert usbtd_map_get_flags(globals2, td_slot) == usbtd_map_get_flags(globals1, td_slot);
+
+                assert usbtd_has_clear_content(globals2, td_slot, td_type) || 
+                    (usbtd_map_get_flags(globals2, td_slot) == SetBit(SetBit(0, USBTD_SLOT_FLAG_SubmitDone_Bit), USBTD_SLOT_FLAG_SlotSecure_Bit));
+            }
+        }
+    }
+    else
+    {
+        assert global_non_scratchpad_vars_are_unchanged(globals1, globals2);
+        reveal global_non_scratchpad_vars_are_unchanged();
+        Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s1, s2);
+    }
+}
+
+lemma Lemma_USBTD_Deallocate1Slot_ProveCommutativeDiagram_ProvePreCondition(s:state, td_slot:word)
+    requires OpsSaneState(s)
+
+    requires usbtd_map_valid_slot_id(td_slot)
+    requires var globals := wkm_get_globals(s.wk_mstate);
+             pids_is_existing_wimp_pid(globals, usbtd_map_get_pid(globals, td_slot).v)
+
+    ensures var globals := wkm_get_globals(s.wk_mstate);
+            var usbtd_idword := usbtd_map_get_idword(globals, td_slot);
+            usbtd_idword != USBTD_ID_INVALID &&
+            usbtd_idword in s.id_mappings.usbtd_to_td &&
+            usbtd_idword in s.id_mappings.usbtd_to_fd &&
+            usbtd_idword in s.id_mappings.usbtd_to_do
+{
+    var globals := wkm_get_globals(s.wk_mstate);
+    assert usbtd_map_get_pid(globals, td_slot) != WS_PartitionID(PID_INVALID);
+
+    // Prove usbtd_idword != USBTD_ID_INVALID
+    assert WK_USBTD_Map_ValidGlobalVarValues_IDWords(globals);
+
+    assert WK_ValidIDMappings(s.subjects, s.objects, s.id_mappings);
+    reveal WK_ValidIDMappings();
+}
+#endverbatim
+
+
+
+
+/*********************** Private Lemmas And Predicates - USBTD_slot_submit_and_verify_* ********************/
+#verbatim
+lemma Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_OnUSBTDModification(
+    s1:state, s2:state,
+    td_slot:uint32, wimpdrv_slot_id:word, usbpdev_slot:word, input_param1:uint32, input_param2:uint32, input_param3:uint32, td_type:word, eehci_id:word,
+    ret:word
+)
+    requires OpsSaneStateSubset(s1)
+    requires InstSaneState(s2)
+
+    requires ret == TRUE ==> usbtd_map_valid_slot_id(td_slot)
+    requires var globals := wkm_get_globals(s1.wk_mstate);
+             var globals' := wkm_get_globals(s2.wk_mstate);
+             ret == TRUE ==> (
+                p_usbtd_slot_submit_and_verify_usbtd_ret_global(globals, globals', td_slot) &&
+                p_usbtd_slot_submit_modification_to_usbtd(globals', td_slot, wimpdrv_slot_id, usbpdev_slot, input_param1, input_param2, input_param3, td_type, eehci_id)
+             )
+    requires var globals := wkm_get_globals(s1.wk_mstate);
+             var globals' := wkm_get_globals(s2.wk_mstate);
+             ret != TRUE ==> global_non_scratchpad_vars_are_unchanged(globals, globals')
+
+    requires (td_type == USBTDs_TYPE_QTD32) || (td_type == USBTDs_TYPE_QH32)
+
+    ensures WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification(wkm_get_globals(s2.wk_mstate))
+{
+    reveal WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification();
+
+    var globals := wkm_get_globals(s1.wk_mstate);
+    var globals' := wkm_get_globals(s2.wk_mstate);
+
+    if(ret == TRUE)
+    {
+        forall i | usbtd_map_valid_slot_id(i) &&
+                TestBit(usbtd_map_get_flags(globals', i), USBTD_SLOT_FLAG_SlotSecure_Bit)
+            ensures (usbtd_map_get_type(globals', i) == USBTDs_TYPE_QTD32 || usbtd_map_get_type(globals', i) == USBTDs_TYPE_QH32)
+        {
+            reveal p_usbtd_equal();
+            if(i != td_slot)
+            {
+                assert usbtd_map_get_flags(globals', i) == usbtd_map_get_flags(globals, i);
+                assert usbtd_map_get_type(globals', i) == usbtd_map_get_type(globals, i);
+            }
+            else
+            {
+                assert (usbtd_map_get_type(globals', i) == USBTDs_TYPE_QTD32 || usbtd_map_get_type(globals', i) == USBTDs_TYPE_QH32);
+            }
+        }
+    }
+    else
+    {
+        reveal global_non_scratchpad_vars_are_unchanged();
+        Lemma_WK_OpsSaneStateSubset_Validity_LimitationOfUSBTDsVerification_IfUSBTDsAreUnchanged(s1, s2);
+    }
+}
+
+lemma Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_OnUSBTDModification(
+    s1:state, s2:state,
+    in_td_slot:uint32, wimpdrv_slot_id:word, usbpdev_slot:word, input_param1:uint32, input_param2:uint32, input_param3:uint32, td_type:word, eehci_id:word,
+    ret:word
+)
+    requires OpsSaneStateSubset(s1)
+    requires InstSaneState(s2)
+
+    requires ret == TRUE ==> usbtd_map_valid_slot_id(in_td_slot)
+    requires var globals := wkm_get_globals(s1.wk_mstate);
+             var globals' := wkm_get_globals(s2.wk_mstate);
+             ret == TRUE ==> (
+                p_usbtd_slot_submit_and_verify_usbtd_ret_global(globals, globals', in_td_slot) &&
+                p_usbtd_slot_submit_modification_to_usbtd(globals', in_td_slot, wimpdrv_slot_id, usbpdev_slot, input_param1, input_param2, input_param3, td_type, eehci_id)
+             )
+    requires var globals := wkm_get_globals(s1.wk_mstate);
+             var globals' := wkm_get_globals(s2.wk_mstate);
+             ret != TRUE ==> global_non_scratchpad_vars_are_unchanged(globals, globals')
+
+    requires (td_type == USBTDs_TYPE_QTD32) || (td_type == USBTDs_TYPE_QH32)
+
+    ensures WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure(wkm_get_globals(s2.wk_mstate))
+{
+    reveal WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure();
+
+    var globals1 := wkm_get_globals(s1.wk_mstate);
+    var globals2 := wkm_get_globals(s2.wk_mstate);
+
+    if(ret == TRUE)
+    {
+        forall td_slot | usbtd_map_valid_slot_id(td_slot) &&
+                usbtd_map_get_pid(globals2, td_slot) != WS_PartitionID(PID_INVALID)
+            ensures (var td_type := usbtd_map_get_type(globals2, td_slot);
+                assert usbtd_slot_valid_type(globals2, td_slot);
+                usbtd_has_clear_content(globals2, td_slot, td_type) || 
+                (usbtd_map_get_flags(globals2, td_slot) == SetBit(SetBit(0, USBTD_SLOT_FLAG_SubmitDone_Bit), USBTD_SLOT_FLAG_SlotSecure_Bit)))
+        {
+            reveal p_usbtd_equal();
+            reveal p_usbtd_content_equal();
+            if(td_slot != in_td_slot)
+            {
+                var td_type := usbtd_map_get_type(globals2, td_slot);
+                assert usbtd_slot_valid_type(globals2, td_slot);
+                assert usbtd_slot_valid_type(globals2, td_slot) == usbtd_slot_valid_type(globals1, td_slot);
+                
+                assert p_usbtd_content_equal(globals1, globals2, td_slot);
+                reveal ffi_usbtd_clear_content_stack_and_globals_qtd32();
+                reveal ffi_usbtd_clear_content_stack_and_globals_qh32();
+                assert usbtd_has_clear_content(globals2, td_slot, td_type) == usbtd_has_clear_content(globals1, td_slot, td_type);
+                assert usbtd_map_get_flags(globals2, td_slot) == usbtd_map_get_flags(globals1, td_slot);
+
+                assert usbtd_has_clear_content(globals2, td_slot, td_type) || 
+                    (usbtd_map_get_flags(globals2, td_slot) == SetBit(SetBit(0, USBTD_SLOT_FLAG_SubmitDone_Bit), USBTD_SLOT_FLAG_SlotSecure_Bit));
+            }
+        }
+    }
+    else
+    {
+        reveal global_non_scratchpad_vars_are_unchanged();
+        Lemma_WK_OpsSaneStateSubset_Validity_USBTDsInRecordIsEitherEmptyOrSecure_IfUSBTDsAreUnchanged(s1, s2);
+    }
+}
+#endverbatim

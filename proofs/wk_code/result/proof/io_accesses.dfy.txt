@@ -1,0 +1,146 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing proof/io_accesses.dfy
+proof\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\../Abstract/Model.dfy(2123,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\../Abstract/Model.dfy(2184,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1677,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1685,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2493,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2501,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3159,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3151,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3274,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3282,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2162,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2267,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2303,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2375,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\./BuildCAS/ReachableTDsStates.dfy(2147,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2138,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2146,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2547,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2555,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2652,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2644,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(239,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(333,24): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(950,20): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [1.3314375 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.OSDrvRead__ByPAddr ...
+  [15.710 s, 1319 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.OSDrvRead__ByPIO ...
+  [10.377 s, 1315 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.OSDrvRead__ByObjIDs ...
+  [8.486 s, 1166 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.OSDevRead__ByPAddr ...
+  [16.422 s, 1436 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.OSDevRead__ByPIO ...
+  [16.018 s, 1432 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.OSNonUSBPDevRead__ByObjIDs ...
+  [17.054 s, 1430 proof obligations]  verified
+Linearising   [0.6861655 s]
+
+Verifying CheckWellformed$$_module.__default.OSDrvWrite__ByPAddr ...
+  [21.071 s, 2705 proof obligations]  verified
+Linearising   [0.6333059 s]
+
+Verifying CheckWellformed$$_module.__default.OSDrvWrite__ByPIO ...
+  [20.112 s, 2699 proof obligations]  verified
+Linearising   [0.619343 s]
+
+Verifying CheckWellformed$$_module.__default.OSDrvWrite__ByObjIDs ...
+  [43.942 s, 2568 proof obligations]  verified
+Linearising   [0.5754617 s]
+
+Verifying CheckWellformed$$_module.__default.OSDevWrite__ByPAddr ...
+  [24.162 s, 2733 proof obligations]  verified
+Linearising   [0.715087 s]
+
+Verifying CheckWellformed$$_module.__default.OSDevWrite__ByPIO ...
+  [24.233 s, 2725 proof obligations]  verified
+Linearising   [0.7380253 s]
+
+Verifying CheckWellformed$$_module.__default.OSNonUSBPDevWrite__ByObjIDs ...
+  [106.815 s, 2731 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WimpDrvRead__ByPAddr ...
+  [34.200 s, 1458 proof obligations]  verified
+Linearising   [0.5794512 s]
+
+Verifying CheckWellformed$$_module.__default.WimpDrvWrite__ByPAddr ...
+  [33.790 s, 2393 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.USBPDevWrite__ByObjID ...
+  [10.383 s, 2207 proof obligations]  verified
+Linearising   [0.5245969 s]
+
+Verifying CheckWellformed$$_module.__default.USBPDevRead__ByObjID ...
+  [10.300 s, 1726 proof obligations]  verified
+Linearising   [0.6253275 s]
+
+Verifying CheckWellformed$$_module.__default.EEHCIWriteOwnDO__ByOffset ...
+  [34.023 s, 2539 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.EEHCIReadOwnObjs__ByOffset ...
+  [12.215 s, 1935 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.EEHCIReadUSBTD__BySlotID ...
+  [48.207 s, 1853 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.EEHCIReadUSBPDevObj__ByObjID ...
+  [11.498 s, 1863 proof obligations]  verified
+Linearising   [0.7479991 s]
+
+Verifying CheckWellformed$$_module.__default.EEHCIWriteUSBPDevObj__ByObjID ...
+  [108.618 s, 2830 proof obligations]  verified
+Linearising   [0.5515254 s]
+
+Verifying CheckWellformed$$_module.__default.EEHCIReadObjs__ByPAddr ...
+  [11.560 s, 2057 proof obligations]  verified
+Linearising   [0.7170829 s]
+
+Verifying CheckWellformed$$_module.__default.EEHCIWriteObjs__ByPAddr ...
+  [47.139 s, 3079 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__DrvDevRead__ChkSubjAndObjsAreInSamePartition__ImpliesWS__SubjRead__ObjsToReadAndCopiedToMustBeInSamePartitionWithSubj ...
+  [7.478 s, 140 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__DrvDevRead__ChkSubjAndObjsAreInSamePartition__ImpliesWS__SubjRead__ObjsToReadAndCopiedToMustBeInSamePartitionWithSubj ...
+  [52.059 s, 281 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__SubjAndWriteObjInSamePartition__ImpliesWS__SubjWrite__ObjsToReadAndCopiedToMustBeInSamePartitionWithSubj ...
+  [6.884 s, 143 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__SubjAndWriteObjInSamePartition__ImpliesWS__SubjWrite__ObjsToReadAndCopiedToMustBeInSamePartitionWithSubj ...
+  [16.483 s, 284 proof obligations]  verified
+
+Dafny program verifier finished with 27 verified, 0 errors

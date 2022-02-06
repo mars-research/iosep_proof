@@ -1,0 +1,17 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing arch/common/arch_mem.i.dfy
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0757967 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.Lemma__is__mem__region__overlap__ProveNotOverlappingWithIncludedMemRegion ...
+  [0.688 s, 6 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__is__mem__region__overlap__ProveNotOverlappingWithIncludedMemRegion ...
+  [0.242 s, 1 proof obligation]  verified
+
+Dafny program verifier finished with 2 verified, 0 errors

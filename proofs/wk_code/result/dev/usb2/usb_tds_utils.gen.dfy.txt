@@ -1,0 +1,284 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/usb_tds_utils.gen.dfy
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\ins\x86\..\util\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\ins\x86\..\util\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [3.3590149 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__get__td__vaddr ...
+  [5.889 s, 36 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__get__td__vaddr ...
+  [6.789 s, 528 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__get__td__vaddr ...
+  [16.746 s, 1725 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__get__id ...
+  [3.398 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__get__id ...
+  [5.018 s, 474 proof obligations]  verified
+Linearising   [0.6043838 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__get__id ...
+  [14.202 s, 1869 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__get__type ...
+  [3.334 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__get__type ...
+  [4.854 s, 474 proof obligations]  verified
+Linearising   [0.5993976 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__get__type ...
+  [14.085 s, 1870 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__get__bus__id ...
+  [5.052 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__get__bus__id ...
+  [5.250 s, 474 proof obligations]  verified
+Linearising   [0.5634926 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__get__bus__id ...
+  [14.198 s, 1870 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__get__wimpdrv__slotid ...
+  [3.358 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__get__wimpdrv__slotid ...
+  [5.138 s, 476 proof obligations]  verified
+Linearising   [0.6123652 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__get__wimpdrv__slotid ...
+  [14.475 s, 1871 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__check__wimpdrv__slotid ...
+  [3.416 s, 54 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__check__wimpdrv__slotid ...
+  [6.341 s, 546 proof obligations]  verified
+Linearising   [0.7041167 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__check__wimpdrv__slotid ...
+  [26.870 s, 2195 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__get__usbpdev__slotid ...
+  [4.876 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__get__usbpdev__slotid ...
+  [5.168 s, 476 proof obligations]  verified
+Linearising   [0.6173493 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__get__usbpdev__slotid ...
+  [14.401 s, 1871 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__check__usbpdev__slotid ...
+  [3.453 s, 54 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__check__usbpdev__slotid ...
+  [5.863 s, 546 proof obligations]  verified
+Linearising   [0.7130929 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__check__usbpdev__slotid ...
+  [24.970 s, 2195 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__get__td__pid ...
+  [3.572 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__get__td__pid ...
+  [5.041 s, 472 proof obligations]  verified
+Linearising   [0.5006612 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__get__td__pid ...
+  [16.031 s, 1865 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__check__td__slot__id ...
+  [3.498 s, 29 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__check__td__slot__id ...
+  [3.222 s, 282 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__check__td__slot__id ...
+  [8.117 s, 512 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__check__and__get__td__pid ...
+  [3.247 s, 65 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__check__and__get__td__pid ...
+  [5.865 s, 472 proof obligations]  verified
+Linearising   [0.6173508 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__check__and__get__td__pid ...
+  [53.271 s, 2039 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__get__flags ...
+  [3.430 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__get__flags ...
+  [5.390 s, 472 proof obligations]  verified
+Linearising   [3.0408659 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__get__flags ...
+  [16.800 s, 1865 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__check__flags__slotsecure ...
+  [3.451 s, 40 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__check__flags__slotsecure ...
+  [6.166 s, 479 proof obligations]  verified
+Linearising   [0.6343036 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__check__flags__slotsecure ...
+  [27.191 s, 2111 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__set__td__pid ...
+  [3.575 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__set__td__pid ...
+  [5.861 s, 1278 proof obligations]  verified
+Linearising   [0.9644213 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__set__td__pid ...
+  [38.067 s, 3320 proof obligations]  verified
+Linearising   [2.1622171 s]
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__set__td__type ...
+  [5.768 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__set__td__type ...
+  [5.609 s, 993 proof obligations]  verified
+Linearising   [1.0112948 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__set__td__type ...
+  [38.753 s, 3471 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__set__bus__id ...
+  [3.602 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__set__bus__id ...
+  [5.816 s, 1066 proof obligations]  verified
+Linearising   [0.9434794 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__set__bus__id ...
+  [33.802 s, 3474 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__set__wimpdrv__slotid ...
+  [3.375 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__set__wimpdrv__slotid ...
+  [5.688 s, 993 proof obligations]  verified
+Linearising   [0.9384918 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__set__wimpdrv__slotid ...
+  [35.278 s, 3905 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__set__usbpdev__slotid ...
+  [3.479 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__set__usbpdev__slotid ...
+  [5.788 s, 993 proof obligations]  verified
+Linearising   [0.8517217 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__set__usbpdev__slotid ...
+  [32.083 s, 3905 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__set__flags ...
+  [3.363 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__set__flags ...
+  [6.009 s, 1479 proof obligations]  verified
+Linearising   [1.0621596 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__set__flags ...
+  [38.307 s, 3928 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__set__handle ...
+  [5.867 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__set__handle ...
+  [6.373 s, 771 proof obligations]  verified
+Linearising   [1.1030496 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__set__handle ...
+  [41.520 s, 3972 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__set__inputparams ...
+  [3.488 s, 75 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__set__inputparams ...
+  [9.500 s, 1286 proof obligations]  verified
+Linearising   [1.044206 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__set__inputparams ...
+  [128.884 s, 4414 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__set__id ...
+  [6.239 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__set__id ...
+  [5.660 s, 1272 proof obligations]  verified
+Linearising   [1.0172803 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__set__id ...
+  [56.789 s, 4086 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__find__empty__slot ...
+  [3.724 s, 87 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__find__empty__slot ...
+  [6.908 s, 819 proof obligations]  verified
+Linearising   [1.1070411 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__find__empty__slot ...
+  [76.842 s, 3228 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__find__slot__in__partition ...
+  [6.221 s, 144 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__find__slot__in__partition ...
+  [9.662 s, 687 proof obligations]  verified
+Linearising   [1.5388833 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__find__slot__in__partition ...
+  [166.092 s, 4595 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbtd__id__generate ...
+  [8.678 s, 53 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbtd__id__generate ...
+  [4.167 s, 1003 proof obligations]  verified
+Linearising   [0.7529856 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbtd__id__generate ...
+  [27.754 s, 3024 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtd__id__generate__ProveProperty2 ...
+  [3.345 s, 13 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtd__id__generate__ProveProperty2 ...
+  [3.746 s, 16 proof obligations]  verified
+
+Dafny program verifier finished with 77 verified, 0 errors

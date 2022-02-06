@@ -1,0 +1,89 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing Properties_ValidDMState.dfy
+../Abstract/BuildCAS/Utils_BuildCAS.dfy(285,12): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(99,19): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(207,19): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(292,15): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(297,15): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(400,21): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(1563,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(1570,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(1922,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(2147,5): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+..\Abstract\Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+..\Abstract\Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+../Abstract/utils/Collections.dfy(338,12): Warning: /!\ No terms found to trigger on.
+..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(239,4): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(333,24): Warning: /!\ No terms found to trigger on.
+..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(950,20): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0877649 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.DM__IsValidState__Subjects ...
+  [2.187 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__IsValidState__ObjIDs ...
+  [1.195 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__IsValidState__Objects ...
+  [0.999 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__IsValidState__SubjsOwnObjsThenInSamePartition ...
+  [1.010 s, 11 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__IsValidState__DevsActivateCond ...
+  [1.252 s, 17 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__IsValidState__TDsToAllStates ...
+  [1.111 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__IsValidState__SubjsObjsPIDs ...
+  [0.960 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__IsValidState ...
+  [1.049 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__ObjsInSubjsAreAlsoInState ...
+  [1.123 s, 1 proof obligation]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__ObjsInSubjsAreAlsoInState ...
+  [1.020 s, 8 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__IsValidState__SubjsOwnObjsThenInSamePartition__Property ...
+  [1.043 s, 12 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__IsValidState__SubjsOwnObjsThenInSamePartition__Property ...
+  [1.026 s, 16 proof obligations]  verified
+
+Dafny program verifier finished with 12 verified, 0 errors
+
+Statistics
+----------
+Call graph width (max)    453
+Datatypes                  25
+Functions (total)         257
+Functions recursive         5
+Methods (total)           168
+Methods ghost             154
+Methods recursive           5
+Module height (max)         0
+Modules                     1

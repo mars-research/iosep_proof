@@ -1,0 +1,497 @@
+include "usb_tds_ops_impl.vad"
+include "usb_tds_checks_qtd.vad"
+include {:verbatim} "usb_tds_ops.i.dfy"
+include {:verbatim} "../../../mm/wk_mem.i.dfy"
+include "usb_tds_qtds_ops.dafny21.vad"
+
+procedure _usbtd_slot_submit_and_verify_qtd32_private()
+    extern;
+procedure USBTD_slot_submit_and_verify_qtd32_basicchecks()
+    extern;
+
+/*********************** Public Methods ********************/
+// Handle QTD32 submitted by a wimp driver
+// Input params on stack: (new_input_param3:word/uint32) at esp + 7 * ARCH_WORD_BYTES, 
+// (new_input_param2:word/uint32) at esp + 6 * ARCH_WORD_BYTES, (new_input_param1:word/uint32) at esp + 5 * ARCH_WORD_BYTES, 
+// (td_paddr:paddr) at esp + 4 * ARCH_WORD_BYTES, (eehci_id:word) at esp + 3 * ARCH_WORD_BYTES,
+// (wimpdrv_id:word) at esp + 2 * ARCH_WORD_BYTES, (wimpdrv_slot_id:word) at esp + ARCH_WORD_BYTES, 
+// (td_slot:word/uint32) at esp
+// Return params on stack: (ret:uint32) at esp
+// [NOTE] Needs 30s to verify
+procedure USBTD_slot_submit_and_verify_qtd32_Impl() {:timeLimitMultiplier 3}
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        esi; edi;
+        eax; ebx; ecx; edx;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            53 * ARCH_WORD_BYTES +                    // For <_usbtd_slot_submit_and_verify_qtd32_private>
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         
+            FFI_USBTD_Qtd32_ParseDataBufPtrs_ReturnWords * ARCH_WORD_BYTES +
+            8 * ARCH_WORD_BYTES;                    // For params of <_usbtd_slot_submit_and_verify_qtd32_private>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            8 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let wimpdrv_slot_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let input_param1:uint32 := stack_get_val(old(mem), old(esp) + 5 * ARCH_WORD_BYTES);
+        let input_param2:uint32 := stack_get_val(old(mem), old(esp) + 6 * ARCH_WORD_BYTES);
+        let input_param3:uint32 := stack_get_val(old(mem), old(esp) + 7 * ARCH_WORD_BYTES);
+        let eehci_id:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> usbtd_map_valid_slot_id(td_slot);
+        (ret == TRUE) ==> wimpdrv_valid_slot_id(wimpdrv_slot_id);
+        (ret == TRUE) ==> p_usbtd_slot_submit_and_verify_usbtd_ret_global(old(globals), globals, td_slot);
+            // Property: If return true, partial correctness properties hold for the new global variable output by 
+            // <_usbtd_slot_submit>
+        (ret == TRUE) ==> pids_parse_g_wimp_pids(old(globals))?[wimpdrv_get_pid(old(globals), wimpdrv_slot_id)];
+        (ret == TRUE) ==> wimpdrv_get_pid(old(globals), wimpdrv_slot_id) == usbtd_map_get_pid(old(globals), td_slot);
+            // Property:
+        (ret == TRUE) ==> (
+            usbtd_map_get_type(globals, td_slot) == USBTDs_TYPE_QTD32 &&
+            usbtd_map_get_flags(globals, td_slot) == SetBit(SetBit(0, USBTD_SLOT_FLAG_SubmitDone_Bit), USBTD_SLOT_FLAG_SlotSecure_Bit)
+        );
+            // Property: The type and flags of the QTD is set correctly
+        (ret == TRUE) ==> (
+            p_usbtd_slot_submit_modification_to_usbtd(globals, td_slot, wimpdrv_slot_id, WimpUSBPDev_SlotID_EMPTY, 
+                input_param1, input_param2, input_param3, USBTDs_TYPE_QTD32, eehci_id)
+        );
+            // Property 3: Except USB TD's content, the USB TD is updated correctly
+            // [NOTE] The security proof may not need the correctness of updating USB TD's content
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+            // Property: If return false, then global variables are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let tmp1 @= eax;
+    PUSH_OneReg(tmp1);
+
+    Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);        // tmp1 := <wimpdrv_slot_id>
+    PUSH(tmp1);
+    Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);        // tmp1 := <td_slot>
+    PUSH(tmp1);
+    _usbtd_slot_submit_and_verify_morechecks();
+    Load(tmp1, esp, 0);                          // tmp1 := <ret>
+    POP_VOID(2 * ARCH_WORD_BYTES);
+
+    if(tmp1 == const(TRUE))
+    {
+        POP_OneReg(tmp1);
+        POP_OneReg(ebp);
+
+        USBTD_slot_submit_and_verify_qtd32_basicchecks();
+    }
+    else
+    {
+        reveal global_non_scratchpad_vars_are_unchanged;
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        POP_OneReg(tmp1);
+        POP_OneReg(ebp);
+    }
+}
+
+
+
+
+/*********************** Private Methods ********************/
+// Handle QTD32 submitted by a wimp driver
+// Input params on stack: (new_input_param3:word/uint32) at esp + 7 * ARCH_WORD_BYTES, 
+// (new_input_param2:word/uint32) at esp + 6 * ARCH_WORD_BYTES, (new_input_param1:word/uint32) at esp + 5 * ARCH_WORD_BYTES, 
+// (td_paddr:paddr) at esp + 4 * ARCH_WORD_BYTES, (eehci_id:word) at esp + 3 * ARCH_WORD_BYTES,
+// (wimpdrv_id:word) at esp + 2 * ARCH_WORD_BYTES, (wimpdrv_slot_id:word) at esp + ARCH_WORD_BYTES, 
+// (td_slot:word/uint32) at esp
+// Return params on stack: (ret:uint32) at esp
+// [NOTE] Needs 300s to verify
+procedure USBTD_slot_submit_and_verify_qtd32_basicchecks() {:timeLimitMultiplier 30}
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        esi; edi;
+        eax; ebx; ecx; edx;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            53 * ARCH_WORD_BYTES +                    // For <_usbtd_slot_submit_and_verify_qtd32_private>
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         
+            FFI_USBTD_Qtd32_ParseDataBufPtrs_ReturnWords * ARCH_WORD_BYTES +
+            8 * ARCH_WORD_BYTES;                    // For params of <_usbtd_slot_submit_and_verify_qtd32_private>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            8 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let wimpdrv_slot_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let input_param1:uint32 := stack_get_val(old(mem), old(esp) + 5 * ARCH_WORD_BYTES);
+        let input_param2:uint32 := stack_get_val(old(mem), old(esp) + 6 * ARCH_WORD_BYTES);
+        let input_param3:uint32 := stack_get_val(old(mem), old(esp) + 7 * ARCH_WORD_BYTES);
+        let eehci_id:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> usbtd_map_valid_slot_id(td_slot);
+        (ret == TRUE) ==> p_usbtd_slot_submit_and_verify_usbtd_ret_global(old(globals), globals, td_slot);
+            // Property: If return true, partial correctness properties hold for the new global variable output by 
+            // <_usbtd_slot_submit>
+        (ret == TRUE) ==> (
+            usbtd_map_get_type(globals, td_slot) == USBTDs_TYPE_QTD32 &&
+            usbtd_map_get_flags(globals, td_slot) == SetBit(SetBit(0, USBTD_SLOT_FLAG_SubmitDone_Bit), USBTD_SLOT_FLAG_SlotSecure_Bit)
+        );
+            // Property: The type and flags of the QTD is set correctly
+        (ret == TRUE) ==> (
+            p_usbtd_slot_submit_modification_to_usbtd(globals, td_slot, wimpdrv_slot_id, WimpUSBPDev_SlotID_EMPTY, 
+                input_param1, input_param2, input_param3, USBTDs_TYPE_QTD32, eehci_id)
+        );
+            // Property 3: Except USB TD's content, the USB TD is updated correctly
+            // [NOTE] The security proof may not need the correctness of updating USB TD's content
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+            // Property: If return false, then global variables are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let tmp1 @= edi;
+    let td_slot @= esi;
+    let ret @= eax;
+    PUSH_Reg1ToReg6();
+
+    let orig_esp := esp;
+    let orig_ebp := ebp;
+    let orig_mem := mem;
+
+    // 1. Check if <td_slot> is valid
+    Load(td_slot, ebp, 1 * ARCH_WORD_BYTES);        // tmp1 := <td_slot>
+    usbtd_check_td_slot_id(td_slot, ret);
+    if(ret == const(TRUE))
+    {
+        // 2. Check if any verified/secure USB TDs refs the <td_slot>
+        PUSH_VOID(1 * ARCH_WORD_BYTES);
+        PUSH(td_slot);
+        _usbtd_find_referencing_secure_slot();  // ret, _ := _usbtd_find_referencing_secure_slot(td_slot)
+        Load(ret, esp, 0);
+        lemma_MulModZero(2, ARCH_WORD_BYTES);
+        POP_VOID(2 * ARCH_WORD_BYTES);
+        assert esp == orig_esp;
+        assert ebp == orig_ebp;
+        assert stack_under_sp_is_unchanged(orig_mem, mem, esp);
+
+        if(ret == const(FALSE))
+        {
+            Lemma_InstSaneState_usbtd_find_referencing_secure_slot_ReturnFalseImplies_usbtds_verifiedtds_do_not_associate_usbtd(globals, td_slot);
+
+            Load(tmp1, ebp, 8 * ARCH_WORD_BYTES);        // tmp1 := <new_input_param3>
+            PUSH(tmp1);
+            Load(tmp1, ebp, 7 * ARCH_WORD_BYTES);        // tmp1 := <new_input_param2>
+            PUSH(tmp1);
+            Load(tmp1, ebp, 6 * ARCH_WORD_BYTES);        // tmp1 := <new_input_param1>
+            PUSH(tmp1);
+            Load(tmp1, ebp, 5 * ARCH_WORD_BYTES);        // tmp1 := <td_paddr>
+            PUSH(tmp1);
+            Load(tmp1, ebp, 4 * ARCH_WORD_BYTES);        // tmp1 := <eehci_id>
+            PUSH(tmp1);
+            Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);        // tmp1 := <wimpdrv_id>
+            PUSH(tmp1);
+            Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);        // tmp1 := <wimpdrv_slot_id>
+            PUSH(tmp1);
+            Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);        // tmp1 := <td_slot>
+            PUSH(tmp1);
+            _usbtd_slot_submit_and_verify_qtd32_private();
+            Load(tmp1, esp, 0);                          // tmp1 := <ret>
+            POP_VOID(8 * ARCH_WORD_BYTES);
+
+            if(tmp1 == const(TRUE))
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(TRUE));                       // Return TRUE
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            assert global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        assert global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Handle QTD32 submitted by a wimp driver - More steps ([NOTE] We should put this function in 
+// <usbtd_slot_submit_and_verify_qtd32>. However, Dafny cannot verify that function)
+// Input params on stack: (new_input_param3:word/uint32) at esp + 7 * ARCH_WORD_BYTES, 
+// (new_input_param2:word/uint32) at esp + 6 * ARCH_WORD_BYTES, (new_input_param1:word/uint32) at esp + 5 * ARCH_WORD_BYTES, 
+// (td_paddr:paddr) at esp + 4 * ARCH_WORD_BYTES, (eehci_id:word) at esp + 3 * ARCH_WORD_BYTES,
+// (wimpdrv_id:word) at esp + 2 * ARCH_WORD_BYTES, (wimpdrv_slot_id:word) at esp + ARCH_WORD_BYTES, 
+// (td_slot:word/uint32) at esp
+// Return params on stack: (ret:uint32) at esp
+// [NOTE] Needs 820s to verify
+procedure _usbtd_slot_submit_and_verify_qtd32_private() {:timeLimitMultiplier 100}
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        esi; edi;
+        eax; ebx; ecx; edx;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            37 * ARCH_WORD_BYTES +                    // For <_usbtd_slot_submit_and_verify_qtd32_inner>
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         
+            FFI_USBTD_Qtd32_ParseDataBufPtrs_ReturnWords * ARCH_WORD_BYTES +
+            9 * ARCH_WORD_BYTES;                    // For params of <_usbtd_slot_submit_and_verify_qtd32_inner>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            8 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        usbtd_map_valid_slot_id(td_slot);
+            // Requirement: <td_slot> must be inside the global variable <g_usbtd_map_mem>
+        usbtds_verifiedtds_do_not_associate_usbtd(globals, td_slot);
+            // Requirement: No verified/secure USB TDs references this USB TD
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let wimpdrv_slot_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let input_param1:uint32 := stack_get_val(old(mem), old(esp) + 5 * ARCH_WORD_BYTES);
+        let input_param2:uint32 := stack_get_val(old(mem), old(esp) + 6 * ARCH_WORD_BYTES);
+        let input_param3:uint32 := stack_get_val(old(mem), old(esp) + 7 * ARCH_WORD_BYTES);
+        let eehci_id:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> usbtd_map_valid_slot_id(td_slot);
+        (ret == TRUE) ==> p_usbtd_slot_submit_and_verify_usbtd_ret_global(old(globals), globals, td_slot);
+            // Property: If return true, partial correctness properties hold for the new global variable output by 
+            // <_usbtd_slot_submit>
+        (ret == TRUE) ==> (
+            usbtd_map_get_type(globals, td_slot) == USBTDs_TYPE_QTD32 &&
+            usbtd_map_get_flags(globals, td_slot) == SetBit(SetBit(0, USBTD_SLOT_FLAG_SubmitDone_Bit), USBTD_SLOT_FLAG_SlotSecure_Bit)
+        );
+            // Property: The type and flags of the QTD is set correctly
+        (ret == TRUE) ==> (
+            p_usbtd_slot_submit_modification_to_usbtd(globals, td_slot, wimpdrv_slot_id, WimpUSBPDev_SlotID_EMPTY, 
+                input_param1, input_param2, input_param3, USBTDs_TYPE_QTD32, eehci_id)
+        );
+            // Property 3: Except USB TD's content, the USB TD is updated correctly
+            // [NOTE] The security proof may not need the correctness of updating USB TD's content
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+            // Property: If return false, then global variables are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+    Lemma_IsAddrInStack_ProveEveryAddrInRangeIsValidAddrInStack(ebp + 8 * ARCH_WORD_BYTES, ebp - 42 * ARCH_WORD_BYTES);
+
+    let tmp1 @= edi;
+    let td_slot @= esi;
+    let ret @= eax;
+    PUSH_Reg1ToReg6();
+
+    let orig_esp := esp;
+    let orig_ebp := ebp;
+    let orig_mem := mem;
+
+    Load(td_slot, ebp, ARCH_WORD_BYTES);    // Load <td_slot>, due to register overwritten by CALL_EEHCI_FIND_RefToUSBTD
+    
+    // 3. Check if any active eEHCI refs the <td_slot>
+    PUSH(td_slot);
+    let old_wkm := this.wk_mstate;
+    CALL_EEHCI_FIND_RefToUSBTD();           // tmp1 := CALL_EEHCI_FIND_RefToUSBTD();
+    let new_stack1 := mem;
+    Load(tmp1, esp, 0);                     // tmp1 := eehci_slot_id
+    lemma_MulModZero(1, ARCH_WORD_BYTES);
+    POP_VOID(1 * ARCH_WORD_BYTES);
+    assert esp == orig_esp;
+    assert ebp == orig_ebp;
+    assert stack_under_sp_is_unchanged(orig_mem, mem, esp);
+    
+    Load(td_slot, ebp, ARCH_WORD_BYTES);    // Load <td_slot>, due to register overwritten by CALL_EEHCI_FIND_RefToUSBTD
+    if(tmp1 == const(eEHCI_SlotID_EMPTY))
+    {
+        Lemma_eehci_find_ref_to_usbtd_property(old_wkm, new_stack1);
+        assert forall (i:uint32) (eehci_valid_slot_id(i))
+            ==> EECHI_DoNotRefGivenUSBTD(globals, i, td_slot);
+        assert eehci_mem_no_ref_to_usbtd_slot(globals, td_slot);
+
+        // 4. Check flags of the USB TD
+        PUSH(td_slot);
+        usbtd_get_flags();
+        Load(tmp1, esp, 0);                             // tmp2 := usbtd_get_flags(tmp1)
+        lemma_MulModZero(1, ARCH_WORD_BYTES);
+        POP_VOID(1 * ARCH_WORD_BYTES);
+        assert esp == orig_esp;
+        assert ebp == orig_ebp;
+
+        if(tmp1 == const(0))
+        {
+            // 5. Check the type of the USB TD is USBTDs_TYPE_QTD32
+            PUSH(td_slot);
+            usbtd_get_type();
+            Load(tmp1, esp, 0);                             // tmp2 := usbtd_get_flags(tmp1)
+            lemma_MulModZero(1, ARCH_WORD_BYTES);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+            assert esp == orig_esp;
+            assert ebp == orig_ebp;
+
+            if(tmp1 == const(USBTDs_TYPE_QTD32))
+            {
+                // 6. Submit and Verify QTD32
+                PUSH(const(WimpUSBPDev_SlotID_EMPTY));
+                Load(tmp1, ebp, 8 * ARCH_WORD_BYTES);        // tmp1 := <new_input_param3>
+                PUSH(tmp1);
+                assert esp == orig_esp - 2 * ARCH_WORD_BYTES;
+                assert ebp == orig_ebp;
+                Load(tmp1, ebp, 7 * ARCH_WORD_BYTES);        // tmp1 := <new_input_param2>
+                PUSH(tmp1);
+                assert esp == orig_esp - 3 * ARCH_WORD_BYTES;
+                assert ebp == orig_ebp;
+                Load(tmp1, ebp, 6 * ARCH_WORD_BYTES);        // tmp1 := <new_input_param1>
+                PUSH(tmp1);
+                assert esp == orig_esp - 4 * ARCH_WORD_BYTES;
+                assert ebp == orig_ebp;
+                Load(tmp1, ebp, 5 * ARCH_WORD_BYTES);        // tmp1 := <td_paddr>
+                PUSH(tmp1);
+                assert esp == orig_esp - 5 * ARCH_WORD_BYTES;
+                assert ebp == orig_ebp;
+                Load(tmp1, ebp, 4 * ARCH_WORD_BYTES);        // tmp1 := <eehci_id>
+                PUSH(tmp1);
+                assert esp == orig_esp - 6 * ARCH_WORD_BYTES;
+                assert ebp == orig_ebp;
+                Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);        // tmp1 := <wimpdrv_id>
+                PUSH(tmp1);
+                assert esp == orig_esp - 7 * ARCH_WORD_BYTES;
+                assert ebp == orig_ebp;
+                Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);        // tmp1 := <wimpdrv_slot_id>
+                PUSH(tmp1);
+                assert esp == orig_esp - 8 * ARCH_WORD_BYTES;
+                assert ebp == orig_ebp;
+                Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);        // tmp1 := <td_slot>
+                PUSH(tmp1);
+                _usbtd_slot_submit_and_verify_qtd32_inner();
+                Load(tmp1, esp, 0);                          // tmp1 := <ret>
+                lemma_MulModZero(9, ARCH_WORD_BYTES);
+                POP_VOID(9 * ARCH_WORD_BYTES);
+                assert esp == orig_esp;
+                assert ebp == orig_ebp;
+                assert stack_under_sp_is_unchanged(orig_mem, mem, esp);
+
+                if(tmp1 == const(TRUE))
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(TRUE));                       // Return TRUE
+                    assert p_usbtd_slot_submit_and_verify_usbtd_ret_global(old(globals), globals, td_slot);
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+                    assert global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                assert global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            assert global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        assert global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}

@@ -1,0 +1,1802 @@
+// Most of things are from Komodo 
+include {:verbatim} "../../arch/headers.dfy"
+include {:verbatim} "../../mm/headers.dfy"
+include {:verbatim} "valesupp.i.dfy"
+include {:verbatim} "../util/ffi.i.dfy"
+include {:verbatim} "../../mhv/mhv.ffi.i.dfy"
+
+var ok:bool {:state ok()} ;
+var mem:wk_memmap {:state mem()};
+var globals:globalsmap {:state globals()};
+var subjects:WSM_Subjects {:state subjects()};
+var objects:WSM_Objects {:state objects()};
+var os_mem_active_map:PMem_Active_Map {:state os_mem_active_map()};
+
+var eax:word {:state reg(EAX)};
+var ebx:word {:state reg(EBX)};
+var ecx:word {:state reg(ECX)};
+var edx:word {:state reg(EDX)};
+var esi:word {:state reg(ESI)};
+var edi:word {:state reg(EDI)};
+var ebp:word {:state reg(EBP)};
+var esp:word {:state reg(ESP)};
+
+var flags:word {:state sreg(EFLAGS)};
+
+#verbatim
+// Interface realization: <Reg1 ... Reg6>
+const Reg1:operand := OReg(EAX);
+const Reg2:operand := OReg(EBX);
+const Reg3:operand := OReg(ECX);
+const Reg4:operand := OReg(EDX);
+const Reg5:operand := OReg(ESI);
+const Reg6:operand := OReg(EDI);
+
+const Ins_Shift_Max:int := ARCH_Ins_SHIFT_MAX;
+
+function MaybeUpdateOk(s:va_state, r:va_state) : va_state
+{
+    if !(s.ok && r.ok) then s.(ok := false) else r
+}
+#endverbatim
+
+
+procedure AND(inout dst:word, in src:word)
+{:instruction Ins(AND(dst, src))}
+    requires
+        let v := BitwiseAnd(dst, src);
+        ins_valid_new_dst_opr_value(this.wk_mstate, @dst, v);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        dst == BitwiseAnd(old(dst), old(src));
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+procedure OR(inout dst:word, in src:word)
+{:instruction Ins(OR(dst, src))}
+    requires
+        let v := BitwiseOr(dst, src);
+        ins_valid_new_dst_opr_value(this.wk_mstate, @dst, v);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        dst == old(BitwiseOr(dst, src));
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+procedure XOR(inout dst:word, in src:word)
+{:instruction Ins(XOR(dst, src))}
+    requires
+        let v := BitwiseXor(dst, src);
+        ins_valid_new_dst_opr_value(this.wk_mstate, @dst, v);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        dst == old(BitwiseXor(dst, src));
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+procedure NOT(inout dst:word)
+{:instruction Ins(NOT(dst))}
+    requires
+        let v := BitwiseNot(dst);
+        ins_valid_new_dst_opr_value(this.wk_mstate, @dst, v);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        dst == BitwiseNot(old(dst));
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+procedure MOV(out dst:word, in src:word)
+{:instruction Ins(MOV(dst, src))}
+    requires
+        let v := src;
+        ins_valid_new_dst_opr_value(this.wk_mstate, @dst, v);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        dst == old(src);
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+procedure ADD(inout dst:word, in src:word)
+{:instruction Ins(ADD(dst, src))}
+    requires
+        isUInt32(dst + src);
+    requires
+        let v := dst + src;
+        ins_valid_new_dst_opr_value(this.wk_mstate, @dst, v);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        dst == old(dst) + old(src);
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+    reveal TruncateUInt32;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+procedure SUB(inout dst:word, in src:word)
+{:instruction Ins(SUB(dst, src))}
+    requires
+        isUInt32(dst - src);
+    requires
+        let v := dst - src;
+        ins_valid_new_dst_opr_value(this.wk_mstate, @dst, v);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        dst == old(dst) - old(src);
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+    reveal TruncateUInt32;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+procedure Store(in dst:word, inline offset:uint32, in src:word)
+{:instruction Ins(MOV(MakeMemOp(dst, offset), src)) }
+    modifies
+        mem;
+    requires/ensures
+        x86wk_valid_memstate(mem);
+    requires
+        let addr := dst + offset;
+        is_valid_addr(addr);
+        is_valid_vaddr(addr);
+        WK_ValidMemForWrite(addr);
+    requires
+        let v := src;
+        ins_valid_new_dst_opr_value(this.wk_mstate, MakeMemOp(@dst, offset), v);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        mem == stack_set_val(old(mem), old(dst + offset), old(src));
+    ensures
+        dst == old(dst); offset == old(offset); src == old(src);   // Input parameters are unchanged
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+procedure Load(out dst:word, in src:word, inline offset:uint32)
+{:instruction Ins(MOV(dst, MakeMemOp(src, offset)))}
+    reads
+        mem;
+    requires
+        x86wk_valid_memstate(mem);
+    requires
+        let addr := src + offset;
+        is_valid_addr(addr);
+        is_valid_vaddr(addr);
+        WK_ValidMemForRead(addr);
+    requires
+        let src_operand := MakeMemOp(@src, offset);
+        let v := OperandContents(this.wk_mstate, src_operand);
+        ins_valid_new_dst_opr_value(this.wk_mstate, @dst, v);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        dst == stack_get_val(mem, old(src + offset));
+    ensures 
+        this.ok ==> (WK_ValidMemForRead(old(src + offset)) && 
+                        dst == wkm_stack_get_val(this.wk_mstate, old(src + offset)));
+    ensures
+        mem == old(mem);
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+    this := MaybeUpdateOk(old(this), this);
+}
+
+procedure LDRglobaladdr(out dst:word, inline g:symbol)
+{:instruction Ins(MOV_reloc(dst, g))}
+    requires
+        is_gvar_exist(g);
+    requires
+        let v := AddressOfGlobal(g);
+        ins_valid_new_dst_opr_value(this.wk_mstate, @dst, v);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        dst == AddressOfGlobal(g);
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+procedure LDRglobal(out dst:word, inline g:symbol, in base:reg, in ofs:word)
+{:instruction Ins(LDR_global(dst, g, base, ofs))}
+    reads
+        globals;
+    requires
+        WK_ValidGlobalVars_Decls(globals);
+        let addr := base + ofs;
+        is_valid_addr(addr);
+        is_valid_vaddr(addr);
+        is_gvar_valid_vaddr(g, addr);
+    requires
+        let v := gvar_read_word_byoffset(this.wk_mstate, g, WordAlignedSub(base + ofs, AddressOfGlobal(g)));
+        ins_valid_new_dst_opr_value(this.wk_mstate, @dst, v);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        dst == gvar_read_word_byaddr(this.wk_mstate, g, old(base + ofs));
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+    
+    this := MaybeUpdateOk(old(this), this);
+}
+
+procedure STRglobal(inline g:symbol, in base:reg, in ofs:word, in v:word)
+{:instruction Ins(STR_global(v, g, base, ofs))}
+    modifies
+        globals;
+    requires
+        WK_ValidGlobalVars_Decls(globals);
+        let addr := base + ofs;
+        is_valid_addr(addr);
+        is_valid_vaddr(addr);
+        is_gvar_valid_vaddr(g, addr);
+    requires
+        let addr := base + ofs;
+        ins_valid_strglobal_word(this.subjects, this.objects, this.id_mappings, this.objs_addrs, this.activate_conds, globals, g, addr, v);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        WK_ValidGlobalVars_Decls(globals);
+        globals == global_write_word(old(globals), g, old(base + ofs), old(v));
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+procedure MUL(in src:word)
+{:instruction Ins(MUL(src))}
+    modifies 
+        eax; edx;
+    requires
+        !interrupts_enabled(old(flags));
+    requires
+        forall (a:word, b:word) isUInt64(a*b);
+    ensures
+        let val:uint64 := old(eax) * old(src);
+        eax == UInt64Low(val);
+        edx == UInt64High(val);
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+    reveal TruncateUInt32;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+procedure PUSH(in v:word)
+{:instruction Ins(PUSH(v))}
+    reads
+        flags;
+    modifies
+        esp; mem;
+    requires/ensures
+        x86wk_valid_memstate(mem);
+    requires
+        IsAddrInStack(esp);  // The current ESP value must point to WK's stack
+        IsAddrInStack(esp - ARCH_WORD_BYTES); // The new ESP value must point to WK's stack
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let stack_new_top := old(esp) - ARCH_WORD_BYTES;
+        IsAddrInStack(stack_new_top);
+
+        esp == stack_new_top;
+        mem == stack_set_val(old(mem), stack_new_top, old(v));
+    ensures
+        is_flags_unchanged(old(flags), flags);
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, old(esp));
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+procedure POP(out dst:reg)
+{:instruction Ins(POP(dst))}
+    reads
+        mem; flags;
+    modifies
+        esp;
+    requires/ensures
+        x86wk_valid_memstate(mem);
+    requires
+        IsAddrInStack(esp);  // The current ESP value must point to WK's stack
+        IsAddrInStack(esp + ARCH_WORD_BYTES); // The new ESP value must point to WK's stack
+    requires
+        @dst != OReg(ESP);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        esp == old(esp) + ARCH_WORD_BYTES;
+        dst == stack_get_val(old(mem), old(esp));
+    ensures 
+        this.ok ==> (WK_ValidMemForRead(old(esp)) &&
+                        dst == wkm_stack_get_val(this.wk_mstate, old(esp)));
+    ensures
+        old(mem) == mem;
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+procedure SHL(inout dst:word, in bits:word)
+{:instruction Ins(SHL(dst, bits))}
+    requires 
+        @bits == Reg3 || @bits == OConst(bits);
+        0 <= bits < Ins_Shift_Max;
+    requires
+        let v := LeftShift(dst, bits);
+        ins_valid_new_dst_opr_value(this.wk_mstate, @dst, v);
+    requires
+        !interrupts_enabled(old(flags));
+    ensures 
+        dst == old(LeftShift(dst, bits));
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+procedure SHR(inout dst:word, in bits:word)
+{:instruction Ins(SHR(dst, bits))}
+    requires
+        @bits == Reg3 || @bits == OConst(bits);
+        0 <= bits < Ins_Shift_Max;
+    requires
+        let v := RightShift(dst, bits);
+        ins_valid_new_dst_opr_value(this.wk_mstate, @dst, v);
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        dst == old(RightShift(dst, bits));
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+/*
+procedure CALL(in v:constop)
+{:instruction Ins(CALL(v))}
+    modifies
+        esp; mem;
+    requires/ensures
+        x86wk_valid_memstate(mem);
+    requires
+        IsAddrInStack(esp);  // The current ESP value must point to WK's stack
+        IsAddrInStack(esp - ARCH_WORD_BYTES); // The new ESP value must point to WK's stack
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let stack_new_top := old(esp) - ARCH_WORD_BYTES;
+        IsAddrInStack(stack_new_top);
+
+        esp == stack_new_top;
+        mem == stack_set_val(old(mem), stack_new_top, NONDET_PC());
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+
+procedure JMP(in v:constop)
+{:instruction Ins(JMP(v))}
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        this == old(this);
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+
+    this := MaybeUpdateOk(old(this), this);
+}
+
+// Jump to an external function, which is expected to append values to the stack (stack for I/O separation part of WK 
+// Code) and write return values on the stack
+procedure JMP_FUNC_3Ret(in v:constop)
+{:instruction Ins(JMP_Ret3(v))}
+    reads
+        esp;
+    modifies
+        mem;
+    requires/ensures
+        x86wk_valid_memstate(mem);
+    requires
+        let stack_retval_space :=
+            3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        wkm_stack_get_all(this.wk_mstate) == ffi_ret_on_stack_3words(v, old(this).wk_mstate);
+    ensures
+        esp == old(esp);
+    ensures
+        let stack_retval_space := 3 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    // reveal is_valid_x86_regs;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, v);
+}
+*/
+
+
+
+
+/*********************** Call External Functions ********************/
+// Jump to the external function "eehci_activate_stub", which is expected to append values to the stack and write 
+// return values on the stack, modify registers and global variable <g_eehci_mem>
+// Input params on stack: None
+// Return on stack: (new_handle:word) at esp + 3 * ARCH_WORD_BYTES, (new_eehci_slot:uint32) at esp + 2 * ARCH_WORD_BYTES,  
+// (eehci_id:uint32) at esp + ARCH_WORD_BYTES, (ret:uint32) at esp
+procedure CALL_EEHCI_Activate()
+{:instruction Ins(CALL_EEHCI_Activate())}
+    reads
+        flags;
+    modifies
+        mem; globals;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_retval_space :=
+            FFI_EEHCI_Activate_ReturnWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_retval_space); 
+            // Because the caller needs to allocate stack, even <esp + stack_retval_space> is a stack address
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_EEHCI_Activate_ReturnWords); // Return parameters take 3 words
+        ffi_eehci_activate_stack_and_globals(old(this).wk_mstate, mem, globals);
+        ffi_eehci_activate_stack_and_globals2(old(this), mem, globals);
+            // Property: <eehci_activate> allocates a slot in the global variable <g_eehci_mem> and return the slot 
+            // and eehci_id correctly
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := FFI_EEHCI_Activate_ReturnWords * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_EEHCI_Activate_ReturnWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfEEHCIActivate(old(this).wk_mstate, this.wk_mstate,
+        this.wk_mstate.regs, mem, globals);
+    Lemma_ffi_eehci_activate_ResultStateIsValidMState_AndSecureEEHCIMemState(old(this).wk_mstate, this.wk_mstate,
+        this.wk_mstate.regs, mem, globals);
+    Lemma_ffi_eehci_activate_ResultState_Prove_WK_SecureObjsAddrs_MemSeparation(old(this), this,
+        this.wk_mstate.regs, mem, globals);
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "eehci_deactivate_stub", which is expected to append values to the stack and write 
+// return values on the stack, modify registers and global variable <g_eehci_mem>
+// Input params on stack: (slot:word) at esp
+// Return on stack: None
+procedure CALL_EEHCI_Deactivate()
+{:instruction Ins(CALL_EEHCI_Deactivate())}
+    reads
+        flags;
+    modifies
+        mem; globals;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_EEHCI_Deactivate_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Input param takes two words, output param takes one words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        ins_valid_eehci_deactivate(old(this).wk_mstate, old(esp));
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_EEHCI_Deactivate_ReturnWords); // Return parameters take 1 words
+        ffi_eehci_deactivate_stack_and_globals(old(this).wk_mstate, mem, globals);
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := FFI_EEHCI_Deactivate_ReturnWords * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_EEHCI_Deactivate_ReturnWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfEEHCIDeactivate(old(this).wk_mstate, this.wk_mstate,
+        this.wk_mstate.regs, mem, globals);
+    Lemma_ffi_eehci_deactivate_ResultStateIsValidMState_AndSecureEEHCIMemState(old(this).wk_mstate, this.wk_mstate,
+        this.wk_mstate.regs, mem, globals);
+    Lemma_ffi_eehci_deactivate_ResultState_Prove_WK_SecureObjsAddrs_MemSeparation(old(this), this,
+        this.wk_mstate.regs, mem, globals);
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "eehci_find_ref_to_usbtd", which is expected to append values to the stack and write 
+// return values on the stack, and modify registers
+// Input params on stack: (usbtd_slot_id:word) at esp
+// Return params on stack: (eehci_slot_id:word) at esp
+procedure CALL_EEHCI_FIND_RefToUSBTD()
+{:instruction Ins(CALL_EEHCI_FIND_RefToUSBTD())}
+    reads
+        flags;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_EEHCI_FindRefToUSBTD_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        let td_slot := stack_get_val(old(mem), old(esp));
+        usbtd_map_valid_slot_id(td_slot);
+        // Requirement: The USB qTD referred by <td_slot> must be stored in <g_usbtd_map_mem>
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_EEHCI_FindRefToUSBTD_ReturnWords); // Words for return parameters
+        p_ffi_eehci_find_ref_to_usbtd_retval(old(this).wk_mstate, mem);
+            // Property: <eehci_find_ref_to_usbtd> parses the given USB TD correctly
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := FFI_EEHCI_FindRefToUSBTD_ReturnWords * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_EEHCI_FindRefToUSBTD_StackParamsWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "usbtd_qtd32_parseQTDpointer", which is expected to append values to the stack and write 
+// return values on the stack, and modify registers
+// Input params on stack: (td_slot:word) at esp
+// Return params on stack: (next_qtd_p_Tflag:word/bool) at esp + 3 * ARCH_WORD_BYTES, 
+// (alt_next_qtd_p_Tflag:word/bool) at esp + 2 * ARCH_WORD_BYTES
+// (next_qtd_slot:word) at esp + ARCH_WORD_BYTES, (alt_next_qtd_slot:word) at esp
+procedure CALL_USBTD_QTD32_ParseTDPointers()
+{:instruction Ins(CALL_USBTD_QTD32_ParseTDPointers())}
+    reads
+        flags;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_USBTD_Qtd32_ParseQTDPointers_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        let td_slot := stack_get_val(old(mem), old(esp));
+        usbtd_map_valid_slot_id(td_slot);
+        // Requirement: The USB qTD referred by <td_slot> must be stored in <g_usbtd_map_mem>
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_USBTD_Qtd32_ParseTDPtrs_ReturnWords); // Words for return parameters
+        p_ffi_usbtd_qtd32_parseTDPtrs_retval(old(this).wk_mstate, mem);
+            // Property: <usbtd_qtd32_parseQTDpointer> parses the given USB TD correctly
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := FFI_USBTD_Qtd32_ParseTDPtrs_ReturnWords * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_USBTD_Qtd32_ParseQTDPointers_StackParamsWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "usbtd_qtd32_parseBufpointer", which is expected to append values to the stack and write 
+// return values on the stack, and modify registers
+// Input params on stack: (td_slot:word) at esp
+// Return params on stack: (BufPointer4_paddr_base:word) at esp + 4 * ARCH_WORD_BYTES, 
+// (BufPointer3_paddr_base:word) at esp + 3 * ARCH_WORD_BYTES, 
+// (BufPointer2_paddr_base:word) at esp + 2 * ARCH_WORD_BYTES
+// (BufPointer1_paddr_base:word) at esp + ARCH_WORD_BYTES, (BufPointer0_paddr_base:word) at esp
+procedure CALL_USBTD_QTD32_ParseBufPointers()
+{:instruction Ins(CALL_USBTD_QTD32_ParseBufPointers())}
+    reads
+        flags;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_USBTD_Qtd32_ParseBufPointers_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        let td_slot := stack_get_val(old(mem), old(esp));
+        usbtd_map_valid_slot_id(td_slot);
+        // Requirement: The USB qTD referred by <td_slot> must be stored in <g_usbtd_map_mem>
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_USBTD_Qtd32_ParseDataBufPtrs_ReturnWords); // Words for return parameters
+        p_ffi_usbtd_qtd32_parseDataBufPtrs_retval(old(this).wk_mstate, mem);
+            // Property: <usbtd_qtd32_parseQTDpointer> parses the given USB TD correctly
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := FFI_USBTD_Qtd32_ParseDataBufPtrs_ReturnWords * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_USBTD_Qtd32_ParseBufPointers_StackParamsWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "usbtd_qh32_parseTDPtrs", which is expected to append values to the stack and write 
+// return values on the stack, and modify registers
+// Input params on stack: (td_slot:word) at esp
+// Return params on stack: (next_qh_p_Tflag:word/bool) at esp + 5 * ARCH_WORD_BYTES, 
+// (next_qtd_p_Tflag:word/bool) at esp + 4 * ARCH_WORD_BYTES, (alt_next_qtd_p_Tflag:word/bool) at esp + 3 * ARCH_WORD_BYTES
+// (next_qh_slot:paddr) at esp + 2 * ARCH_WORD_BYTES (next_qtd_slot:paddr) at esp + ARCH_WORD_BYTES, (alt_next_qtd_slot:paddr) at esp
+procedure CALL_USBTD_QH32_ParseTDPointers()
+{:instruction Ins(CALL_USBTD_QH32_ParseTDPointers())}
+    reads
+        flags;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_USBTD_Qh32_ParseTDPtrs_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // <stack_params_space> = max(input_params, output_params)
+    requires
+        let td_slot := stack_get_val(old(mem), old(esp));
+        usbtd_map_valid_slot_id(td_slot);
+        // Requirement: The USB QH referred by <td_slot> must be stored in <g_usbtd_map_mem>
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_USBTD_Qh32_ParseTDPtrs_ReturnWords); // Words for return parameters
+        p_ffi_usbtd_qh32_parseTDPtrs_retval(old(this).wk_mstate, mem);
+            // Property: <usbtd_qtd32_parseQTDpointer> parses the given USB TD correctly
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := FFI_USBTD_Qh32_ParseTDPtrs_ReturnWords * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_USBTD_Qh32_ParseTDPtrs_StackParamsWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "usbtd_qh32_parseBufpointer", which is expected to append values to the stack and write 
+// return values on the stack, and modify registers
+// Input params on stack: (td_slot:word) at esp
+// Return params on stack: (BufPointer4:word) at esp + 4 * ARCH_WORD_BYTES, 
+// (BufPointer3:word) at esp + 3 * ARCH_WORD_BYTES, 
+// (BufPointer2:word) at esp + 2 * ARCH_WORD_BYTES
+// (BufPointer1:word) at esp + ARCH_WORD_BYTES, (BufPointer0:word) at esp
+procedure CALL_USBTD_QH32_ParseBufPointers()
+{:instruction Ins(CALL_USBTD_QH32_ParseBufPointers())}
+    reads
+        flags;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_USBTD_Qh32_ParseDataBufPtrs_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // <stack_params_space> = max(input_params, output_params)
+    requires
+        let td_slot := stack_get_val(old(mem), old(esp));
+        usbtd_map_valid_slot_id(td_slot);
+        // Requirement: The USB QH referred by <td_slot> must be stored in <g_usbtd_map_mem>
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_USBTD_Qh32_ParseDataBufPtrs_ReturnWords); // Words for return parameters
+        p_ffi_usbtd_qh32_parseDataBufPtrs_retval(old(this).wk_mstate, mem);
+            // Property: <usbtd_qtd32_parseQTDpointer> parses the given USB TD correctly
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := FFI_USBTD_Qh32_ParseDataBufPtrs_ReturnWords * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_USBTD_Qh32_ParseDataBufPtrs_StackParamsWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "usbtd_qh32_parseTargetUSBDevID", which is expected to append values to the stack and write 
+// return values on the stack, and modify registers
+// Input params on stack: (td_slot:word) at esp
+// Return params on stack: (ret:word/bool) at esp, (dev_addr_low:uint32) at esp + ARCH_WORD_BYTES,
+// (dev_addr_high:uint32) at esp + 2 * ARCH_WORD_BYTES
+procedure CALL_USBTD_QH32_ParseTargetUSBDevID()
+{:instruction Ins(CALL_USBTD_QH32_ParseTargetUSBDevID())}
+    reads
+        flags;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_USBTD_Qh32_ParseTargetUSBDevID_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // <stack_params_space> = max(input_params, output_params)
+    requires
+        let td_slot := stack_get_val(old(mem), old(esp));
+        usbtd_map_valid_slot_id(td_slot);
+        // Requirement: The USB QH referred by <td_slot> must be stored in <g_usbtd_map_mem>
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_USBTD_Qh32_ParseTargetUSBDevID_ReturnWords); // Words for return parameters
+        p_ffi_usbtd_qh32_parseTargetUSBDevID_retval(old(this).wk_mstate, mem);
+            // Property: <usbtd_qtd32_parseQTDpointer> parses the given USB TD correctly
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := FFI_USBTD_Qh32_ParseTargetUSBDevID_ReturnWords * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_USBTD_Qh32_ParseTargetUSBDevID_StackParamsWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "usbtd_copy_from_user", which is expected to append values to the stack and write 
+// return values on the stack, modify global variables and registers
+// Input params on stack: (td_size:word) at esp + 4 * ARCH_WORD_BYTES, (td_paddr:paddr) at esp + 3 * ARCH_WORD_BYTES, 
+// (wimpdrv_id:word) at esp + 2 * ARCH_WORD_BYTES, (wimpdrv_slot_id:word) at esp + ARCH_WORD_BYTES, 
+// (slot:word/uint32) at esp
+// Return on stack: (ret:uint32) at esp
+procedure CALL_USBTD_Copy_From_User()
+{:instruction Ins(CALL_USBTD_Copy_From_User())}
+    reads
+        flags;
+    modifies
+        globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_USBTD_CopyFromUser_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_USBTD_CopyFromUser_ReturnWords); // Words for return parameters
+        ffi_usbtd_copy_from_user_stack_and_globals(old(this).wk_mstate, mem, globals);
+            // Property: <usbtd_copy_from_user> copies some value to the correct location
+    ensures
+        let ret:word := stack_get_val(mem, old(esp));
+        (ret != TRUE) ==> globals == old(globals);
+            // Property: If return false, then global variables are unchanged
+    ensures
+        ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+            // Utility properties needed by certain functions
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := FFI_USBTD_CopyFromUser_ReturnWords * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+    reveal ffi_usbtd_copy_from_user_stack_and_globals;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_USBTD_CopyFromUser_ReturnWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_ffi_usbtd_copy_from_user_ProveSecurityProperty_WK_USBTD_Map_SecureGlobalVarValues(old(this).wk_mstate, this.wk_mstate, 
+        this.wk_mstate.regs, mem, globals);
+    Lemma_ffi_usbtd_copy_from_user_ResultStateIsValidMState_AndEEHCIMemSecureState(old(this).wk_mstate, this.wk_mstate, 
+        this.wk_mstate.regs, mem, globals);
+    Lemma_ffi_usbtd_copy_from_user_ResultState_Prove_WK_SecureObjsAddrs_MemSeparation(old(this), this, 
+        this.wk_mstate.regs, mem, globals);
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "usbtd_check_not_modify_usbpdev_addrs", which is expected to append values to the stack and write 
+// return values on the stack, and modify registers
+// Input params on stack: (td_slot:word/uint32) at esp
+// Return on stack: (ret:uint32) at esp
+procedure CALL_USBTD_CheckNotModifyUSBPDevAddrs()
+{:instruction Ins(CALL_USBTD_CheckNotModifyUSBPDevAddrs())}
+    reads
+        flags; globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_USBTD_CheckNotModifyUSBPDevAddrs_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // <stack_params_space> = max(input_params, output_params)
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_USBTD_CheckNotModifyUSBPDevAddrs_ReturnWords); // Words for return parameters
+        ffi_ffi_usbtd_check_not_modify_usbpdev_addrs_stack_and_globals(old(this).wk_mstate, mem);
+            // Property: <usbtd_qtd32_parseQTDpointer> parses the given USB TD correctly
+    ensures
+        let td_slot:word := stack_get_val(old(mem), esp);
+        let ret:word := stack_get_val(mem, esp);
+        (ret == TRUE) ==> (
+            usbtd_map_valid_slot_id(td_slot) &&
+            Is_USBTD_NotModifyUSBPDevsAddrs(old(globals), td_slot)
+        );
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := FFI_USBTD_CheckNotModifyUSBPDevAddrs_ReturnWords * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+    reveal ffi_ffi_usbtd_check_not_modify_usbpdev_addrs_stack_and_globals;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_USBTD_CheckNotModifyUSBPDevAddrs_StackParamsWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "usbtd_backup", which is expected to append values to the stack and write 
+// return values on the stack, modify global variables and registers
+// Input params on stack: (td_slot:word/uint32) at esp
+// Return on stack: None
+procedure CALL_USBTD_Backup()
+{:instruction Ins(CALL_USBTD_Backup())}
+    reads
+        flags;
+    modifies
+        globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_USBTD_Backup_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        let td_slot:word := stack_get_val(old(mem), old(esp));
+        usbtd_map_valid_slot_id(td_slot);
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, 0); // Words for return parameters
+        ffi_usbtd_backup_stack_and_globals(old(this).wk_mstate, globals);
+            // Property: <usbtd_backup> copies values to the temp USB TD
+    ensures
+        ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+            // Utility properties needed by certain functions
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+    reveal ffi_usbtd_backup_stack_and_globals_inner;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    let td_slot:word := stack_get_val(old(mem), old(esp));
+    Lemma_ffi_usbtd_backup_ProveSecurityProperty_WK_USBTD_Map_SecureGlobalVarValues(old(globals), globals, td_slot);
+    Lemma_WK_EEHCI_Mem_ValidGlobalVarValues_HoldIfGEEHCIMemAndInfosAndUSBTDsAreUnchanged(old(globals), globals);
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, 0);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "usbtd_restore", which is expected to append values to the stack and write 
+// return values on the stack, modify global variables and registers
+// Input params on stack: (td_slot:word/uint32) at esp
+// Return on stack: None
+procedure CALL_USBTD_Restore()
+{:instruction Ins(CALL_USBTD_Restore())}
+    reads
+        flags;
+    modifies
+        globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_USBTD_Restore_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        ins_valid_usbtd_restore(old(mem), old(globals), old(esp));
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, 0); // Words for return parameters
+        ffi_usbtd_restore_stack_and_globals(old(this).wk_mstate, globals);
+            // Property: <usbtd_restore> copies values from the temp USB TD
+    ensures
+        ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+            // Utility properties needed by certain functions
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+    reveal ffi_usbtd_restore_stack_and_globals_inner;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, 0);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    let td_slot:word := stack_get_val(old(mem), old(esp));
+    Lemma_WK_USBTD_Map_SecureGlobalVarValues_HoldIfRestoreUSBTDFromTempTD(old(globals), globals, td_slot);
+    Lemma_WK_EEHCI_Mem_ValidAndSecureGlobalVarValues_HoldIfRestoreUSBTDFromTempTD(old(globals), globals, td_slot);
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "usbtd_is_ref_target_usbtd", which is expected to append values to the stack and write 
+// return values on the stack, and modify registers
+// Input params on stack: (refed_td_slot:word) at esp + ARCH_WORD_BYTES, (td_slot:word) at esp
+// Return params on stack: (ret:word/bool) at esp
+procedure CALL_USBTD_IsRefTargetUSBTD()
+{:instruction Ins(CALL_USBTD_IsRefTargetUSBTD())}
+    reads
+        flags;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_USBTD_IsRefTargetUSBTD_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        let td_slot := stack_get_val(old(mem), old(esp));
+        usbtd_map_valid_slot_id(td_slot);
+        // Requirement: The USB qTD referred by <td_slot> must be stored in <g_usbtd_map_mem>
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_USBTD_IsRefTargetUSBTD_ReturnWords); // Words for return parameters
+        p_ffi_usbtd_is_ref_target_usbtd_retval(old(this).wk_mstate, mem);
+            // Property: <usbtd_is_ref_target_usbtd> checks the given USB TDs correctly
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := FFI_USBTD_IsRefTargetUSBTD_ReturnWords * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_USBTD_IsRefTargetUSBTD_ReturnWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "usbtd_clear_content", which is expected to append values to the stack and write 
+// return values on the stack, modify global variables and registers
+// Input params on stack: (td_type:word/uint32) at esp + ARCH_WORD_BYTES, (td_slot:word/uint32) at esp
+// Return on stack: None
+procedure CALL_USBTD_Clear_Content()
+{:instruction Ins(CALL_USBTD_Clear_Content())}
+    reads
+        flags;
+    modifies
+        globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_USBTD_Clear_Content_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        ins_valid_usbtd_clear_content(old(mem), old(globals), old(esp));
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, 0); // Words for return parameters
+        ffi_usbtd_clear_content_stack_and_globals(old(this).wk_mstate, globals);
+            // Property: <usbtd_restore> copies values from the temp USB TD
+    ensures
+        ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+            // Utility properties needed by certain functions
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, 0);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_ffi_usbtd_clear_content_ProveSecurityProperty_WK_USBTD_Map_SecureGlobalVarValues(old(this).wk_mstate, this.wk_mstate, 
+        this.wk_mstate.regs, mem, globals);
+    Lemma_ffi_usbtd_clear_content_ResultStateIsValidMState_AndEEHCIMemSecureState(old(this).wk_mstate, this.wk_mstate, 
+        this.wk_mstate.regs, mem, globals);
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "wimpdrv_DO_clear", which is expected to append values to the stack and write 
+// return values on the stack, and modify registers
+// Input params on stack: (drv_slot:word) at esp
+// Return params on stack: None
+procedure CALL_WimpDrv_DO_Clear()
+{:instruction Ins(CALL_WimpDrv_DO_Clear())}
+    reads
+        flags; globals;
+    modifies
+        mem; objects;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_WimpDrv_DO_Clear_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        ins_valid_wimpdrv_DO_clear(old(this), old(esp));
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, 0); // Words for return parameters
+        p_ffi_wimpdrv_DO_clear_retval(old(this), mem, this.objects);
+            // Property: <wimpdrv_DO_clear> clears wimp driver's DO correctly
+    ensures
+        let drv_slot := stack_get_val(old(mem), old(esp));
+        let drv_id := wimpdrv_get_id_word(old(globals), drv_slot);
+        wimpdrv_DO_clear_non_mstate_relationship(old(this), this, drv_id);
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+    reveal p_ffi_wimpdrv_DO_clear_retval;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, 0);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_objects_stateeq(old(this), this);
+}
+
+// Jump to the external function "wimpdrv_do_check_paddr_range", which is expected to append values to the stack and write 
+// return values on the stack, and modify registers
+// Input params on stack: (do_pend:paddr) at esp + ARCH_WORD_BYTES, (do_pbase:paddr) at esp
+// Return params on stack: (ret:word) at esp
+procedure CALL_WimpDrv_CheckDOPAddrRange()
+{:instruction Ins(CALL_WimpDrv_CheckDOPAddrRange())}
+    reads
+        flags;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_WimpDrv_DO_CheckPAddrRange_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_WimpDrv_DO_CheckPAddrRange_ReturnWords); // Words for return parameters
+        p_ffi_wimpdrv_DO_check_paddr_range_retval(old(this), mem);
+            // Property: <usbtd_is_ref_target_usbtd> checks the given USB TDs correctly
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := FFI_WimpDrv_DO_CheckPAddrRange_ReturnWords * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_WimpDrv_DO_CheckPAddrRange_ReturnWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "usbpdev_clear", which is expected to append values to the stack and write 
+// return values on the stack, and modify registers
+// [NOTE] This operation must be clear instead of reset, because reset does not guarantee to clear objects
+// [NOTE-Important] <usbpdev_clear> method must preserve the USBPDev's ID; e.g., hub USB address and device USB address. 
+// Because USB devices are assigned to be USB address 0 after resetting them, WK must backup and restore USB device's 
+// address in the <usbpdev_clear> method
+// Input params on stack: (usbpdev_addr_high:word) at esp + ARCH_WORD_BYTES, (usbpdev_addr_low:word) at esp
+// Return params on stack: None
+procedure CALL_USBPDev_Clear()
+{:instruction Ins(CALL_USBPDev_Clear())}
+    reads
+        flags; globals;
+    modifies
+        mem; objects;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_USBPDev_Clear_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        ins_valid_usbpdev_clear(old(this), old(esp));
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, 0); // Words for return parameters
+        p_ffi_usbpdev_clear_retval(old(this), mem, this.objects);
+            // Property: <usbpdev_clear> clears the FDs and DOs of the given USBPDev correctly
+    ensures
+        let usbpdev_addr_low := stack_get_val(old(mem), old(esp));
+        let usbpdev_addr_high := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let addr:USBPDev_Addr := usb_parse_usbpdev_addr(UInt64_FromTwoUInt32s(usbpdev_addr_high, usbpdev_addr_low));
+        usbpdev_clear_non_mstate_relationship(old(this), this, addr);
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+    reveal p_ffi_usbpdev_clear_retval;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_WK_SecureObjsAddrs_MemSeparation_OnWKMStateModification_IfWimpDrvsInfoIsUnchangedAndOSObjsHaveUnchangedPID(old(this), this);
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, 0);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_objects_stateeq(old(this), this);
+}
+
+// Use AXIOM_Assign_USBPDevs_To_OS_Partition 
+procedure AXIOM_Assign_USBPDevs_To_OS_Partition()
+{:instruction Ins(AXIOM_Assign_USBPDevs_To_OS_Partition())}
+    reads
+        flags; mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    modifies
+        subjects;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        WK_ValidGlobalVarValues_USBPDevList(old(this).subjects, old(this).id_mappings, old(globals));
+        forall (i:uint32) (usbpdev_valid_slot_id(i)
+                ==> usbpdev_get_pid(old(globals), i) == WS_PartitionID(PID_INVALID));
+            // Requirment: ValidInstruction
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let result_subjs := AXIOM_Assign_USBPDevs_To_OS_Partition_Property(old(this));
+        this == old(this).(subjects := result_subjs);
+    ensures
+        esi == old(esi); edi == old(edi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+        esp == old(esp); ebp == old(ebp);// temp registers are correctly restored
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    reveal va_eval;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_AXIOM_Assign_USBPDevs_To_OS_Partition_Prove_WK_SecureObjsAddrs_MemSeparation(old(this), this);
+}
+
+// Jump to the external function "pmem_assign_main_mem_to_wimps", which is expected to append values to the stack and write 
+// return values on the stack, and modify registers
+// Input params on stack: (paddr_end:word) at esp + ARCH_WORD_BYTES, (paddr_start:word) at esp
+// Return on stack: (ret:uint32) at esp
+procedure CALL_PMem_AssignToWimps()
+{:instruction Ins(CALL_PMem_AssignToWimps())}
+    reads
+        flags; globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_PMem_AssignToWimps_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        ins_valid_pmem_assign_main_mem_to_wimps(old(this), old(esp));
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_PMem_AssignToWimps_ReturnWords); // Words for return parameters
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := FFI_PMem_AssignToWimps_ReturnWords * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_PMem_AssignToWimps_ReturnWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "pmem_release_main_mem_from_wimps", which is expected to append values to the stack and write 
+// return values on the stack, and modify registers
+// Input params on stack: (paddr_end:word) at esp + ARCH_WORD_BYTES, (paddr_start:word) at esp
+// Return on stack: None
+procedure CALL_PMem_ReleaseFromWimps()
+{:instruction Ins(CALL_PMem_ReleaseFromWimps())}
+    reads
+        flags; globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_PMem_ReleaseFromWimps_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        ins_valid_pmem_release_main_mem_from_wimps(old(this), old(esp));
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_PMem_ReleaseFromWimps_ReturnWords); // Words for return parameters
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_PMem_ReleaseFromWimps_ReturnWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Jump to the external function "pmem_activate_main_mem_in_os", which is expected to append values to the stack and write 
+// return values on the stack, and modify registers
+// Input params on stack: (paddr_end:word) at esp + ARCH_WORD_BYTES, (paddr_start:word) at esp
+// Return on stack: (ret:uint32) at esp
+procedure CALL_PMem_ActivateInOS()
+{:instruction Ins(CALL_PMem_ActivateInOS())}
+    reads
+        flags; globals;
+    modifies
+        mem; subjects; objects; os_mem_active_map;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_PMem_ActivateInOS_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        ins_valid_pmem_activate_main_mem_in_os(old(this), old(esp));
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_PMem_ActivateInOS_ReturnWords); // Words for return parameters
+        ffi_pmem_activate_main_mem_in_os_stack_and_statevars(old(this), mem, this.subjects, this.objects, this.os_mem_active_map);
+            // Property: <pmem_activate_main_mem_in_os> activates the given memory region from the OS partition
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := FFI_PMem_ActivateInOS_ReturnWords * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+    reveal ffi_pmem_activate_main_mem_in_os_stack_and_statevars;
+    reveal WK_SecureObjsAddrs_MemSeparation;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    let paddr_end := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+    let paddr_start := stack_get_val(old(mem), old(esp));
+    let ret:word := stack_get_val(mem, old(esp));
+
+    ghost if (ret == TRUE)
+    {
+        Lemma_pmem_activate_main_mem_in_os_Prove_WK_SecureObjsAddrs_MemSeparation(old(this), this, paddr_start, paddr_end);
+    }
+    
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_PMem_ActivateInOS_ReturnWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_subjects_objects_pmem_active_map_stateeq(old(this), this);
+}
+
+// Jump to the external function "pmem_deactivate_main_mem_from_os", which is expected to append values to the stack and write 
+// return values on the stack, and modify registers
+// Input params on stack: (paddr_end:word) at esp + ARCH_WORD_BYTES, (paddr_start:word) at esp
+// Return on stack: None
+procedure CALL_PMem_DeactivateFromOS()
+{:instruction Ins(CALL_PMem_DeactivateFromOS())}
+    reads
+        flags; globals;
+    modifies
+        mem; subjects; objects; os_mem_active_map;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_PMem_DeactivateFromOS_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Input param takes one word, output param takes four words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        ins_valid_pmem_deactivate_main_mem_from_os(old(this), old(esp));
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_PMem_DeactivateFromOS_ReturnWords); // Words for return parameters
+        ffi_pmem_deactivate_main_mem_from_os_stack_and_statevars(old(this), mem, this.subjects, this.objects, this.os_mem_active_map);
+            // Property: <pmem_deactivate_main_mem_from_os> deactivates the given memory region from the OS partition
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+    reveal ffi_pmem_deactivate_main_mem_from_os_stack_and_statevars;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_pmem_deactivate_main_mem_from_os_Prove_WK_SecureObjsAddrs_MemSeparation(old(this), this);
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_PMem_DeactivateFromOS_ReturnWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_subjects_objects_pmem_active_map_stateeq(old(this), this);
+}
+
+// Jump to the external function "pehci_activate", which is expected to append values to the stack and modify registers
+// Input params on stack: None
+// Return on stack: None
+procedure CALL_PEHCI_ActivateInOS()
+{:instruction Ins(CALL_PEHCI_ActivateInOS())}
+    reads
+        flags; globals;
+    modifies
+        mem; subjects; objects;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ;                    // For external functions
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            FFI_PEHCI_ActivateInOS_StackParamsWords * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Input param takes no word, output param takes no words, <stack_params_space> = max(input_params, 
+            // output_params)
+    requires
+        ins_valid_pEHCI_ActivateInOS(old(this), old(esp));
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        ffi_preserve_old_stack(old(this).wk_mstate, mem, FFI_PEHCI_ActivateInOS_ReturnWords); // Words for return parameters
+        ffi_pehci_activate_in_os_stack_and_statevars(old(this), this.subjects, this.objects);
+            // Property: <PEHCI_ActivateInOS> activates all physical EHCIs back to the OS partition
+    ensures
+        esp == old(esp); ebp == old(ebp);
+    ensures
+        let stack_retval_space := FFI_PEHCI_ActivateInOS_ReturnWords * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    reveal va_eval;
+    reveal ffi_preserve_sp_and_bp;
+    reveal ffi_pehci_activate_in_os_stack_and_statevars;
+    reveal WK_SecureObjsAddrs_MemSeparation;
+
+    this := MaybeUpdateOk(old(this), this);
+
+    Lemma_ffi_pehci_activate_in_os_ResultState_Prove_WK_SecureObjsAddrs_MemSeparation(old(this), this);
+    
+    Lemma_ffi_ret_on_stack_Implies_stack_under_sp_is_unchanged(old(this).wk_mstate, this.wk_mstate, FFI_PEHCI_ActivateInOS_ReturnWords);
+    assert ffi_preserve_sp_and_bp(old(this).wk_mstate, this.wk_mstate.regs);
+    assert this.wk_mstate.sregs == old(this).wk_mstate.sregs;
+
+    Lemma_modify_regs_subjects_objects_stateeq(old(this), this);
+}
+
+
+
+
+/*********************** Debug functions (Never verified) ********************/
+/*
+// Jump to the external function "debug_func"
+// Input params on stack: None
+// Return on stack: None
+procedure CALL_DEBUG()
+{:instruction Ins(CALL_DEBUG())}
+    reads
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+        flags; 
+        globals; mem;
+{
+
+}
+*/

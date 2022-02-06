@@ -1,0 +1,800 @@
+include "../../../ins/x86/ins_wrapper.vad"
+include "../usb_tds_utils.vad"
+include "../../../partition_id_ops.vad"
+include "../eehci_info.vad"
+
+include {:verbatim} "../usb_tds_utils.i.dfy"
+include "usb_tds_ops.dafny21.vad"
+
+// Return the verified/secure USB TD that refs the target USB TD
+// If no slot is found, return 0 and false. 
+// [NOTE] Needs 1000s to verify
+// [NOTE] Dafny-2.3 can successfully verify this function alone, but failed if we put in usb_tds_ops_impl.vad
+// Input params on stack: (target_td_slot:word) at esp
+// Return params on stack: (ret:word/bool) at esp, (src_slot:word/bool) at esp + ARCH_WORD_BYTES, 
+procedure _usbtd_find_referencing_secure_slot() {:timeLimitMultiplier 100}
+    modifies
+        ebp; esp; mem;
+        esi; edi; eax; ebx; ecx; edx;
+    reads
+        globals; flags;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            9 * ARCH_WORD_BYTES +                   // For local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +                   // For CALL_USBTD_IsRefTargetUSBTD
+            FFI_USBTD_IsRefTargetUSBTD_StackParamsWords * ARCH_WORD_BYTES;    // For params of CALL_USBTD_IsRefTargetUSBTD
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let target_td_slot:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+        let src_slot:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> usbtd_map_valid_slot_id(src_slot);
+        (ret == TRUE) ==> usbtd_is_slot_ref_target_slot(old(globals), src_slot, target_td_slot);
+        (ret == TRUE) ==> TestBit(usbtd_map_get_flags(old(globals), src_slot), USBTD_SLOT_FLAG_SlotSecure_Bit);
+            // Property: If return true, then the found verified/secure USB TD refs the target USB TD
+        (ret != TRUE) ==> (
+                forall (i:uint32) (usbtd_map_valid_slot_id(i)
+                        ==> !(usbtd_is_slot_ref_target_slot(old(globals), i, target_td_slot) &&
+                            TestBit(usbtd_map_get_flags(old(globals), i), USBTD_SLOT_FLAG_SlotSecure_Bit))
+                        )
+            );
+            // Property: If return false, then no verified/secure USB TD refs the target USB TD
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+        esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal p_ffi_usbtd_is_ref_target_usbtd_retval;
+
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let i @= eax;
+    let found_slot @= ebx;
+    let ret_ref @= ecx;
+    let ret_flag @= edx;
+    let run @= esi;
+    let tmp @= edi;
+    PUSH_Reg1ToReg6();
+    let begin_state := this;
+    let orig_ebp := ebp;
+
+ 
+    MOV_ToReg(i, 0);                                                 // uint32 i = 0
+    MOV_ToReg(run, const(TRUE));                                     // bool run = TRUE
+    MOV_ToReg(ret_ref, const(TRUE));                                 // bool ret_ref = TRUE
+    MOV_ToReg(ret_flag, const(TRUE));                                // bool ret_flag = TRUE
+
+    Load(tmp, ebp, ARCH_WORD_BYTES);                      // tmp := target_td_slot
+    let in_target_td_slot := tmp;
+
+    PUSH_TwoRegs(i, run);
+    PUSH(tmp);
+    PUSH(i);           
+    CALL_USBTD_IsRefTargetUSBTD();                                   // ret_ref = CALL_USBTD_IsRefTargetUSBTD(i, target_td_slot)
+    Load(ret_ref, esp, 0);
+    POP_VOID(2 * ARCH_WORD_BYTES);
+    POP_TwoRegs(i, run);
+
+    PUSH(i);
+    usbtd_get_flags();                                               // tmp := usbtd_get_flags(i);
+    Load(tmp, esp, 0);
+    POP_VOID(1 * ARCH_WORD_BYTES);
+    TestBit(tmp, USBTD_SLOT_FLAG_SlotSecure_Bit, ret_flag);
+
+    MOV_ToReg(found_slot, const(FALSE));
+    if(ret_ref == const(TRUE))                               // Stop conditions of while-loop
+    {
+        if(ret_flag == const(TRUE))
+        {
+            MOV_ToReg(run, const(FALSE));
+            MOV_ToReg(found_slot, const(TRUE));
+        }
+        else
+        {
+            MOV_ToReg(run, const(TRUE));
+        }
+    }
+    else
+    {
+        MOV_ToReg(run, const(TRUE));
+    }
+
+    while (run == const(TRUE))
+        invariant
+            0 <= i <= USB_TD_ENTRY_NUM;
+            run == TRUE ==> (0 <= i < USB_TD_ENTRY_NUM);
+
+            found_slot == TRUE || found_slot == FALSE;
+            run == TRUE ==> found_slot == FALSE;
+            found_slot == FALSE ==> (forall (j:uint32) (0 <= j < i && usbtd_map_valid_slot_id(j)
+                                ==> !(usbtd_is_slot_ref_target_slot(globals, j, in_target_td_slot) &&
+                                    TestBit(usbtd_map_get_flags(globals, j), USBTD_SLOT_FLAG_SlotSecure_Bit))
+                        ));
+            (run != TRUE && found_slot == FALSE) ==> (forall (j:uint32) (usbtd_map_valid_slot_id(j)
+                                ==> !(usbtd_is_slot_ref_target_slot(globals, j, in_target_td_slot) &&
+                                    TestBit(usbtd_map_get_flags(globals, j), USBTD_SLOT_FLAG_SlotSecure_Bit))
+                        ));
+                // Invariant relates to found_slot == FALSE
+
+            run != TRUE ==> 
+                ((ret_ref == TRUE && ret_flag == TRUE) <==> found_slot == TRUE);
+                // Invariant: If run != TRUE, then found_slot is true iff ret_ref and ret_flag are true
+
+            run != TRUE ==> ((ret_ref == TRUE && ret_flag == TRUE) || i == USB_TD_ENTRY_NUM-1);
+            run != TRUE && (ret_ref == TRUE && ret_flag == TRUE)
+                ==> (
+                        usbtd_map_valid_slot_id(i) &&
+                        TestBit(usbtd_map_get_flags(globals, i), USBTD_SLOT_FLAG_SlotSecure_Bit) &&
+                        usbtd_is_slot_ref_target_slot(globals, i, in_target_td_slot)
+                    );
+                // Invariant: When found the slot, the slot must be a verified/secure one and reference <in_target_td_slot>
+
+            esp == old(esp) - 7 * ARCH_WORD_BYTES;
+            stack_under_sp_is_unchanged(begin_state.wk_mstate.m, this.wk_mstate.m, esp);
+                // Invariant: Earlier stack are unchanged in this while-loop
+
+            globals == old(globals);
+            ebp == orig_ebp;
+            state_equal_except_mstate(old(this), this);
+        decreases
+            (USB_TD_ENTRY_NUM - i), run;
+    {
+        let old_this := this;
+
+        Load(tmp, ebp, ARCH_WORD_BYTES);                      // tmp := target_td_slot
+        PUSH_TwoRegs(i, run);
+        PUSH(tmp);
+        PUSH(i);           
+        CALL_USBTD_IsRefTargetUSBTD();                                   // ret_ref = CALL_USBTD_IsRefTargetUSBTD(i, target_td_slot)
+        Load(ret_ref, esp, 0);
+        POP_VOID(2 * ARCH_WORD_BYTES);
+        POP_TwoRegs(i, run);
+
+        PUSH(i);
+        usbtd_get_flags();                                               // tmp := usbtd_get_flags(i);
+        Load(tmp, esp, 0);
+        POP_VOID(1 * ARCH_WORD_BYTES);
+        TestBit(tmp, USBTD_SLOT_FLAG_SlotSecure_Bit, ret_flag);
+
+        MOV_ToReg(found_slot, const(FALSE));
+        let cur_i := i;
+        if(ret_ref == const(TRUE))                               // Stop conditions of while-loop
+        {
+            assert usbtd_is_slot_ref_target_slot(globals, i, in_target_td_slot);
+            if(ret_flag == const(TRUE))
+            {
+                MOV_ToReg(run, const(FALSE));
+                MOV_ToReg(found_slot, const(TRUE));
+                assert usbtd_is_slot_ref_target_slot(globals, i, in_target_td_slot);
+            }
+            else
+            {
+                assert !TestBit(usbtd_map_get_flags(globals, i), USBTD_SLOT_FLAG_SlotSecure_Bit);
+                assert !(usbtd_is_slot_ref_target_slot(globals, i, in_target_td_slot) &&
+                            TestBit(usbtd_map_get_flags(globals, i), USBTD_SLOT_FLAG_SlotSecure_Bit));
+                if(i == const(USB_TD_ENTRY_NUM - 1))                       //// i + 1 == USB_TD_ENTRY_NUM
+                {
+                    MOV_ToReg(run, const(FALSE));
+                }
+                else
+                {
+                    ADD(i, 1);                                                  // i += 1
+                    MOV_ToReg(run, const(TRUE));
+                }
+            }
+        }  
+        else if(i == const(USB_TD_ENTRY_NUM - 1))                       //// i + 1 == USB_TD_ENTRY_NUM
+        {
+            MOV_ToReg(run, const(FALSE));
+
+            assert !usbtd_is_slot_ref_target_slot(globals, i, in_target_td_slot);
+            assert !(usbtd_is_slot_ref_target_slot(globals, i, in_target_td_slot) &&
+                    TestBit(usbtd_map_get_flags(globals, i), USBTD_SLOT_FLAG_SlotSecure_Bit));
+        }
+        else                                                            // Add 1 when there is next run
+        {
+            assert !usbtd_is_slot_ref_target_slot(globals, i, in_target_td_slot);
+            assert !(usbtd_is_slot_ref_target_slot(globals, i, in_target_td_slot) &&
+                    TestBit(usbtd_map_get_flags(globals, i), USBTD_SLOT_FLAG_SlotSecure_Bit));
+
+            ADD(i, 1);                                                  // i += 1
+            MOV_ToReg(run, const(TRUE));
+        }
+
+        ghost if(found_slot == FALSE)
+        {
+            assert !(usbtd_is_slot_ref_target_slot(globals, cur_i, in_target_td_slot) &&
+                    TestBit(usbtd_map_get_flags(globals, cur_i), USBTD_SLOT_FLAG_SlotSecure_Bit));
+
+            assert forall (j:uint32) (0 <= j < i && usbtd_map_valid_slot_id(j)
+                                ==> !(usbtd_is_slot_ref_target_slot(globals, j, in_target_td_slot) &&
+                                    TestBit(usbtd_map_get_flags(globals, j), USBTD_SLOT_FLAG_SlotSecure_Bit)));
+        }
+
+        Lemma_modify_regs_stateeq(old_this, this);
+    }
+
+    // Out of while-loop
+    assert ((ret_ref == TRUE && ret_flag == TRUE) <==> found_slot == TRUE);
+    let t_ret_ref := ret_ref;
+    let t_ret_flag := ret_flag;
+    let t_found_slot := found_slot;
+    if(ret_ref == const(TRUE))                               // Stop conditions of while-loop
+    {
+        if(ret_flag == const(TRUE))
+        {
+            assert found_slot == TRUE;
+
+            Store(ebp, ARCH_WORD_BYTES, const(TRUE));                       // Return TRUE
+            Store(ebp, 2 * ARCH_WORD_BYTES, i); 
+        }
+        else
+        {
+            assert t_ret_ref == ret_ref;
+            assert t_ret_flag == ret_flag;
+            assert t_found_slot == found_slot;
+
+            assert found_slot == FALSE;
+            assert i == USB_TD_ENTRY_NUM - 1;
+
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                       // Return FALSE
+            Store(ebp, 2 * ARCH_WORD_BYTES, const(USBTD_SlotID_INVALID));
+        }
+    }
+    else
+    {
+        assert t_ret_ref == ret_ref;
+        assert t_ret_flag == ret_flag;
+        assert t_found_slot == found_slot;
+
+        assert found_slot == FALSE;
+        assert i == USB_TD_ENTRY_NUM - 1;
+
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                       // Return FALSE
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(USBTD_SlotID_INVALID));
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Return the verified/secure USB TD that refs the target wimpdrv slot
+// If no slot is found, return 0 and false. 
+// [NOTE] Needs 2000s to verify
+// [TODO-Known issue] Dafny-2.3 can successfully verify this function alone, but failed if we put in this file
+// Input params on stack: (target_wimpdrv_slot:word) at esp
+// Return params on stack: (ret:word/bool) at esp, (src_slot:word/bool) at esp + ARCH_WORD_BYTES
+procedure _wimpdrv_find_referencing_secure_usbtd() {:timeLimitMultiplier 200}
+    modifies
+        ebp; esp; mem;
+        esi; edi; eax; ebx; ecx; edx;
+    reads
+        globals; flags;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            7 * ARCH_WORD_BYTES +             // For local variables
+            11 * ARCH_WORD_BYTES +            // For <CALL_USBTD_IsRefTargetUSBTD>
+            2 * ARCH_WORD_BYTES;              // For params of <CALL_USBTD_IsRefTargetUSBTD>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space);
+    requires
+        let target_wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        wimpdrv_valid_slot_id(target_wimpdrv_slot);
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let target_wimpdrv_slot:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+        let src_slot:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> usbtd_map_valid_slot_id(src_slot);
+        (ret == TRUE) ==> TestBit(usbtd_map_get_flags(old(globals), src_slot), USBTD_SLOT_FLAG_SlotSecure_Bit);
+        (ret == TRUE) ==> usbtd_map_get_wimpdrv_slotid(old(globals), src_slot) == target_wimpdrv_slot;
+            // Property: If return true, then the found verified/secure USB TD refs the target wimp driver
+        (ret != TRUE) ==> usbtds_verifiedtds_do_not_associate_wimpdrv(old(globals), target_wimpdrv_slot);
+            // Property: If return false, then no verified/secure USB TD refs the target wimp driver
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+        esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal p_ffi_usbtd_is_ref_target_usbtd_retval;
+
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let i @= eax;
+    let found_slot @= ebx;
+    let ret_ref @= ecx;
+    let ret_flag @= edx;
+    let run @= esi;
+    let tmp @= edi;
+    PUSH_Reg1ToReg6();
+    let begin_state := this;
+    let orig_ebp := ebp;
+
+ 
+    MOV_ToReg(i, 0);                                                 // uint32 i = 0
+    MOV_ToReg(run, const(TRUE));                                     // bool run = TRUE
+    MOV_ToReg(ret_ref, const(TRUE));                                 // bool ret_ref = TRUE
+    MOV_ToReg(ret_flag, const(TRUE));                                // bool ret_flag = TRUE
+
+    Load(tmp, ebp, ARCH_WORD_BYTES);                      // tmp := target_wimpdrv_slot
+    let in_target_slot := tmp;
+
+    PUSH(tmp);
+    PUSH(i);
+    usbtd_check_wimpdrv_slotid();
+    Load(ret_ref, esp, 0);
+    POP_VOID(2 * ARCH_WORD_BYTES);
+
+    PUSH(i);
+    usbtd_get_flags();                                               // tmp := usbtd_get_flags(i);
+    Load(tmp, esp, 0);
+    POP_VOID(1 * ARCH_WORD_BYTES);
+    TestBit(tmp, USBTD_SLOT_FLAG_SlotSecure_Bit, ret_flag);
+
+    MOV_ToReg(found_slot, const(FALSE));
+    if(ret_ref == const(TRUE))                               // Stop conditions of while-loop
+    {
+        if(ret_flag == const(TRUE))
+        {
+            MOV_ToReg(run, const(FALSE));
+            MOV_ToReg(found_slot, const(TRUE));
+        }
+        else
+        {
+            MOV_ToReg(run, const(TRUE));
+        }
+    }
+    else
+    {
+        MOV_ToReg(run, const(TRUE));
+    }
+
+    while (run == const(TRUE))
+        invariant
+            0 <= i <= USB_TD_ENTRY_NUM;
+            run == TRUE ==> (0 <= i < USB_TD_ENTRY_NUM);
+
+            found_slot == TRUE || found_slot == FALSE;
+            run == TRUE ==> found_slot == FALSE;
+            found_slot == FALSE ==> (forall (j:uint32) (0 <= j < i && usbtd_map_valid_slot_id(j)
+                                ==> !(usbtd_map_get_wimpdrv_slotid(globals, j) == in_target_slot &&
+                                    TestBit(usbtd_map_get_flags(globals, j), USBTD_SLOT_FLAG_SlotSecure_Bit))
+                        ));
+            (run != TRUE && found_slot == FALSE) ==> (forall (j:uint32) (usbtd_map_valid_slot_id(j)
+                                ==> !(usbtd_map_get_wimpdrv_slotid(globals, j) == in_target_slot &&
+                                    TestBit(usbtd_map_get_flags(globals, j), USBTD_SLOT_FLAG_SlotSecure_Bit))
+                        ));
+                // Invariant relates to found_slot == FALSE
+
+            run != TRUE ==> 
+                ((ret_ref == TRUE && ret_flag == TRUE) <==> found_slot == TRUE);
+                // Invariant: If run != TRUE, then found_slot is true iff ret_ref and ret_flag are true
+
+            run != TRUE ==> ((ret_ref == TRUE && ret_flag == TRUE) || i == USB_TD_ENTRY_NUM-1);
+            run != TRUE && (ret_ref == TRUE && ret_flag == TRUE)
+                ==> (
+                        usbtd_map_valid_slot_id(i) &&
+                        TestBit(usbtd_map_get_flags(globals, i), USBTD_SLOT_FLAG_SlotSecure_Bit) &&
+                        usbtd_map_get_wimpdrv_slotid(globals, i) == in_target_slot
+                    );
+                // Invariant: When found the slot, the slot must be a verified/secure one and reference <in_target_slot>
+
+            esp == old(esp) - 7 * ARCH_WORD_BYTES;
+            stack_under_sp_is_unchanged(begin_state.wk_mstate.m, this.wk_mstate.m, esp);
+                // Invariant: Earlier stack are unchanged in this while-loop
+
+            globals == old(globals);
+            ebp == orig_ebp;
+            state_equal_except_mstate(old(this), this);
+        decreases
+            (USB_TD_ENTRY_NUM - i), run;
+    {
+        let old_this := this;
+
+        Load(tmp, ebp, ARCH_WORD_BYTES);                      // tmp := target_wimpdrv_slot
+        PUSH(tmp);
+        PUSH(i);
+        usbtd_check_wimpdrv_slotid();
+        Load(ret_ref, esp, 0);
+        POP_VOID(2 * ARCH_WORD_BYTES);
+
+        PUSH(i);
+        usbtd_get_flags();                                               // tmp := usbtd_get_flags(i);
+        Load(tmp, esp, 0);
+        POP_VOID(1 * ARCH_WORD_BYTES);
+        TestBit(tmp, USBTD_SLOT_FLAG_SlotSecure_Bit, ret_flag);
+
+        MOV_ToReg(found_slot, const(FALSE));
+        let cur_i := i;
+        if(ret_ref == const(TRUE))                               // Stop conditions of while-loop
+        {
+            assert usbtd_map_get_wimpdrv_slotid(globals, i) == in_target_slot;
+            if(ret_flag == const(TRUE))
+            {
+                MOV_ToReg(run, const(FALSE));
+                MOV_ToReg(found_slot, const(TRUE));
+                assert usbtd_map_get_wimpdrv_slotid(globals, i) == in_target_slot;
+            }
+            else
+            {
+                assert !TestBit(usbtd_map_get_flags(globals, i), USBTD_SLOT_FLAG_SlotSecure_Bit);
+                assert !(usbtd_map_get_wimpdrv_slotid(globals, i) == in_target_slot &&
+                            TestBit(usbtd_map_get_flags(globals, i), USBTD_SLOT_FLAG_SlotSecure_Bit));
+                if(i == const(USB_TD_ENTRY_NUM - 1))                       //// i + 1 == USB_TD_ENTRY_NUM
+                {
+                    MOV_ToReg(run, const(FALSE));
+                }
+                else
+                {
+                    ADD(i, 1);                                                  // i += 1
+                    MOV_ToReg(run, const(TRUE));
+                }
+            }
+        }  
+        else if(i == const(USB_TD_ENTRY_NUM - 1))                       //// i + 1 == USB_TD_ENTRY_NUM
+        {
+            MOV_ToReg(run, const(FALSE));
+
+            assert !(usbtd_map_get_wimpdrv_slotid(globals, i) == in_target_slot);
+            assert !(usbtd_map_get_wimpdrv_slotid(globals, i) == in_target_slot &&
+                    TestBit(usbtd_map_get_flags(globals, i), USBTD_SLOT_FLAG_SlotSecure_Bit));
+        }
+        else                                                            // Add 1 when there is next run
+        {
+            assert !(usbtd_map_get_wimpdrv_slotid(globals, i) == in_target_slot);
+            assert !(usbtd_map_get_wimpdrv_slotid(globals, i) == in_target_slot &&
+                    TestBit(usbtd_map_get_flags(globals, i), USBTD_SLOT_FLAG_SlotSecure_Bit));
+
+            ADD(i, 1);                                                  // i += 1
+            MOV_ToReg(run, const(TRUE));
+        }
+
+        ghost if(found_slot == FALSE)
+        {
+            assert !(usbtd_map_get_wimpdrv_slotid(globals, cur_i) == in_target_slot &&
+                    TestBit(usbtd_map_get_flags(globals, cur_i), USBTD_SLOT_FLAG_SlotSecure_Bit));
+
+            assert forall (j:uint32) (0 <= j < i && usbtd_map_valid_slot_id(j)
+                                ==> !(usbtd_map_get_wimpdrv_slotid(globals, j) == in_target_slot &&
+                                    TestBit(usbtd_map_get_flags(globals, j), USBTD_SLOT_FLAG_SlotSecure_Bit)));
+        }
+
+        Lemma_modify_regs_stateeq(old_this, this);
+    }
+
+    // Out of while-loop
+    assert ((ret_ref == TRUE && ret_flag == TRUE) <==> found_slot == TRUE);
+    let t_ret_ref := ret_ref;
+    let t_ret_flag := ret_flag;
+    let t_found_slot := found_slot;
+    if(ret_ref == const(TRUE))                               // Stop conditions of while-loop
+    {
+        if(ret_flag == const(TRUE))
+        {
+            assert found_slot == TRUE;
+
+            Store(ebp, ARCH_WORD_BYTES, const(TRUE));                       // Return TRUE
+            Store(ebp, 2 * ARCH_WORD_BYTES, i); 
+        }
+        else
+        {
+            assert t_ret_ref == ret_ref;
+            assert t_ret_flag == ret_flag;
+            assert t_found_slot == found_slot;
+
+            assert found_slot == FALSE;
+            assert i == USB_TD_ENTRY_NUM - 1;
+
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                       // Return FALSE
+            Store(ebp, 2 * ARCH_WORD_BYTES, const(USBTD_SlotID_INVALID));
+        }
+    }
+    else
+    {
+        assert t_ret_ref == ret_ref;
+        assert t_ret_flag == ret_flag;
+        assert t_found_slot == found_slot;
+
+        assert found_slot == FALSE;
+        assert i == USB_TD_ENTRY_NUM - 1;
+
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                       // Return FALSE
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(USBTD_SlotID_INVALID));
+    }
+    reveal usbtds_verifiedtds_do_not_associate_wimpdrv;
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Return the verified/secure USB TD that refs the target USBPDev slot
+// If no slot is found, return 0 and false. 
+// [NOTE] Needs 1000s to verify
+// [NOTE] Dafny-2.3 can successfully verify this function alone, but failed if we put in usb_tds_ops_impl.vad
+// Input params on stack: (target_usbpdev_slot:word) at esp
+// Return params on stack: (ret:word/bool) at esp, (src_slot:word/bool) at esp + ARCH_WORD_BYTES, 
+procedure _usbpdev_find_referencing_secure_usbtd() {:timeLimitMultiplier 100}
+    modifies
+        ebp; esp; mem;
+        esi; edi; eax; ebx; ecx; edx;
+    reads
+        globals; flags;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            7 * ARCH_WORD_BYTES +             // For local variables
+            11 * ARCH_WORD_BYTES +            // For <CALL_USBTD_IsRefTargetUSBTD>
+            2 * ARCH_WORD_BYTES;              // For params of <CALL_USBTD_IsRefTargetUSBTD>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space);
+    requires
+        let target_usbpdev_slot:word := stack_get_val(old(mem), old(esp));
+        usbpdev_valid_slot_id(target_usbpdev_slot);
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let target_usbpdev_slot:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+        let src_slot:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+
+        (ret == TRUE) ==> usbtd_map_valid_slot_id(src_slot);
+        (ret == TRUE) ==> TestBit(usbtd_map_get_flags(old(globals), src_slot), USBTD_SLOT_FLAG_SlotSecure_Bit);
+        (ret == TRUE) ==> usbtd_map_get_usbpdev_slotid(old(globals), src_slot) == target_usbpdev_slot;
+            // Property: If return true, then the found verified/secure USB TD refs the target wimp driver
+        (ret != TRUE) ==> usbtds_verifiedtds_do_not_associate_usb_pdev(old(globals), target_usbpdev_slot);
+            // Property: If return false, then no verified/secure USB TD refs the target wimp driver
+    ensures
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+        esi == old(esi); edi == old(edi); 
+        esp == old(esp); ebp == old(ebp); // temp registers are correctly restored
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal p_ffi_usbtd_is_ref_target_usbtd_retval;
+
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let i @= eax;
+    let found_slot @= ebx;
+    let ret_ref @= ecx;
+    let ret_flag @= edx;
+    let run @= esi;
+    let tmp @= edi;
+    PUSH_Reg1ToReg6();
+    let begin_state := this;
+    let orig_ebp := ebp;
+
+ 
+    MOV_ToReg(i, 0);                                                 // uint32 i = 0
+    MOV_ToReg(run, const(TRUE));                                     // bool run = TRUE
+    MOV_ToReg(ret_ref, const(TRUE));                                 // bool ret_ref = TRUE
+    MOV_ToReg(ret_flag, const(TRUE));                                // bool ret_flag = TRUE
+
+    Load(tmp, ebp, ARCH_WORD_BYTES);                      // tmp := target_usbpdev_slot
+    let in_target_slot := tmp;
+
+    PUSH(tmp);
+    PUSH(i);
+    usbtd_check_usbpdev_slotid();
+    Load(ret_ref, esp, 0);
+    POP_VOID(2 * ARCH_WORD_BYTES);
+
+    PUSH(i);
+    usbtd_get_flags();                                               // tmp := usbtd_get_flags(i);
+    Load(tmp, esp, 0);
+    POP_VOID(1 * ARCH_WORD_BYTES);
+    TestBit(tmp, USBTD_SLOT_FLAG_SlotSecure_Bit, ret_flag);
+
+    MOV_ToReg(found_slot, const(FALSE));
+    if(ret_ref == const(TRUE))                               // Stop conditions of while-loop
+    {
+        if(ret_flag == const(TRUE))
+        {
+            MOV_ToReg(run, const(FALSE));
+            MOV_ToReg(found_slot, const(TRUE));
+        }
+        else
+        {
+            MOV_ToReg(run, const(TRUE));
+        }
+    }
+    else
+    {
+        MOV_ToReg(run, const(TRUE));
+    }
+
+    while (run == const(TRUE))
+        invariant
+            0 <= i <= USB_TD_ENTRY_NUM;
+            run == TRUE ==> (0 <= i < USB_TD_ENTRY_NUM);
+
+            found_slot == TRUE || found_slot == FALSE;
+            run == TRUE ==> found_slot == FALSE;
+            found_slot == FALSE ==> (forall (j:uint32) (0 <= j < i && usbtd_map_valid_slot_id(j)
+                                ==> !(usbtd_map_get_usbpdev_slotid(globals, j) == in_target_slot &&
+                                    TestBit(usbtd_map_get_flags(globals, j), USBTD_SLOT_FLAG_SlotSecure_Bit))
+                        ));
+            (run != TRUE && found_slot == FALSE) ==> (forall (j:uint32) (usbtd_map_valid_slot_id(j)
+                                ==> !(usbtd_map_get_usbpdev_slotid(globals, j) == in_target_slot &&
+                                    TestBit(usbtd_map_get_flags(globals, j), USBTD_SLOT_FLAG_SlotSecure_Bit))
+                        ));
+                // Invariant relates to found_slot == FALSE
+
+            run != TRUE ==> 
+                ((ret_ref == TRUE && ret_flag == TRUE) <==> found_slot == TRUE);
+                // Invariant: If run != TRUE, then found_slot is true iff ret_ref and ret_flag are true
+
+            run != TRUE ==> ((ret_ref == TRUE && ret_flag == TRUE) || i == USB_TD_ENTRY_NUM-1);
+            run != TRUE && (ret_ref == TRUE && ret_flag == TRUE)
+                ==> (
+                        usbtd_map_valid_slot_id(i) &&
+                        TestBit(usbtd_map_get_flags(globals, i), USBTD_SLOT_FLAG_SlotSecure_Bit) &&
+                        usbtd_map_get_usbpdev_slotid(globals, i) == in_target_slot
+                    );
+                // Invariant: When found the slot, the slot must be a verified/secure one and reference <in_target_slot>
+
+            esp == old(esp) - 7 * ARCH_WORD_BYTES;
+            stack_under_sp_is_unchanged(begin_state.wk_mstate.m, this.wk_mstate.m, esp);
+                // Invariant: Earlier stack are unchanged in this while-loop
+
+            globals == old(globals);
+            ebp == orig_ebp;
+            state_equal_except_mstate(old(this), this);
+        decreases
+            (USB_TD_ENTRY_NUM - i), run;
+    {
+        let old_this := this;
+
+        Load(tmp, ebp, ARCH_WORD_BYTES);                      // tmp := target_usbpdev_slot
+        PUSH(tmp);
+        PUSH(i);
+        usbtd_check_usbpdev_slotid();
+        Load(ret_ref, esp, 0);
+        POP_VOID(2 * ARCH_WORD_BYTES);
+
+        PUSH(i);
+        usbtd_get_flags();                                               // tmp := usbtd_get_flags(i);
+        Load(tmp, esp, 0);
+        POP_VOID(1 * ARCH_WORD_BYTES);
+        TestBit(tmp, USBTD_SLOT_FLAG_SlotSecure_Bit, ret_flag);
+
+        MOV_ToReg(found_slot, const(FALSE));
+        let cur_i := i;
+        if(ret_ref == const(TRUE))                               // Stop conditions of while-loop
+        {
+            assert usbtd_map_get_usbpdev_slotid(globals, i) == in_target_slot;
+            if(ret_flag == const(TRUE))
+            {
+                MOV_ToReg(run, const(FALSE));
+                MOV_ToReg(found_slot, const(TRUE));
+                assert usbtd_map_get_usbpdev_slotid(globals, i) == in_target_slot;
+            }
+            else
+            {
+                assert !TestBit(usbtd_map_get_flags(globals, i), USBTD_SLOT_FLAG_SlotSecure_Bit);
+                assert !(usbtd_map_get_usbpdev_slotid(globals, i) == in_target_slot &&
+                            TestBit(usbtd_map_get_flags(globals, i), USBTD_SLOT_FLAG_SlotSecure_Bit));
+                if(i == const(USB_TD_ENTRY_NUM - 1))                       //// i + 1 == USB_TD_ENTRY_NUM
+                {
+                    MOV_ToReg(run, const(FALSE));
+                }
+                else
+                {
+                    ADD(i, 1);                                                  // i += 1
+                    MOV_ToReg(run, const(TRUE));
+                }
+            }
+        }  
+        else if(i == const(USB_TD_ENTRY_NUM - 1))                       //// i + 1 == USB_TD_ENTRY_NUM
+        {
+            MOV_ToReg(run, const(FALSE));
+
+            assert !(usbtd_map_get_usbpdev_slotid(globals, i) == in_target_slot);
+            assert !(usbtd_map_get_usbpdev_slotid(globals, i) == in_target_slot &&
+                    TestBit(usbtd_map_get_flags(globals, i), USBTD_SLOT_FLAG_SlotSecure_Bit));
+        }
+        else                                                            // Add 1 when there is next run
+        {
+            assert !(usbtd_map_get_usbpdev_slotid(globals, i) == in_target_slot);
+            assert !(usbtd_map_get_usbpdev_slotid(globals, i) == in_target_slot &&
+                    TestBit(usbtd_map_get_flags(globals, i), USBTD_SLOT_FLAG_SlotSecure_Bit));
+
+            ADD(i, 1);                                                  // i += 1
+            MOV_ToReg(run, const(TRUE));
+        }
+
+        ghost if(found_slot == FALSE)
+        {
+            assert !(usbtd_map_get_usbpdev_slotid(globals, cur_i) == in_target_slot &&
+                    TestBit(usbtd_map_get_flags(globals, cur_i), USBTD_SLOT_FLAG_SlotSecure_Bit));
+
+            assert forall (j:uint32) (0 <= j < i && usbtd_map_valid_slot_id(j)
+                                ==> !(usbtd_map_get_usbpdev_slotid(globals, j) == in_target_slot &&
+                                    TestBit(usbtd_map_get_flags(globals, j), USBTD_SLOT_FLAG_SlotSecure_Bit)));
+        }
+
+        Lemma_modify_regs_stateeq(old_this, this);
+    }
+
+    // Out of while-loop
+    assert ((ret_ref == TRUE && ret_flag == TRUE) <==> found_slot == TRUE);
+    let t_ret_ref := ret_ref;
+    let t_ret_flag := ret_flag;
+    let t_found_slot := found_slot;
+    if(ret_ref == const(TRUE))                               // Stop conditions of while-loop
+    {
+        if(ret_flag == const(TRUE))
+        {
+            assert found_slot == TRUE;
+
+            Store(ebp, ARCH_WORD_BYTES, const(TRUE));                       // Return TRUE
+            Store(ebp, 2 * ARCH_WORD_BYTES, i); 
+        }
+        else
+        {
+            assert t_ret_ref == ret_ref;
+            assert t_ret_flag == ret_flag;
+            assert t_found_slot == found_slot;
+
+            assert found_slot == FALSE;
+            assert i == USB_TD_ENTRY_NUM - 1;
+
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                       // Return FALSE
+            Store(ebp, 2 * ARCH_WORD_BYTES, const(USBTD_SlotID_INVALID));
+        }
+    }
+    else
+    {
+        assert t_ret_ref == ret_ref;
+        assert t_ret_flag == ret_flag;
+        assert t_found_slot == found_slot;
+
+        assert found_slot == FALSE;
+        assert i == USB_TD_ENTRY_NUM - 1;
+
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                       // Return FALSE
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(USBTD_SlotID_INVALID));
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}

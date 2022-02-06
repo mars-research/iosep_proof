@@ -1,0 +1,68 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/usb_pdev_validstate.i.dfy
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\ffi\..\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\ffi\..\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0698126 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.Lemma__USBPDev__HCodedTDDoNotDefineTransferToTDs ...
+  [4.211 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidGlobalVarValues__USBPDevs__HoldIfWrittingUpdateFlagField__WriteToUpdating ...
+  [4.579 s, 105 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidGlobalVarValues__USBPDevs__HoldIfWrittingUpdateFlagField__WriteToUpdating ...
+  [10.906 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidGlobalVarValues__USBPDevs__HoldIfWrittingLowAddrField ...
+  [3.807 s, 103 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidGlobalVarValues__USBPDevs__HoldIfWrittingLowAddrField ...
+  [20.117 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidGlobalVarValues__USBPDevs__HoldIfWrittingHighAddrField ...
+  [5.449 s, 103 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidGlobalVarValues__USBPDevs__HoldIfWrittingHighAddrField ...
+  [14.583 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidGlobalVarValues__USBPDevs__HoldIfWrittingUpdateFlagField__WriteToUpdateComplete ...
+  [4.284 s, 113 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidGlobalVarValues__USBPDevs__HoldIfWrittingUpdateFlagField__WriteToUpdateComplete ...
+  [25.122 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidGlobalVarValues__USBPDevs__HoldIfWrittingPIDField__NewPIDIsInvalid ...
+  [3.694 s, 101 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidGlobalVarValues__USBPDevs__HoldIfWrittingPIDField__NewPIDIsInvalid ...
+  [22.124 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidGlobalVarValues__USBPDevs__HoldIfWrittingPIDField__NewPIDIsValid ...
+  [4.216 s, 110 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidGlobalVarValues__USBPDevs__HoldIfWrittingPIDField__NewPIDIsValid ...
+  [8.066 s, 46 proof obligations]  verified
+
+Dafny program verifier finished with 13 verified, 0 errors

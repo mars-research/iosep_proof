@@ -1,0 +1,124 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/usb_tds_ops/usb_tds_ops_impl.gen.dfy
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\state_mapping\..\..\..\utils\model\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\state_mapping\..\..\..\utils\model\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [1.4790434 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.va__code__USBTD__slot__allocate__1slot__Impl ...
+  [6.597 s, 77 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__USBTD__slot__allocate__1slot__Impl ...
+  [9.093 s, 911 proof obligations]  verified
+Linearising   [0.9115625 s]
+
+Verifying Impl$$_module.__default.va__lemma__USBTD__slot__allocate__1slot__Impl ...
+  [166.710 s, 3460 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__USBTD__slot__deallocate__1slot__Impl ...
+  [7.362 s, 138 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__USBTD__slot__deallocate__1slot__Impl ...
+  [11.180 s, 759 proof obligations]  verified
+Linearising   [2.152243 s]
+
+Verifying Impl$$_module.__default.va__lemma__USBTD__slot__deallocate__1slot__Impl ...
+  [660.895 s, 7622 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code____usbtd__slot__submit__and__verify__morechecks ...
+  [8.250 s, 114 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma____usbtd__slot__submit__and__verify__morechecks ...
+  [9.558 s, 827 proof obligations]  verified
+Linearising   [1.2566383 s]
+
+Verifying Impl$$_module.__default.va__lemma____usbtd__slot__submit__and__verify__morechecks ...
+  [92.867 s, 4821 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code____usbtd__slot__allocate__1slot__private ...
+  [7.834 s, 140 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma____usbtd__slot__allocate__1slot__private ...
+  [8.964 s, 1270 proof obligations]  verified
+Linearising   [2.1143446 s]
+
+Verifying Impl$$_module.__default.va__lemma____usbtd__slot__allocate__1slot__private ...
+  [1912.204 s, 7809 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code____usbtd__slot__submit ...
+  [6.861 s, 121 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma____usbtd__slot__submit ...
+  [12.545 s, 1785 proof obligations]  verified
+Linearising   [1.5747871 s]
+
+Verifying Impl$$_module.__default.va__lemma____usbtd__slot__submit ...
+  [1295.388 s, 5497 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.usbtd__slot__allocate__1slot__globals__relationship ...
+  [7.600 s, 42 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.usbtd__slot__deallocate__1slot__globals__relationship ...
+  [3.524 s, 24 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p__usbtd__slot__allocate__1slot__private__globals__relationship ...
+  [3.603 s, 29 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtd__slot__allocate__1slot__ProveProperty2 ...
+  [3.685 s, 15 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtd__slot__allocate__1slot__ProveProperty2 ...
+  [4.854 s, 27 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma____usbtd__slot__submit__ProveProperty1 ...
+  [3.401 s, 31 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma____usbtd__slot__submit__ProveProperty1 ...
+  [3.742 s, 12 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__InstSaneState__IfUSBTDIsInactive__Then__usbtds__verifiedtds__do__not__associate__usbtd ...
+  [3.495 s, 34 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__InstSaneState__IfUSBTDIsInactive__Then__usbtds__verifiedtds__do__not__associate__usbtd ...
+  [4.618 s, 12 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__InstSaneState__usbtd__find__referencing__secure__slot__ReturnFalseImplies__usbtds__verifiedtds__do__not__associate__usbtd ...
+  [5.168 s, 40 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__InstSaneState__usbtd__find__referencing__secure__slot__ReturnFalseImplies__usbtds__verifiedtds__do__not__associate__usbtd ...
+  [9.237 s, 12 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtds__verifiedtds__do__not__associate__usbtd__HoldIfNonScratchpadGVarsAreUnmodified ...
+  [3.563 s, 8 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtds__verifiedtds__do__not__associate__usbtd__HoldIfNonScratchpadGVarsAreUnmodified ...
+  [5.318 s, 8 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtd__slot__allocate__1slot__private__ProvePreConditionsOfUSBTDSetID ...
+  [3.628 s, 12 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtd__slot__allocate__1slot__private__ProvePreConditionsOfUSBTDSetID ...
+  [3.461 s, 1 proof obligation]  verified
+
+Dafny program verifier finished with 30 verified, 0 errors

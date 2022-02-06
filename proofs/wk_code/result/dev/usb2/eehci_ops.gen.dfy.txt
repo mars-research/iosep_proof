@@ -1,0 +1,133 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/eehci_ops.gen.dfy
+dev\usb2\..\..\proof\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\../Abstract/Model.dfy(2123,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\../Abstract/Model.dfy(2184,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1677,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1685,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2493,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2501,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3159,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3151,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3274,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3282,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2162,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2267,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2303,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2375,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\./BuildCAS/ReachableTDsStates.dfy(2147,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2138,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2146,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2547,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2555,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2652,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2644,13): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(239,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(333,24): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(950,20): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.5983991 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.va__code__EEHCI__Activate ...
+  [11.824 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__EEHCI__Activate ...
+  [10.899 s, 997 proof obligations]  verified
+Linearising   [0.7539868 s]
+
+Verifying Impl$$_module.__default.va__lemma__EEHCI__Activate ...
+  [14.598 s, 2525 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__EEHCI__Deactivate ...
+  [6.771 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__EEHCI__Deactivate ...
+  [8.947 s, 1053 proof obligations]  verified
+Linearising   [0.6891562 s]
+
+Verifying Impl$$_module.__default.va__lemma__EEHCI__Deactivate ...
+  [13.063 s, 2287 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__WimpDrv__Read__eEHCI__Config ...
+  [6.570 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__WimpDrv__Read__eEHCI__Config ...
+  [9.270 s, 1281 proof obligations]  verified
+Linearising   [0.7539841 s]
+
+Verifying Impl$$_module.__default.va__lemma__WimpDrv__Read__eEHCI__Config ...
+  [10.156 s, 2380 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__WimpDrv__Write__eEHCI__Config ...
+  [7.040 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__WimpDrv__Write__eEHCI__Config ...
+  [11.526 s, 1283 proof obligations]  verified
+Linearising   [0.55751 s]
+
+Verifying Impl$$_module.__default.va__lemma__WimpDrv__Write__eEHCI__Config ...
+  [11.815 s, 2276 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__WimpDrv__Read__eEHCI__Status ...
+  [6.812 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__WimpDrv__Read__eEHCI__Status ...
+  [10.039 s, 1281 proof obligations]  verified
+Linearising   [0.8038508 s]
+
+Verifying Impl$$_module.__default.va__lemma__WimpDrv__Read__eEHCI__Status ...
+  [20.966 s, 2380 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__WimpDrv__Write__eEHCI__Status ...
+  [7.032 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__WimpDrv__Write__eEHCI__Status ...
+  [9.804 s, 1283 proof obligations]  verified
+Linearising   [0.6303136 s]
+
+Verifying Impl$$_module.__default.va__lemma__WimpDrv__Write__eEHCI__Status ...
+  [19.915 s, 2276 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__WimpDrv__Read__eEHCI__USBTDReg ...
+  [6.651 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__WimpDrv__Read__eEHCI__USBTDReg ...
+  [12.172 s, 1283 proof obligations]  verified
+Linearising   [0.7978661 s]
+
+Verifying Impl$$_module.__default.va__lemma__WimpDrv__Read__eEHCI__USBTDReg ...
+  [13.377 s, 2378 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__WimpDrv__Write__eEHCI__USBTDReg ...
+  [6.703 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__WimpDrv__Write__eEHCI__USBTDReg ...
+  [10.405 s, 1443 proof obligations]  verified
+Linearising   [0.9055778 s]
+
+Verifying Impl$$_module.__default.va__lemma__WimpDrv__Write__eEHCI__USBTDReg ...
+  [15.038 s, 2538 proof obligations]  verified
+
+Dafny program verifier finished with 24 verified, 0 errors

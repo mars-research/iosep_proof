@@ -1,0 +1,597 @@
+include "ins.vad"
+
+// Interface realization: <PUSH_OneReg>
+// Push n bytes
+procedure PUSH_VOID(inline n:constop)
+    reads
+        flags;
+    modifies
+        esp; mem;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        n % ARCH_WORD_BYTES == 0;               
+            // [Work-around] If n is the number of words, Vale cannot generate preconditions to limit n * ARCH_WORD_BYTES
+            // to be a word
+    requires
+        IsAddrInStack(esp);  // The new ESP value must point to WK's stack
+
+        isWord(esp - n);
+        IsAddrInStack(esp - n); // The new ESP value must point to WK's stack
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let stack_new_top1 := old(esp) - n;
+
+        esp == stack_new_top1;
+            // Property: esp is correctly updated
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, old(esp));
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    SUB(esp, const(n));
+}
+
+// Interface realization: <PUSH_OneReg>
+// Push imm
+procedure PUSH_IMM(inline imm:constop)
+    reads
+        flags;
+    modifies
+        esp; mem;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        IsAddrInStack(esp);  // The new ESP value must point to WK's stack
+        IsAddrInStack(esp - 1 * ARCH_WORD_BYTES); // The new ESP value must point to WK's stack
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let stack_new_top1 := old(esp) - ARCH_WORD_BYTES;
+        let mem1 := stack_set_val(old(mem), stack_new_top1, old(imm));
+
+        mem == mem1;
+        esp == stack_new_top1;
+            // Property: stack and esp is correctly updated
+        imm == stack_get_val(mem, esp);
+            // Property: imm is at the top of the stack
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, old(esp));
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH(imm);
+}
+
+// Interface realization: <PUSH_OneReg>
+// Push reg1
+procedure PUSH_OneReg(in reg1:reg)
+    reads
+        flags;
+    modifies
+        esp; mem;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        @reg1 != OReg(ESP);
+    requires
+        IsAddrInStack(esp);  // The new ESP value must point to WK's stack
+        IsAddrInStack(esp - 1 * ARCH_WORD_BYTES); // The new ESP value must point to WK's stack
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let stack_new_top1 := old(esp) - ARCH_WORD_BYTES;
+        let mem1 := stack_set_val(old(mem), stack_new_top1, old(reg1));
+
+        mem == mem1;
+        esp == stack_new_top1;
+            // Property: stack and esp is correctly updated
+        reg1 == stack_get_val(mem, esp);
+            // Property: reg1 is at the top of the stack
+    ensures
+        reg1 == old(reg1); // Input params are unchanged
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, old(esp));
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH(reg1);
+}
+    
+// Interface realization: <PUSH_TwoRegs>
+// Push reg1 first, then reg2
+procedure PUSH_TwoRegs(in reg1:reg, in reg2:reg)
+    reads
+        flags;
+    modifies
+        esp; mem;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        @reg1 != OReg(ESP); @reg2 != OReg(ESP); 
+        @reg1 != @reg2;     // Must be two different registers
+    requires
+        IsAddrInStack(esp);  // The new ESP value must point to WK's stack
+        IsAddrInStack(esp - 2 * ARCH_WORD_BYTES); // The new ESP value must point to WK's stack
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let stack_new_top1 := old(esp) - ARCH_WORD_BYTES;
+        let stack_new_top2 := old(esp) - 2 * ARCH_WORD_BYTES;
+        let mem1 := stack_set_val(old(mem), stack_new_top1, old(reg1));
+        let mem2 := stack_set_val(mem1, stack_new_top2, old(reg2));
+
+        mem == mem2;
+        esp == stack_new_top2;
+            // Property: stack and esp is correctly updated
+        reg2 == stack_get_val(mem, esp);
+        reg1 == stack_get_val(mem, esp + ARCH_WORD_BYTES);
+            // Property: reg2 is at the top of the stack, reg1 is the next
+    ensures
+        reg1 == old(reg1); reg2 == old(reg2); // Input params are unchanged
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, old(esp));
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH(reg1);
+    PUSH(reg2);
+}
+
+// Interface realization: <PUSH_Reg1ToReg6>
+// Push from eax to edi
+procedure PUSH_Reg1ToReg6()
+    reads
+        flags;
+    reads
+        eax; ebx; ecx; edx; esi; edi;
+    modifies
+        esp; mem;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        IsAddrInStack(esp);  // The new ESP value must point to WK's stack
+        IsAddrInStack(esp - 6 * ARCH_WORD_BYTES); // The new ESP value must point to WK's stack
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let stack_new_top1 := old(esp) - ARCH_WORD_BYTES;
+        let stack_new_top2 := old(esp) - 2 * ARCH_WORD_BYTES;
+        let stack_new_top3 := old(esp) - 3 * ARCH_WORD_BYTES;
+        let stack_new_top4 := old(esp) - 4 * ARCH_WORD_BYTES;
+        let stack_new_top5 := old(esp) - 5 * ARCH_WORD_BYTES;
+        let stack_new_top6 := old(esp) - 6 * ARCH_WORD_BYTES;
+        let mem1 := stack_set_val(old(mem), stack_new_top1, old(eax));
+        let mem2 := stack_set_val(mem1, stack_new_top2, old(ebx));
+        let mem3 := stack_set_val(mem2, stack_new_top3, old(ecx));
+        let mem4 := stack_set_val(mem3, stack_new_top4, old(edx));
+        let mem5 := stack_set_val(mem4, stack_new_top5, old(esi));
+        let mem6 := stack_set_val(mem5, stack_new_top6, old(edi));
+
+        mem == mem6;
+        esp == stack_new_top6;
+            // Property: stack and esp is correctly updated
+        edi == stack_get_val(mem, esp);
+        esi == stack_get_val(mem, esp + 1 * ARCH_WORD_BYTES);
+        edx == stack_get_val(mem, esp + 2 * ARCH_WORD_BYTES);
+        ecx == stack_get_val(mem, esp + 3 * ARCH_WORD_BYTES);
+        ebx == stack_get_val(mem, esp + 4 * ARCH_WORD_BYTES);
+        eax == stack_get_val(mem, esp + 5 * ARCH_WORD_BYTES);
+            // Property: edi is at the top of the stack, eax is at the bottom
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, old(esp));
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH(eax);
+    PUSH(ebx);
+    PUSH(ecx);
+    PUSH(edx);
+    PUSH(esi);
+    PUSH(edi);
+}
+
+// Interface realization: <POP_OneReg>
+// Pop n bytes
+procedure POP_VOID(inline n:constop)
+    reads
+        mem; flags;
+    modifies
+        esp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        n % ARCH_WORD_BYTES == 0;               
+            // [Work-around] If n is the number of words, Vale cannot generate preconditions to limit n * ARCH_WORD_BYTES
+            // to be a word
+    requires
+        IsAddrInStack(esp);  // The current ESP value must point to WK's stack
+
+        isWord(esp + n);
+        IsAddrInStack(esp + n); // The new ESP value must point to WK's stack
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        esp == old(esp) + n;
+    ensures
+        old(mem) == mem;
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    ADD(esp, const(n));
+}
+
+// Interface realization: <POP_OneReg>
+// Pop reg1
+procedure POP_OneReg(out reg1:reg)
+    reads
+        mem; flags;
+    modifies
+        esp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        IsAddrInStack(esp);  // The current ESP value must point to WK's stack
+        IsAddrInStack(esp + 1 * ARCH_WORD_BYTES); // The new ESP value must point to WK's stack
+    requires
+        @reg1 != OReg(ESP);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        esp == old(esp) + 1 * ARCH_WORD_BYTES;
+        reg1 == stack_get_val(old(mem), old(esp));
+            // Property: the stack is correctly popped
+    ensures
+        old(mem) == mem;
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    POP(reg1);
+}
+
+// Interface realization: <POP_TwoRegs>
+// Pop reg2 first, then reg1
+procedure POP_TwoRegs(out reg1:reg, out reg2:reg)
+    reads
+        mem; flags;
+    modifies
+        esp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        IsAddrInStack(esp);  // The current ESP value must point to WK's stack
+        IsAddrInStack(esp + 2 * ARCH_WORD_BYTES); // The new ESP value must point to WK's stack
+    requires
+        @reg1 != OReg(ESP); @reg2 != OReg(ESP);
+        @reg1 != @reg2;     // Must be two different registers
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        esp == old(esp) + 2 * ARCH_WORD_BYTES;
+        reg2 == stack_get_val(old(mem), old(esp));
+        reg1 == stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+            // Property: the stack is correctly popped
+    ensures
+        old(mem) == mem;
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    POP(reg2);
+    POP(reg1);
+}
+
+// Interface realization: <POP_Reg1ToReg6>
+// Pop from edi to eax
+procedure POP_Reg1ToReg6()
+    reads
+        mem; flags;
+    modifies
+        esp;
+        eax; ebx; ecx; edx; esi; edi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        IsAddrInStack(esp);  // The current ESP value must point to WK's stack
+        IsAddrInStack(esp + 6 * ARCH_WORD_BYTES); // The new ESP value must point to WK's stack
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        esp == old(esp) + 6 * ARCH_WORD_BYTES;
+
+        edi == stack_get_val(old(mem), old(esp));
+        esi == stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        edx == stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        ecx == stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        ebx == stack_get_val(old(mem), old(esp) + 4 * ARCH_WORD_BYTES);
+        eax == stack_get_val(old(mem), old(esp) + 5 * ARCH_WORD_BYTES);
+            // Property: the stack is correctly popped
+    ensures
+        old(mem) == mem;
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    POP(edi);
+    POP(esi);
+    POP(edx);
+    POP(ecx);
+    POP(ebx);
+    POP(eax);
+}
+
+// Interface realization: <MOV_ToReg>
+procedure MOV_ToReg(out dst:reg, in src:word)
+    reads
+        mem; flags;
+    requires
+        let v := src;
+        ins_valid_new_dst_opr_value(this.wk_mstate, @dst, v);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        dst == old(src);
+    ensures
+        stack_is_unchanged(old(mem), mem);   // Stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    MOV(dst, src);
+}
+
+// Interface realization: <LDRglobaladdr_ToReg>
+procedure LDRglobaladdr_ToReg(out dst:reg, inline g:symbol)
+    reads
+        esp; mem; flags;
+    requires
+        @dst != OReg(ESP);
+    requires
+        is_gvar_exist(g);
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        dst == AddressOfGlobal(g);
+    ensures
+        stack_is_unchanged(old(mem), mem);   // Stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    LDRglobaladdr(dst, g);
+}
+
+// Interface realization: <ADD_SHL_ToReg>
+// Return dst := src1 + shl1 << bits
+procedure ADD_SHL_ToReg(
+    out dst:reg, in src1:reg, in shl1:reg, inline bits:constop
+)
+    reads
+        flags;
+    modifies
+        esp; mem;
+        esi;                                        // Local variables
+    requires/ensures
+        InstSaneState(this);
+    requires
+        @dst != @src1; @dst != @shl1;
+        @dst != OReg(ESP); @src1 != OReg(ESP); @shl1 != OReg(ESP);
+        @dst != Reg5; @src1 != Reg5; @shl1 != Reg5;
+    requires
+        IsAddrInStack(esp - ARCH_WORD_BYTES); // Stack must have free space for one local variable
+    requires
+        //@bits == Reg3 || @bits == OConst(bits);
+        0 <= bits < Ins_Shift_Max;
+    requires
+        isWord(src1 + LeftShift(shl1, bits));                     // Result must be a word
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        dst == old(src1) + LeftShift(old(shl1), old(bits));
+    ensures
+        esi == old(esi); esp == old(esp); // temp registers are correctly restored
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    let tmp @= esi;
+    PUSH_OneReg(tmp);
+
+
+    MOV_ToReg(tmp, shl1);
+    SHL(tmp, bits);
+    MOV(dst, src1);
+    ADD(dst, tmp);
+
+    POP_OneReg(tmp);
+}
+
+procedure MUL_Reg_32BitsResult(
+    inout reg1:reg, in src:word
+)
+    reads
+        flags;
+    modifies 
+        eax; edx; 
+        esp; mem;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        @reg1 != OReg(ESP); @reg1 != Reg1; @reg1 != Reg4; 
+        @src != OReg(ESP); @src != Reg1; @src != Reg4; 
+    requires
+        let stack_req_space := 
+            2 * ARCH_WORD_BYTES;                   // For local variables
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+    requires
+        isUInt32(reg1 * src);
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        reg1 == old(reg1) * old(src);
+    ensures
+        eax == old(eax); edx == old(edx); 
+        esp == old(esp);
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    Lemma_MulUin32UpperBound();
+    
+    PUSH_TwoRegs(eax, edx);
+
+    MOV_ToReg(eax, reg1);
+    MOV_ToReg(edx, src);
+    MUL(edx);
+    MOV_ToReg(reg1, eax);
+
+    POP_TwoRegs(eax, edx);
+}
+
+// Set a bit in a word
+procedure SetBit(inout dst:word, inline bit_pos:constop)
+    reads
+        flags; globals;
+    modifies 
+        esi; ecx;
+        esp; mem;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        0 <= bit_pos < 32;
+    requires
+        @dst != Reg5;
+        @dst != Reg3;
+        @dst != OReg(ESP);
+    requires
+        let stack_req_space := 
+            2 * ARCH_WORD_BYTES;                   // For local variables
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        dst == SetBit(old(dst), old(bit_pos));
+    ensures
+        ecx == old(ecx); esi == old(esi); esp == old(esp); // temp registers are correctly restored
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+        globals == old(globals);
+{
+    let tmp @= esi;
+    let tmp2 @= ecx;
+    PUSH_TwoRegs(tmp, tmp2);
+
+    MOV_ToReg(tmp, const(1));
+    SHL(tmp, bit_pos);
+    OR(dst, tmp);
+
+    POP_TwoRegs(tmp, tmp2);
+}
+
+// Clear a bit in a word
+procedure ClearBit(inout dst:word, inline bit_pos:constop)
+    reads
+        flags; globals;
+    modifies 
+        esi; ecx;
+        esp; mem;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        0 <= bit_pos < 32;
+    requires
+        @dst != Reg5;
+        @dst != Reg3;
+        @dst != OReg(ESP);
+    requires
+        let stack_req_space := 
+            2 * ARCH_WORD_BYTES;                   // For local variables
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        dst == ClearBit(old(dst), old(bit_pos));
+    ensures
+        ecx == old(ecx); esi == old(esi); esp == old(esp); // temp registers are correctly restored
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+        globals == old(globals);
+{
+    let tmp @= esi;
+    let tmp2 @= ecx;
+    PUSH_TwoRegs(tmp, tmp2);
+
+    MOV_ToReg(tmp, const(1));
+    SHL(tmp, bit_pos);     // tmp := 1 << bit_pos
+
+    NOT(tmp);
+    AND(dst, tmp);
+
+    POP_TwoRegs(tmp, tmp2);
+}
+
+// Test a bit in a word
+procedure TestBit(in v:word, inline bit_pos:constop, out result:word)
+    reads
+        flags; globals;
+    modifies 
+        esi; ecx;
+        esp; mem;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        0 <= bit_pos < 32;
+    requires
+        @result != @v; 
+        @v != Reg3; @result != Reg3;
+        @v != Reg5; @result != Reg5;
+        @v != OReg(ESP); @result != OReg(ESP);
+        @v != OReg(EBP); @result != OReg(EBP);
+    requires
+        let stack_req_space := 
+            2 * ARCH_WORD_BYTES;                   // For local variables
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        0 <= bit_pos < 32;
+        (result == TRUE) <==> TestBit(v, bit_pos);
+    ensures
+        ecx == old(ecx); esi == old(esi); esp == old(esp); // temp registers are correctly restored
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+        globals == old(globals);
+{
+    let flag_v @= esi;
+    let tmp2 @= ecx;
+    PUSH_TwoRegs(flag_v, tmp2);
+
+    MOV_ToReg(flag_v, const(1));
+    SHL(flag_v, bit_pos);     // flag_v := 1 << bit_pos
+
+    MOV_ToReg(result, v);
+    AND(result, flag_v);    // result := result & flag_v
+
+    if(result != const(0))
+    {
+        MOV_ToReg(result, const(TRUE));
+    }
+    else
+    {
+        MOV_ToReg(result, const(FALSE));
+    }
+        
+    POP_TwoRegs(flag_v, tmp2);
+}

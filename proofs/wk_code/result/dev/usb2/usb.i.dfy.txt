@@ -1,0 +1,84 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/usb.i.dfy
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0588429 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtd__paddr__alignment__EquivilantImplOfTestOfMod ...
+  [2.385 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtd__get__td__vaddr__result__is__gvar__valid__addr ...
+  [1.259 s, 3 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtd__get__td__vaddr__result__is__gvar__valid__addr ...
+  [1.137 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtd__get__td__pid__result__is__gvar__valid__addr ...
+  [1.192 s, 3 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtd__get__td__pid__result__is__gvar__valid__addr ...
+  [1.552 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtd__get__td__type__result__is__gvar__valid__addr ...
+  [1.283 s, 3 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtd__get__td__type__result__is__gvar__valid__addr ...
+  [1.427 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtd__get__wimpdrv__slotid__result__is__gvar__valid__addr ...
+  [1.171 s, 3 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtd__get__wimpdrv__slotid__result__is__gvar__valid__addr ...
+  [1.447 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtd__get__usbpdev__slotid__result__is__gvar__valid__addr ...
+  [1.161 s, 3 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtd__get__usbpdev__slotid__result__is__gvar__valid__addr ...
+  [1.615 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtd__get__bus__id__result__is__gvar__valid__addr ...
+  [1.078 s, 3 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtd__get__bus__id__result__is__gvar__valid__addr ...
+  [1.251 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtd__get__flag__result__is__gvar__valid__addr ...
+  [1.308 s, 3 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtd__get__flag__result__is__gvar__valid__addr ...
+  [1.390 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtd__get__handle__result__is__gvar__valid__addr ...
+  [1.232 s, 3 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtd__get__handle__result__is__gvar__valid__addr ...
+  [1.484 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbtd__get__inputparams__result__is__gvar__valid__addr ...
+  [1.167 s, 3 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbtd__get__inputparams__result__is__gvar__valid__addr ...
+  [1.783 s, 38 proof obligations]  verified
+
+Dafny program verifier finished with 19 verified, 0 errors

@@ -1,0 +1,397 @@
+include "../../../ins/x86/ins_wrapper.vad"
+include "../usb_tds_utils.vad"
+include "../../../partition_id_ops.vad"
+include "../eehci_info.vad"
+
+include {:verbatim} "../usb_tds_utils.i.dfy"
+
+
+// Handle QTD32 submitted by a wimp driver
+// Input params on stack: 
+// (bus_id:word) at esp + 6 * ARCH_WORD_BYTES, (new_input_param3:word/uint32) at esp + 5 * ARCH_WORD_BYTES, 
+// (new_input_param2:word/uint32) at esp + 4 * ARCH_WORD_BYTES, (new_input_param1:word/uint32) at esp + 3 * ARCH_WORD_BYTES, 
+// (usbpdev_slot:word/uint32) at esp + 2 * ARCH_WORD_BYTES,  (wimpdrv_slot_id:word) at esp + ARCH_WORD_BYTES, 
+// (td_slot:word/uint32) at esp
+// Return params on stack: None
+// [NOTE] Needs 1000s to verify
+procedure _usbtd_slot_submit_partial_otherfields() {:timeLimitMultiplier 120}
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        esi; edi;
+        eax; ebx; ecx; edx;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                   // For local variables
+            7 * ARCH_WORD_BYTES +                   // For <usbtd_set_inputparams>
+            3 * ARCH_WORD_BYTES;                    // For the params of <usbtd_set_inputparams>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            7 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        usbtd_map_valid_slot_id(td_slot);
+            // Requirement: <td_slot> must be inside the global variable <g_usbtd_map_mem>
+        eehci_mem_no_ref_to_usbtd_slot(globals, td_slot);
+            // Requirement: No eEHCI refs the USB TD at current
+        usbtds_verifiedtds_do_not_associate_usbtd(globals, td_slot);
+            // Requirement: No verified/secure USB TDs references this USB TD
+    requires
+        let usbpdev_slot:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        usbpdev_slot == WimpUSBPDev_SlotID_EMPTY || usbpdev_valid_slot_id(usbpdev_slot);
+            // Requirement: <usbpdev_slot> must be empty or valid
+    requires
+        let wimpdrv_slot_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        wimpdrv_valid_slot_id(wimpdrv_slot_id);
+    requires
+        let bus_id:word := stack_get_val(old(mem), old(esp) + 6 * ARCH_WORD_BYTES);
+        usb_is_valid_bus_id(bus_id);
+    requires
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        let flags := usbtd_map_get_flags(globals, td_slot);
+
+        TestBit(flags, USBTD_SLOT_FLAG_SlotSecure_Bit) == false;
+            // Requirement: The USB TD must not have SecureSlot set
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        let wimpdrv_slot_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let usbpdev_slot:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let input_param1:uint32 := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let input_param2:uint32 := stack_get_val(old(mem), old(esp) + 4 * ARCH_WORD_BYTES);
+        let input_param3:uint32 := stack_get_val(old(mem), old(esp) + 5 * ARCH_WORD_BYTES);
+        let bus_id:word := stack_get_val(old(mem), old(esp) + 6 * ARCH_WORD_BYTES);
+
+        usbtd_map_get_busid(globals, td_slot) == bus_id;
+        usbtd_map_get_wimpdrv_slotid(globals, td_slot) == wimpdrv_slot_id;
+        usbtd_map_get_usbpdev_slotid(globals, td_slot) == usbpdev_slot;
+        usbtd_map_get_inputparam(globals, td_slot, G_USBTDs_MAP_ENTRY_InputParam1) == input_param1;
+        usbtd_map_get_inputparam(globals, td_slot, G_USBTDs_MAP_ENTRY_InputParam2) == input_param2;
+        usbtd_map_get_inputparam(globals, td_slot, G_USBTDs_MAP_ENTRY_InputParam3) == input_param3;
+            // Property 1: Values are correctly written
+        p_usbtd_slot_submit_usbtd_ret_global(old(globals), globals, td_slot);
+            // Property 2: If return true, partial correctness properties hold for the new global variable output by 
+            // <usbtd_slot_submit_qtd32>
+        p_usbtd_content_equal(old(globals), globals, td_slot);
+            // Property 3
+        usbtd_map_get_type(globals, td_slot) == usbtd_map_get_type(old(globals), td_slot);
+            // Property 4: The USB TD's type is unchanged
+    ensures
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        eehci_mem_no_ref_to_usbtd_slot(globals, td_slot);
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal WordAligned;
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let tmp1 @= edi;
+    let tmp2 @= ecx;
+    let tmp3 @= edx;
+    let td_slot @= ebx;
+    let ret @= eax;
+    PUSH_Reg1ToReg6();
+    let orig_esp := esp;
+    
+    Load(td_slot, ebp, 1 * ARCH_WORD_BYTES);     // Load <td_slot>
+    let in_td_slot := td_slot;
+    let globals1 := globals;
+
+    // Step 2. Set bus_id
+    Load(tmp1, ebp, 7 * ARCH_WORD_BYTES);        // tmp1 := <bus_id>
+    PUSH(tmp1);
+    let bus_id := tmp1;
+    PUSH(td_slot);
+    usbtd_set_bus_id();
+    let globals2 := globals;
+    POP_VOID(2 * ARCH_WORD_BYTES);
+    Lemma_usbtd_slot_offset_AlwaysValidGUSBTDMapMemAddr(in_td_slot, G_USBTDs_MAP_ENTRY_BUSID_BytesOffset);
+    Lemma_WK_USB_TD_Map_PreserveTypeFieldIfModifyOtherFields(globals1, globals2, in_td_slot, G_USBTDs_MAP_ENTRY_BUSID_BytesOffset, bus_id);
+    Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals1, globals2, in_td_slot, G_USBTDs_MAP_ENTRY_BUSID_BytesOffset, bus_id);
+    Lemma_WK_USB_TD_Map_PreservePIDFieldIfModifyOtherFields(globals1, globals2, in_td_slot, G_USBTDs_MAP_ENTRY_BUSID_BytesOffset, bus_id);
+    Lemma_WK_USB_TD_Map_PreserveFlagsFieldIfModifyOtherFields(globals1, globals2, in_td_slot, G_USBTDs_MAP_ENTRY_BUSID_BytesOffset, bus_id);
+    Lemma_WK_USB_TD_Map_PreserveUSBTDContentsIfModifyOtherFields(globals1, globals2, in_td_slot, G_USBTDs_MAP_ENTRY_BUSID_BytesOffset, bus_id);
+    Lemma_USBTD_PreserveOtherSlots_WhenModifyingOneSlot(globals1, globals2, in_td_slot, G_USBTDs_MAP_ENTRY_BUSID_BytesOffset, bus_id);
+    assert global_read_fullval(globals1, G_EEHCI_MEM()) == global_read_fullval(globals2, G_EEHCI_MEM());
+    Lemma_usbtds_verifiedtds_do_not_associate_usbtd_HoldIfModifyingUSBTDRemainsInsecure(globals1, globals2, in_td_slot);
+    assert usbtds_verifiedtds_do_not_associate_usbtd(globals2, in_td_slot);
+
+    // Step 3. Set input params
+    //assert InstSaneState(this);
+    Load(tmp1, ebp, 4 * ARCH_WORD_BYTES);        // tmp1 := <new_input_param1>
+    PUSH(tmp1);
+    let new_input_param1 := tmp1;
+    PUSH(const(G_USBTDs_MAP_ENTRY_InputParam1));
+    PUSH(td_slot);
+    usbtd_set_inputparams();
+    let globals3 := globals;
+    POP_VOID(3 * ARCH_WORD_BYTES);
+    Lemma_usbtd_slot_offset_AlwaysValidGUSBTDMapMemAddr(in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam1_BytesOffset);
+    Lemma_WK_USB_TD_Map_PreserveBusIDFieldIfModifyOtherFields(globals2, globals3, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam1_BytesOffset, new_input_param1);
+    Lemma_WK_USB_TD_Map_PreserveTypeFieldIfModifyOtherFields(globals2, globals3, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam1_BytesOffset, new_input_param1);
+    Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals2, globals3, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam1_BytesOffset, new_input_param1);
+    Lemma_WK_USB_TD_Map_PreservePIDFieldIfModifyOtherFields(globals2, globals3, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam1_BytesOffset, new_input_param1);
+    Lemma_WK_USB_TD_Map_PreserveFlagsFieldIfModifyOtherFields(globals2, globals3, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam1_BytesOffset, new_input_param1);
+    Lemma_WK_USB_TD_Map_PreserveUSBTDContentsIfModifyOtherFields(globals2, globals3, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam1_BytesOffset, new_input_param1);
+    Lemma_USBTD_PreserveOtherSlots_WhenModifyingOneSlot(globals2, globals3, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam1_BytesOffset, new_input_param1);
+    assert global_read_fullval(globals2, G_EEHCI_MEM()) == global_read_fullval(globals3, G_EEHCI_MEM());
+    Lemma_usbtds_verifiedtds_do_not_associate_usbtd_HoldIfModifyingUSBTDRemainsInsecure(globals2, globals3, in_td_slot);
+    assert usbtds_verifiedtds_do_not_associate_usbtd(globals3, in_td_slot);
+
+    assert InstSaneState(this);
+    //assert ebp == orig_ebp;
+    Load(tmp1, ebp, 5 * ARCH_WORD_BYTES);        // tmp1 := <new_input_param2>
+    PUSH(tmp1);
+    let new_input_param2 := tmp1;
+    PUSH(const(G_USBTDs_MAP_ENTRY_InputParam2));
+    PUSH(td_slot);
+    usbtd_set_inputparams();
+    let globals4 := globals;
+    POP_VOID(3 * ARCH_WORD_BYTES);
+    Lemma_usbtd_slot_offset_AlwaysValidGUSBTDMapMemAddr(in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam2_BytesOffset);
+    Lemma_WK_USB_TD_Map_PreserveInputParam1FieldIfModifyOtherFields(globals3, globals4, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam2_BytesOffset, new_input_param2);
+    Lemma_WK_USB_TD_Map_PreserveBusIDFieldIfModifyOtherFields(globals3, globals4, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam2_BytesOffset, new_input_param2);
+    Lemma_WK_USB_TD_Map_PreserveTypeFieldIfModifyOtherFields(globals3, globals4, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam2_BytesOffset, new_input_param2);
+    Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals3, globals4, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam2_BytesOffset, new_input_param2);
+    Lemma_WK_USB_TD_Map_PreservePIDFieldIfModifyOtherFields(globals3, globals4, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam2_BytesOffset, new_input_param2);
+    Lemma_WK_USB_TD_Map_PreserveFlagsFieldIfModifyOtherFields(globals3, globals4, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam2_BytesOffset, new_input_param2);
+    Lemma_WK_USB_TD_Map_PreserveUSBTDContentsIfModifyOtherFields(globals3, globals4, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam2_BytesOffset, new_input_param2);
+    Lemma_USBTD_PreserveOtherSlots_WhenModifyingOneSlot(globals3, globals4, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam2_BytesOffset, new_input_param2);
+    assert global_read_fullval(globals3, G_EEHCI_MEM()) == global_read_fullval(globals4, G_EEHCI_MEM());
+    Lemma_usbtds_verifiedtds_do_not_associate_usbtd_HoldIfModifyingUSBTDRemainsInsecure(globals3, globals4, in_td_slot);
+    assert usbtds_verifiedtds_do_not_associate_usbtd(globals4, in_td_slot);
+
+    assert InstSaneState(this);
+    //assert ebp == orig_ebp;
+    Load(tmp2, ebp, 6 * ARCH_WORD_BYTES);        // tmp2 := <new_input_param3>
+    PUSH(tmp2);
+    let new_input_param3 := tmp2;
+    PUSH(const(G_USBTDs_MAP_ENTRY_InputParam3));
+    PUSH(td_slot);
+    //assert td_slot == in_td_slot;
+    //assert usbtd_map_valid_slot_id(td_slot);
+    usbtd_set_inputparams();
+    let globals5 := globals;
+    POP_VOID(3 * ARCH_WORD_BYTES);
+    Lemma_usbtd_slot_offset_AlwaysValidGUSBTDMapMemAddr(in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam3_BytesOffset);
+    Lemma_WK_USB_TD_Map_PreserveInputParam2FieldIfModifyOtherFields(globals4, globals5, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam3_BytesOffset, new_input_param3);
+    Lemma_WK_USB_TD_Map_PreserveInputParam1FieldIfModifyOtherFields(globals4, globals5, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam3_BytesOffset, new_input_param3);
+    Lemma_WK_USB_TD_Map_PreserveBusIDFieldIfModifyOtherFields(globals4, globals5, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam3_BytesOffset, new_input_param3);
+    Lemma_WK_USB_TD_Map_PreserveTypeFieldIfModifyOtherFields(globals4, globals5, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam3_BytesOffset, new_input_param3);
+    Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals4, globals5, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam3_BytesOffset, new_input_param3);
+    Lemma_WK_USB_TD_Map_PreservePIDFieldIfModifyOtherFields(globals4, globals5, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam3_BytesOffset, new_input_param3);
+    Lemma_WK_USB_TD_Map_PreserveFlagsFieldIfModifyOtherFields(globals4, globals5, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam3_BytesOffset, new_input_param3);
+    Lemma_WK_USB_TD_Map_PreserveUSBTDContentsIfModifyOtherFields(globals4, globals5, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam3_BytesOffset, new_input_param3);
+    Lemma_USBTD_PreserveOtherSlots_WhenModifyingOneSlot(globals4, globals5, in_td_slot, G_USBTDs_MAP_ENTRY_eEHCISeparation_InputParam3_BytesOffset, new_input_param3);
+    assert global_read_fullval(globals4, G_EEHCI_MEM()) == global_read_fullval(globals5, G_EEHCI_MEM());
+    Lemma_usbtds_verifiedtds_do_not_associate_usbtd_HoldIfModifyingUSBTDRemainsInsecure(globals4, globals5, in_td_slot);
+    assert usbtds_verifiedtds_do_not_associate_usbtd(globals5, in_td_slot);
+
+
+    assert usbtd_map_get_inputparam(globals, in_td_slot, G_USBTDs_MAP_ENTRY_InputParam1) == new_input_param1;
+    assert usbtd_map_get_inputparam(globals, in_td_slot, G_USBTDs_MAP_ENTRY_InputParam2) == new_input_param2;
+    assert usbtd_map_get_inputparam(globals, in_td_slot, G_USBTDs_MAP_ENTRY_InputParam3) == new_input_param3;
+
+
+    // Step 4. Set wimpdrv and usbpdev slot
+    Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);        // tmp1 := <wimpdrv_slot_id>
+    PUSH(tmp1);
+    let wimpdrv_slot_id := tmp1;
+    PUSH(td_slot);
+    usbtd_set_wimpdrv_slotid();
+    let globals6 := globals;
+    POP_VOID(2 * ARCH_WORD_BYTES);
+
+    Lemma_usbtd_slot_offset_AlwaysValidGUSBTDMapMemAddr(in_td_slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset);
+    Lemma_WK_USB_TD_Map_PreserveInputParam3FieldIfModifyOtherFields(globals5, globals6, in_td_slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, wimpdrv_slot_id);
+    Lemma_WK_USB_TD_Map_PreserveInputParam2FieldIfModifyOtherFields(globals5, globals6, in_td_slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, wimpdrv_slot_id);
+    Lemma_WK_USB_TD_Map_PreserveInputParam1FieldIfModifyOtherFields(globals5, globals6, in_td_slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, wimpdrv_slot_id);
+    Lemma_WK_USB_TD_Map_PreserveBusIDFieldIfModifyOtherFields(globals5, globals6, in_td_slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, wimpdrv_slot_id);
+    Lemma_WK_USB_TD_Map_PreserveTypeFieldIfModifyOtherFields(globals5, globals6, in_td_slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, wimpdrv_slot_id);
+    Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals5, globals6, in_td_slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, wimpdrv_slot_id);
+    Lemma_WK_USB_TD_Map_PreservePIDFieldIfModifyOtherFields(globals5, globals6, in_td_slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, wimpdrv_slot_id);
+    Lemma_WK_USB_TD_Map_PreserveFlagsFieldIfModifyOtherFields(globals5, globals6, in_td_slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, wimpdrv_slot_id);
+    Lemma_WK_USB_TD_Map_PreserveUSBTDContentsIfModifyOtherFields(globals5, globals6, in_td_slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, wimpdrv_slot_id);
+    Lemma_USBTD_PreserveOtherSlots_WhenModifyingOneSlot(globals5, globals6, in_td_slot, G_USBTDs_MAP_ENTRY_WimpDrvSlotID_BytesOffset, wimpdrv_slot_id);
+    assert global_read_fullval(globals5, G_EEHCI_MEM()) == global_read_fullval(globals6, G_EEHCI_MEM());
+    Lemma_usbtds_verifiedtds_do_not_associate_usbtd_HoldIfModifyingUSBTDRemainsInsecure(globals5, globals6, in_td_slot);
+    assert usbtds_verifiedtds_do_not_associate_usbtd(globals6, in_td_slot);
+
+    //assert InstSaneState(this);
+    Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);        // tmp1 := <usbpdev_slot>
+    PUSH(tmp1);
+    let usbpdev_slot := tmp1;
+    PUSH(td_slot);
+    assert td_slot == in_td_slot;
+    assert usbtd_map_valid_slot_id(td_slot);
+    usbtd_set_usbpdev_slotid();
+    let globals7 := globals;
+    POP_VOID(2 * ARCH_WORD_BYTES);
+
+    Lemma_usbtd_slot_offset_AlwaysValidGUSBTDMapMemAddr(in_td_slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset);
+    Lemma_WK_USB_TD_Map_PreserveWimpDrvSlotIDFieldIfModifyOtherFields(globals6, globals7, in_td_slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, usbpdev_slot);
+    Lemma_WK_USB_TD_Map_PreserveInputParam3FieldIfModifyOtherFields(globals6, globals7, in_td_slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, usbpdev_slot);
+    Lemma_WK_USB_TD_Map_PreserveInputParam2FieldIfModifyOtherFields(globals6, globals7, in_td_slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, usbpdev_slot);
+    Lemma_WK_USB_TD_Map_PreserveInputParam1FieldIfModifyOtherFields(globals6, globals7, in_td_slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, usbpdev_slot);
+    Lemma_WK_USB_TD_Map_PreserveBusIDFieldIfModifyOtherFields(globals6, globals7, in_td_slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, usbpdev_slot);
+    Lemma_WK_USB_TD_Map_PreserveTypeFieldIfModifyOtherFields(globals6, globals7, in_td_slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, usbpdev_slot);
+    Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals6, globals7, in_td_slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, usbpdev_slot);
+    Lemma_WK_USB_TD_Map_PreservePIDFieldIfModifyOtherFields(globals6, globals7, in_td_slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, usbpdev_slot);
+    Lemma_WK_USB_TD_Map_PreserveFlagsFieldIfModifyOtherFields(globals6, globals7, in_td_slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, usbpdev_slot);
+    Lemma_WK_USB_TD_Map_PreserveUSBTDContentsIfModifyOtherFields(globals6, globals7, in_td_slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, usbpdev_slot);
+    Lemma_USBTD_PreserveOtherSlots_WhenModifyingOneSlot(globals6, globals7, in_td_slot, G_USBTDs_MAP_ENTRY_USBPDevSlotID_BytesOffset, usbpdev_slot);
+    assert global_read_fullval(globals6, G_EEHCI_MEM()) == global_read_fullval(globals7, G_EEHCI_MEM());
+    assert global_read_fullval(old(globals), G_EEHCI_MEM()) == global_read_fullval(globals7, G_EEHCI_MEM());
+    Lemma_eehci_mem_no_ref_to_usbtd_slot_Equivilant(old(globals), globals7, td_slot);
+    assert eehci_mem_no_ref_to_usbtd_slot(globals7, td_slot);
+    Lemma_usbtds_verifiedtds_do_not_associate_usbtd_HoldIfModifyingUSBTDRemainsInsecure(globals6, globals7, in_td_slot);
+    assert usbtds_verifiedtds_do_not_associate_usbtd(globals7, in_td_slot);
+
+    // Step 5. Write submit done flag
+    assert InstSaneState(this);
+    MOV_ToReg(tmp3, const(0));
+    SetBit(tmp3, USBTD_SLOT_FLAG_SubmitDone_Bit);
+    PUSH(tmp3);
+    let new_flags := tmp3;
+    PUSH(td_slot);
+    assert td_slot == in_td_slot;
+    assert usbtd_map_valid_slot_id(td_slot);
+    Lemma_TestBit_ReturnFalseIfANumberIs0();
+    Lemma_TestBit_ReturnFalse_IfBitNotSetAndAfterSetOtherBits(USBTD_SLOT_FLAG_SlotSecure_Bit);
+    assert TestBit(new_flags, USBTD_SLOT_FLAG_SlotSecure_Bit) == false;
+    assert usbtds_verifiedtds_do_not_associate_usbtd(globals, td_slot);
+    usbtd_set_flags();
+    POP_VOID(2 * ARCH_WORD_BYTES);
+    assert esp == orig_esp;
+
+    let globals8 := globals;
+    Lemma_usbtd_slot_offset_AlwaysValidGUSBTDMapMemAddr(in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset);
+    Lemma_WK_USB_TD_Map_PreserveUSBPDevSlotIDFieldIfModifyOtherFields(globals7, globals8, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_WK_USB_TD_Map_PreserveWimpDrvSlotIDFieldIfModifyOtherFields(globals7, globals8, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_WK_USB_TD_Map_PreserveInputParam3FieldIfModifyOtherFields(globals7, globals8, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_WK_USB_TD_Map_PreserveInputParam2FieldIfModifyOtherFields(globals7, globals8, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_WK_USB_TD_Map_PreserveInputParam1FieldIfModifyOtherFields(globals7, globals8, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_WK_USB_TD_Map_PreserveBusIDFieldIfModifyOtherFields(globals7, globals8, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_WK_USB_TD_Map_PreserveTypeFieldIfModifyOtherFields(globals7, globals8, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_WK_USB_TD_Map_PreserveIDFieldIfModifyOtherFields(globals7, globals8, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_WK_USB_TD_Map_PreservePIDFieldIfModifyOtherFields(globals7, globals8, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_WK_USB_TD_Map_PreserveUSBTDContentsIfModifyOtherFields(globals7, globals8, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+    Lemma_USBTD_PreserveOtherSlots_WhenModifyingOneSlot(globals7, globals8, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+
+    assert global_read_fullval(globals7, G_EEHCI_MEM()) == global_read_fullval(globals8, G_EEHCI_MEM());
+    assert global_read_fullval(old(globals), G_EEHCI_MEM()) == global_read_fullval(globals8, G_EEHCI_MEM());
+    Lemma_eehci_mem_no_ref_to_usbtd_slot_Equivilant(old(globals), globals, td_slot);
+    assert eehci_mem_no_ref_to_usbtd_slot(globals, td_slot);
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+
+
+    assert usbtd_map_get_wimpdrv_slotid(globals, in_td_slot) == wimpdrv_slot_id;
+    assert usbtd_map_get_usbpdev_slotid(globals, in_td_slot) == usbpdev_slot;
+    assert usbtd_map_get_inputparam(globals, in_td_slot, G_USBTDs_MAP_ENTRY_InputParam1) == new_input_param1;
+    assert usbtd_map_get_inputparam(globals, in_td_slot, G_USBTDs_MAP_ENTRY_InputParam2) == new_input_param2;
+    assert usbtd_map_get_inputparam(globals, in_td_slot, G_USBTDs_MAP_ENTRY_InputParam3) == new_input_param3;
+
+    Lemma__usbtd_slot_submit_partial_otherfields_ProveProperty2And3(old(globals), globals1, globals2, globals3, globals4, globals5, globals6, globals7, globals, in_td_slot);
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+
+
+/*********************** Private Lemmas ********************/
+#verbatim
+// Prove the property 2 and 3 of <_usbtd_slot_submit_partial_otherfields>
+lemma Lemma__usbtd_slot_submit_partial_otherfields_ProveProperty2And3(
+    old_globals:globalsmap, globals1:globalsmap, globals2:globalsmap, globals3:globalsmap, globals4:globalsmap, globals5:globalsmap, 
+    globals6:globalsmap, globals7:globalsmap, new_globals:globalsmap, slot:uint32
+)
+    requires WK_ValidGlobalVars_Decls(old_globals)
+    requires WK_ValidGlobalVars_Decls(globals1)
+    requires WK_ValidGlobalVars_Decls(globals2)
+    requires WK_ValidGlobalVars_Decls(globals3)
+    requires WK_ValidGlobalVars_Decls(globals4)
+    requires WK_ValidGlobalVars_Decls(globals5)
+    requires WK_ValidGlobalVars_Decls(globals6)
+    requires WK_ValidGlobalVars_Decls(globals7)
+    requires WK_ValidGlobalVars_Decls(new_globals)
+
+    requires usbtd_map_valid_slot_id(slot)
+
+    requires old_globals == globals1
+    requires forall i:uint32 :: usbtd_map_valid_slot_id(i) && i != slot
+        ==> p_usbtd_equal(globals1, globals2, i)
+    requires forall i:uint32 :: usbtd_map_valid_slot_id(i) && i != slot
+        ==> p_usbtd_equal(globals2, globals3, i)
+    requires forall i:uint32 :: usbtd_map_valid_slot_id(i) && i != slot
+        ==> p_usbtd_equal(globals3, globals4, i)
+    requires forall i:uint32 :: usbtd_map_valid_slot_id(i) && i != slot
+        ==> p_usbtd_equal(globals4, globals5, i)
+    requires forall i:uint32 :: usbtd_map_valid_slot_id(i) && i != slot
+        ==> p_usbtd_equal(globals5, globals6, i)
+    requires forall i:uint32 :: usbtd_map_valid_slot_id(i) && i != slot
+        ==> p_usbtd_equal(globals6, globals7, i)
+    requires forall i:uint32 :: usbtd_map_valid_slot_id(i) && i != slot
+        ==> p_usbtd_equal(globals7, new_globals, i)
+
+    requires forall i :: 0 <= i < USB_TD_ENTRY_NUM
+                ==> p_usbtd_content_equal(globals1, globals2, i)
+    requires forall i :: 0 <= i < USB_TD_ENTRY_NUM
+                ==> p_usbtd_content_equal(globals2, globals3, i)
+    requires forall i :: 0 <= i < USB_TD_ENTRY_NUM
+                ==> p_usbtd_content_equal(globals3, globals4, i)
+    requires forall i :: 0 <= i < USB_TD_ENTRY_NUM
+                ==> p_usbtd_content_equal(globals4, globals5, i)
+    requires forall i :: 0 <= i < USB_TD_ENTRY_NUM
+                ==> p_usbtd_content_equal(globals5, globals6, i)
+    requires forall i :: 0 <= i < USB_TD_ENTRY_NUM
+                ==> p_usbtd_content_equal(globals6, globals7, i)
+    requires forall i :: 0 <= i < USB_TD_ENTRY_NUM
+                ==> p_usbtd_content_equal(globals7, new_globals, i)
+
+    ensures forall i:uint32 :: usbtd_map_valid_slot_id(i) && i != slot
+        ==> p_usbtd_equal(old_globals, new_globals, i)
+    ensures p_usbtd_content_equal(old_globals, new_globals, slot)
+{
+    reveal p_usbtd_content_equal();
+
+    forall i:uint32 | usbtd_map_valid_slot_id(i) && i != slot
+        ensures p_usbtd_equal(old_globals, new_globals, i)
+    {
+        Lemma_p_usbtd_equal_transitive(old_globals, globals1, globals2, i);
+        Lemma_p_usbtd_equal_transitive(old_globals, globals2, globals3, i);
+        Lemma_p_usbtd_equal_transitive(old_globals, globals3, globals4, i);
+        Lemma_p_usbtd_equal_transitive(old_globals, globals4, globals5, i);
+        Lemma_p_usbtd_equal_transitive(old_globals, globals5, globals6, i);
+        Lemma_p_usbtd_equal_transitive(old_globals, globals6, globals7, i);
+        Lemma_p_usbtd_equal_transitive(old_globals, globals7, new_globals, i);
+    }
+
+    Lemma_p_usbtd_content_equal_transitive(old_globals, globals1, globals2, slot);
+    Lemma_p_usbtd_content_equal_transitive(old_globals, globals2, globals3, slot);
+    Lemma_p_usbtd_content_equal_transitive(old_globals, globals3, globals4, slot);
+    Lemma_p_usbtd_content_equal_transitive(old_globals, globals4, globals5, slot);
+    Lemma_p_usbtd_content_equal_transitive(old_globals, globals5, globals6, slot);
+    Lemma_p_usbtd_content_equal_transitive(old_globals, globals6, globals7, slot);
+    Lemma_p_usbtd_content_equal_transitive(old_globals, globals7, new_globals, slot);
+}
+#endverbatim

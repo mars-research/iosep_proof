@@ -1,0 +1,77 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing mhv/mhv.ffi.s.dfy
+mhv\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+mhv\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+mhv\..\utils\model\..\..\proof\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+mhv\..\utils\model\..\..\proof\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+mhv\..\utils\model\..\..\proof\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+mhv\..\utils\model\..\..\proof\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+mhv\..\utils\model\..\..\proof\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+mhv\..\utils\model\..\..\proof\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+mhv\..\utils\model\..\..\proof\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+mhv\..\utils\model\..\..\proof\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+mhv\..\utils\model\..\..\proof\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+mhv\..\utils\model\..\..\proof\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+mhv\..\utils\model\..\..\proof\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+mhv\..\utils\model\..\..\proof\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+mhv\..\utils\model\..\..\proof\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+mhv\..\utils\model\..\..\proof\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+mhv\..\utils\model\..\..\proof\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+mhv\..\utils\model\..\..\proof\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0957442 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.os__external__objs__to__be__activated ...
+  [4.478 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.os__external__objs__to__be__deactivated ...
+  [2.822 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.OS__NoActiveObjectsInPMemRegion ...
+  [2.703 s, 40 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__pmem__activate__main__mem__in__os ...
+  [3.683 s, 180 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__pmem__activate__main__mem__in__os ...
+  [4.529 s, 22 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__pmem__deactivate__main__mem__from__os ...
+  [3.885 s, 180 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__pmem__deactivate__main__mem__from__os ...
+  [4.356 s, 22 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__pmem__assign__main__mem__to__wimps ...
+  [4.179 s, 180 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__pmem__assign__main__mem__to__wimps ...
+  [4.285 s, 22 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__pmem__release__main__mem__from__wimps ...
+  [3.566 s, 105 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ins__valid__pmem__release__main__mem__from__wimps ...
+  [7.516 s, 80 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__pmem__activate__main__mem__in__os__stack__and__statevars ...
+  [6.175 s, 191 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__pmem__activate__main__mem__in__os__stack__and__statevars__inner ...
+  [4.260 s, 248 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__pmem__deactivate__main__mem__from__os__stack__and__statevars ...
+  [5.615 s, 185 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__pmem__deactivate__main__mem__from__os__stack__and__statevars__inner ...
+  [3.997 s, 182 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.ffi__pmem__assign__main__mem__to__wimps__stack__and__statevars ...
+  [5.392 s, 128 proof obligations]  verified
+
+Dafny program verifier finished with 16 verified, 0 errors

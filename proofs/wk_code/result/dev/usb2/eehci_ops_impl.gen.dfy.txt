@@ -1,0 +1,167 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/eehci_ops_impl.gen.dfy
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\ins\x86\..\util\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\ins\x86\..\util\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [4.0272266 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.va__code__EEHCI__Activate__Impl ...
+  [6.268 s, 132 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__EEHCI__Activate__Impl ...
+  [10.713 s, 979 proof obligations]  verified
+Linearising   [1.6376188 s]
+
+Verifying Impl$$_module.__default.va__lemma__EEHCI__Activate__Impl ...
+  [261.387 s, 5539 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__EEHCI__Deactivate__Impl ...
+  [8.491 s, 121 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__EEHCI__Deactivate__Impl ...
+  [8.602 s, 755 proof obligations]  verified
+Linearising   [1.6306389 s]
+
+Verifying Impl$$_module.__default.va__lemma__EEHCI__Deactivate__Impl ...
+  [336.913 s, 5764 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__WimpDrv__Write__eEHCI__Config__Impl ...
+  [8.903 s, 129 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__WimpDrv__Write__eEHCI__Config__Impl ...
+  [18.717 s, 1050 proof obligations]  verified
+Linearising   [1.595733 s]
+
+Verifying Impl$$_module.__default.va__lemma__WimpDrv__Write__eEHCI__Config__Impl ...
+  [287.583 s, 5574 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__WimpDrv__Read__eEHCI__Config__Impl ...
+  [8.706 s, 131 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__WimpDrv__Read__eEHCI__Config__Impl ...
+  [9.680 s, 974 proof obligations]  verified
+Linearising   [1.6406109 s]
+
+Verifying Impl$$_module.__default.va__lemma__WimpDrv__Read__eEHCI__Config__Impl ...
+  [363.733 s, 5848 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__WimpDrv__Write__eEHCI__Status__Impl ...
+  [8.613 s, 129 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__WimpDrv__Write__eEHCI__Status__Impl ...
+  [12.749 s, 1050 proof obligations]  verified
+Linearising   [1.6086972 s]
+
+Verifying Impl$$_module.__default.va__lemma__WimpDrv__Write__eEHCI__Status__Impl ...
+  [335.508 s, 5574 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__WimpDrv__Read__eEHCI__Status__Impl ...
+  [9.063 s, 131 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__WimpDrv__Read__eEHCI__Status__Impl ...
+  [10.096 s, 974 proof obligations]  verified
+Linearising   [1.5618232 s]
+
+Verifying Impl$$_module.__default.va__lemma__WimpDrv__Read__eEHCI__Status__Impl ...
+  [313.901 s, 5848 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__WimpDrv__Write__eEHCI__IntrEnable ...
+  [9.053 s, 147 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__WimpDrv__Write__eEHCI__IntrEnable ...
+  [15.095 s, 1050 proof obligations]  verified
+Linearising   [1.7453312 s]
+
+Verifying Impl$$_module.__default.va__lemma__WimpDrv__Write__eEHCI__IntrEnable ...
+  [544.241 s, 6110 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__WimpDrv__Read__eEHCI__IntrEnable ...
+  [9.212 s, 131 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__WimpDrv__Read__eEHCI__IntrEnable ...
+  [9.488 s, 974 proof obligations]  verified
+Linearising   [1.5987245 s]
+
+Verifying Impl$$_module.__default.va__lemma__WimpDrv__Read__eEHCI__IntrEnable ...
+  [476.506 s, 5848 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__WimpDrv__Write__eEHCI__IntrTarget ...
+  [9.370 s, 129 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__WimpDrv__Write__eEHCI__IntrTarget ...
+  [12.990 s, 1050 proof obligations]  verified
+Linearising   [1.4680741 s]
+
+Verifying Impl$$_module.__default.va__lemma__WimpDrv__Write__eEHCI__IntrTarget ...
+  [349.462 s, 5574 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__WimpDrv__Read__eEHCI__IntrTarget ...
+  [9.679 s, 131 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__WimpDrv__Read__eEHCI__IntrTarget ...
+  [10.009 s, 974 proof obligations]  verified
+Linearising   [1.7602907 s]
+
+Verifying Impl$$_module.__default.va__lemma__WimpDrv__Read__eEHCI__IntrTarget ...
+  [281.777 s, 5848 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__WimpDrv__Write__eEHCI__USBTDReg__Impl ...
+  [8.531 s, 189 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__WimpDrv__Write__eEHCI__USBTDReg__Impl ...
+  [10.880 s, 1266 proof obligations]  verified
+Linearising   [2.2031084 s]
+
+Verifying Impl$$_module.__default.va__lemma__WimpDrv__Write__eEHCI__USBTDReg__Impl ...
+  [735.470 s, 7849 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__WimpDrv__Read__eEHCI__USBTDReg__Impl ...
+  [8.678 s, 158 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__WimpDrv__Read__eEHCI__USBTDReg__Impl ...
+  [9.262 s, 1050 proof obligations]  verified
+Linearising   [1.719401 s]
+
+Verifying Impl$$_module.__default.va__lemma__WimpDrv__Read__eEHCI__USBTDReg__Impl ...
+  [514.790 s, 6635 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eechi__activate__globalvars__relation ...
+  [8.790 s, 60 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eechi__deactivate__globalvars__relation ...
+  [3.745 s, 79 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__EEHCI__Activate__ProveProperty2 ...
+  [3.493 s, 19 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__EEHCI__Activate__ProveProperty2 ...
+  [11.760 s, 71 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__EEHCI__Deactivate__ProveProperty2 ...
+  [3.567 s, 18 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__EEHCI__Deactivate__ProveProperty2 ...
+  [6.390 s, 43 proof obligations]  verified
+
+Dafny program verifier finished with 42 verified, 0 errors

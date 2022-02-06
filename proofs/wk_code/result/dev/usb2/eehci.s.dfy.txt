@@ -1,0 +1,138 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/eehci.s.dfy
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0807824 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.WK__EEHCI__Info__ValidGlobalVarValues ...
+  [2.510 s, 12 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__EEHCI__Mem__ValidGlobalVarValues ...
+  [1.402 s, 30 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__EEHCI__Mem__ValidGlobalVarValues__IDWords ...
+  [1.518 s, 19 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__EEHCI__Mem__SecureGlobalVarValues ...
+  [1.441 s, 23 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.P__EEHCI__Mem__SecureGlobalVarValues__RefedTDsHaveValidIDWords ...
+  [1.572 s, 18 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.P__EEHCI__Mem__SecureGlobalVarValues__RefedTDsHaveExpectedFlags ...
+  [2.000 s, 23 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.P__EEHCI__Mem__SecureGlobalVarValues__EEHCIAndRefedTDsSamePID ...
+  [1.424 s, 18 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.P__EEHCI__Mem__ValidGlobalVarValues__RefedTDsTargetUSBBusOfEEHCI ...
+  [1.490 s, 25 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__is__active__wimp__eehci ...
+  [1.208 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__info__get__reserved ...
+  [1.609 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__info__get__pid ...
+  [1.685 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__info__only__change__slot__newvalue ...
+  [4.265 s, 50 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__info__only__change__slot__oldandnewvalue ...
+  [4.845 s, 96 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eechi__info__equal ...
+  [1.358 s, 19 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.EECHI__DoNotRefAnyUSBTD ...
+  [1.185 s, 9 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.EEHCI__ExistEEHCI__RefGivenUSBTD ...
+  [1.228 s, 9 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.EECHI__DoNotRefGivenUSBTD ...
+  [1.378 s, 9 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__get__eehci__id ...
+  [1.671 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__get__handle__reg ...
+  [1.683 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__get__config__reg ...
+  [1.644 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__get__status__reg ...
+  [1.691 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__get__intr__enable__reg ...
+  [1.792 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__get__intr__target__reg ...
+  [1.514 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__get__usbtd__reg ...
+  [1.646 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__set__status__reg ...
+  [1.565 s, 15 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__all__existing__eehci__id__vals ...
+  [2.860 s, 9 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__no__ref__to__usbtd__slot ...
+  [1.296 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__clear__usbtd__regs ...
+  [4.315 s, 226 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__clear__all__regs ...
+  [7.476 s, 95 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__cleared__usbtd__regs ...
+  [2.589 s, 20 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__cleared__all__regs ...
+  [1.664 s, 67 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p__eehci__mem__usbtd__regs__equal ...
+  [1.457 s, 17 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p__eehci__mem__equal ...
+  [1.495 s, 56 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p__eehci__slot__idword__unique ...
+  [1.397 s, 11 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__usbtd__regs__offsets ...
+  [1.411 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.EEHCI__ExistsUSBTDRegRefUSBTDSlot ...
+  [1.704 s, 75 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.eehci__mem__all__existing__eehci__id__vals__inner ...
+  [2.946 s, 17 proof obligations]  verified
+
+Dafny program verifier finished with 37 verified, 0 errors

@@ -1,0 +1,364 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing Model.dfy
+../Abstract/Model.dfy(2123,5): Warning: /!\ No trigger covering all quantified variables found.
+../Abstract/Model.dfy(2184,5): Warning: /!\ No trigger covering all quantified variables found.
+SecurityProperties.dfy(75,21): Warning: /!\ No terms found to trigger on.
+SecurityProperties.dfy(78,21): Warning: /!\ No terms found to trigger on.
+SecurityProperties.dfy(81,21): Warning: /!\ No terms found to trigger on.
+..\Abstract\Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+..\Abstract\Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+..\Abstract\Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1677,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1685,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2493,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2501,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3159,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3151,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3274,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3282,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2162,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2267,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2303,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2375,13): Warning: /!\ No trigger covering all quantified variables found.
+K_AdditionalPropertiesLemmas.dfy(32,12): Warning: /!\ No terms found to trigger on.
+K_AdditionalPropertiesLemmas.dfy(34,12): Warning: /!\ No terms found to trigger on.
+../Abstract/BuildCAS/Utils_BuildCAS.dfy(285,12): Warning: /!\ No trigger covering all quantified variables found.
+Lemmas_DevHWProt.dfy(220,13): Warning: /!\ No terms found to trigger on.
+Lemmas_DevHWProt.dfy(457,12): Warning: /!\ No terms found to trigger on.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(99,19): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(207,19): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(292,15): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(297,15): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(400,21): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(1563,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(1570,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(1922,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./BuildCAS/ReachableTDsStates.dfy(2147,5): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\./utils/Collections.dfy(338,12): Warning: /!\ No terms found to trigger on.
+..\Abstract\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(470,12): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(696,12): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(843,12): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(833,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(834,13): Warning: /!\ No terms found to trigger on.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(1047,12): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(1034,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(1035,13): Warning: /!\ No terms found to trigger on.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(1237,12): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(1365,12): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(1984,12): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(1976,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2138,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2146,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2547,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2555,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2652,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2644,13): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(239,4): Warning: /!\ No trigger covering all quantified variables found.
+..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(333,24): Warning: /!\ No terms found to trigger on.
+..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(950,20): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [2.5202588 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Linearising   [0.7988639 s]
+
+Verifying CheckWellformed$$_module.__default.DM__RedDrvRead ...
+  [565.925 s, 3188 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__GreenDrvRead ...
+  [3.478 s, 1317 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__GreenDrvRead ...
+  [471.484 s, 2087 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__DevRead ...
+  [4.974 s, 1369 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__DevRead ...
+  [16.264 s, 1692 proof obligations]  verified
+Linearising   [1.2167484 s]
+
+Verifying CheckWellformed$$_module.__default.DM__RedDrvWrite ...
+  [444.445 s, 4966 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__GreenDrvWrite ...
+  [5.062 s, 1255 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__GreenDrvWrite ...
+  [277.495 s, 2179 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__RedDevWrite ...
+  [3.524 s, 1384 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__RedDevWrite ...
+  [5.656 s, 2115 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__GreenDevWrite ...
+  [3.306 s, 1386 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__GreenDevWrite ...
+  [4.259 s, 2247 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__EmptyPartitionCreate ...
+  [2.380 s, 1198 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__EmptyPartitionCreate ...
+  [3.287 s, 2039 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__EmptyPartitionDestroy ...
+  [2.325 s, 1198 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__EmptyPartitionDestroy ...
+  [3.236 s, 2053 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__DrvActivateToGreenPartition ...
+  [2.424 s, 1241 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__DrvActivateToGreenPartition ...
+  [21.323 s, 2430 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__DrvActivateToRedPartition ...
+  [2.532 s, 1239 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__DrvActivateToRedPartition ...
+  [23.260 s, 2422 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__DevActivate ...
+  [2.559 s, 1243 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__DevActivate ...
+  [59.218 s, 2464 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__ExternalObjsActivateToGreenPartition ...
+  [4.426 s, 1294 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__ExternalObjsActivateToGreenPartition ...
+  [19.511 s, 2351 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__ExternalObjsActivateToRedPartition ...
+  [3.069 s, 1292 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__ExternalObjsActivateToRedPartition ...
+  [15.552 s, 2343 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__GreenDrvDeactivate ...
+  [2.434 s, 1241 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__GreenDrvDeactivate ...
+  [19.719 s, 2609 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__RedDrvDeactivate ...
+  [2.463 s, 1274 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__RedDrvDeactivate ...
+  [13.487 s, 2254 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__DevDeactivate ...
+  [2.541 s, 1278 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__DevDeactivate ...
+  [43.101 s, 2705 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__GreenExternalObjsDeactivate ...
+  [4.977 s, 1244 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__GreenExternalObjsDeactivate ...
+  [4.141 s, 2597 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.DM__RedExternalObjsDeactivate ...
+  [3.331 s, 1281 proof obligations]  verified
+
+Verifying Impl$$_module.__default.DM__RedExternalObjsDeactivate ...
+  [3.822 s, 2244 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__RedDrvRead__ProveFalseCase ...
+  [2.368 s, 1110 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__RedDrvRead__ProveFalseCase ...
+  [2.345 s, 1238 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__RedDrvWrite__ProveNewWSMapsToNewK__IfReturnTrue ...
+  [1.848 s, 81 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__RedDrvWrite__ProveNewWSMapsToNewK__IfReturnTrue ...
+  [1.822 s, 49 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__RedDrvWrite__ProveFalseCase ...
+  [2.368 s, 1151 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__RedDrvWrite__ProveFalseCase ...
+  [2.295 s, 3 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ProveP__DM__OpsProperties__EmptyPartitionCreateOp ...
+  [1.795 s, 123 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ProveP__DM__OpsProperties__EmptyPartitionCreateOp ...
+  [1.751 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__EmptyPartitionCreate__ProveFalseCase ...
+  [2.254 s, 1126 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__EmptyPartitionCreate__ProveFalseCase ...
+  [2.328 s, 1222 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ProveP__DM__OpsProperties__EmptyPartitionDestroyOp ...
+  [1.807 s, 123 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ProveP__DM__OpsProperties__EmptyPartitionDestroyOp ...
+  [1.770 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__EmptyPartitionDestroy__ProveFalseCase ...
+  [2.267 s, 1126 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__EmptyPartitionDestroy__ProveFalseCase ...
+  [2.326 s, 1222 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ProveP__DM__OpsProperties__DrvActivateToGreenPartitionOp ...
+  [1.828 s, 126 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ProveP__DM__OpsProperties__DrvActivateToGreenPartitionOp ...
+  [1.769 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ProveP__DM__OpsProperties__DrvActivateToRedPartitionOp ...
+  [1.817 s, 124 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ProveP__DM__OpsProperties__DrvActivateToRedPartitionOp ...
+  [1.773 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__DrvActivateToGreenPartition__ProveFalseCase ...
+  [4.030 s, 1129 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__DrvActivateToGreenPartition__ProveFalseCase ...
+  [2.347 s, 1225 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__DrvActivateToRedPartition__ProveFalseCase ...
+  [2.292 s, 1127 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__DrvActivateToRedPartition__ProveFalseCase ...
+  [2.329 s, 1223 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ProveP__DM__OpsProperties__DevActivateOp ...
+  [1.826 s, 125 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ProveP__DM__OpsProperties__DevActivateOp ...
+  [1.771 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__DevActivate__ProveFalseCase ...
+  [2.324 s, 1128 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__DevActivate__ProveFalseCase ...
+  [2.360 s, 1224 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ProveP__DM__OpsProperties__ExternalObjsActivateToGreenPartitionOp ...
+  [1.827 s, 97 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ProveP__DM__OpsProperties__ExternalObjsActivateToGreenPartitionOp ...
+  [1.781 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ProveP__DM__OpsProperties__ExternalObjsActivateToRedPartitionOp ...
+  [1.820 s, 95 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ProveP__DM__OpsProperties__ExternalObjsActivateToRedPartitionOp ...
+  [1.758 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__ExternalObjsActivateToGreenPartition__ProveFalseCase ...
+  [2.278 s, 1100 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__ExternalObjsActivateToGreenPartition__ProveFalseCase ...
+  [2.310 s, 1228 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__ExternalObjsActivateToRedPartition__ProveFalseCase ...
+  [2.284 s, 1098 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__ExternalObjsActivateToRedPartition__ProveFalseCase ...
+  [2.346 s, 1226 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ProveP__DM__OpsProperties__GreenDrvDeactivateOp ...
+  [1.830 s, 128 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ProveP__DM__OpsProperties__GreenDrvDeactivateOp ...
+  [1.780 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ProveP__DM__OpsProperties__RedDrvDeactivateOp ...
+  [1.851 s, 161 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ProveP__DM__OpsProperties__RedDrvDeactivateOp ...
+  [1.783 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__GreenDrvDeactivate__ProveFalseCase ...
+  [2.282 s, 1131 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__GreenDrvDeactivate__ProveFalseCase ...
+  [2.346 s, 1225 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__RedDrvDeactivate__ProveFalseCase ...
+  [2.283 s, 1164 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__RedDrvDeactivate__ProveFalseCase ...
+  [2.310 s, 1225 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ProveP__DM__OpsProperties__DevDeactivateOp ...
+  [3.630 s, 94 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ProveP__DM__OpsProperties__DevDeactivateOp ...
+  [1.770 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__DevDeactivate__ProveFalseCase ...
+  [2.308 s, 1097 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__DevDeactivate__ProveFalseCase ...
+  [2.338 s, 1225 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ProveP__DM__OpsProperties__GreenExternalObjsDeactivateOp ...
+  [1.825 s, 100 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ProveP__DM__OpsProperties__GreenExternalObjsDeactivateOp ...
+  [1.779 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ProveP__DM__OpsProperties__RedExternalObjsDeactivateOp ...
+  [1.827 s, 99 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ProveP__DM__OpsProperties__RedExternalObjsDeactivateOp ...
+  [1.781 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__GreenExternalObjsDeactivate__ProveFalseCase ...
+  [2.314 s, 1103 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__GreenExternalObjsDeactivate__ProveFalseCase ...
+  [2.346 s, 1231 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__RedExternalObjsDeactivate__ProveFalseCase ...
+  [2.321 s, 1102 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__RedExternalObjsDeactivate__ProveFalseCase ...
+  [2.364 s, 1230 proof obligations]  verified
+
+Dafny program verifier finished with 90 verified, 0 errors
+
+Statistics
+----------
+Call graph width (max)   1323
+Datatypes                  31
+Functions (total)         495
+Functions recursive         7
+Methods (total)           792
+Methods ghost             732
+Methods recursive          10
+Module height (max)         0
+Modules                     1

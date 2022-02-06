@@ -1,0 +1,326 @@
+include {:verbatim} "eehci.s.dfy"
+include "eehci_info.vad"
+include "eehci_mem_utils.vad"
+include "usb_tds_utils.vad"
+include "../../partition_id_ops.vad"
+include "../../drv/drv_ops_utils.vad"
+
+// [NOTE] We have this file because Dafny cannot verify <_WimpDrv_Write_eEHCI_USBTDReg_check_new_value> in the file
+// eehci_ops_impl.vad
+
+procedure _WimpDrv_Write_eEHCI_USBTDReg_check_new_value_CheckProperty1()
+    extern;
+procedure _WimpDrv_Write_eEHCI_USBTDReg_check_new_value_CheckProperty2()
+    extern;
+
+    
+
+
+// Check the new values to be written before using <eehci_write_usbtd_slot>
+// Input params on stack: (new_v:word/uint32) at esp + 1 * ARCH_WORD_BYTES, (slot:word/uint32) at esp
+// Return params on stack: (ret:word) at esp
+// [TODO] Need modifications for 64bit systems
+// [NOTE] Needs 300s to verify
+procedure _WimpDrv_Write_eEHCI_USBTDReg_check_new_value() {:timeLimitMultiplier 30}
+    reads
+        flags; globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            12 * ARCH_WORD_BYTES +                   // For <_WimpDrv_Write_eEHCI_USBTDReg_check_new_value_CheckProperty2>
+            1 * ARCH_WORD_BYTES;                     // For params of <_WimpDrv_Write_eEHCI_USBTDReg_check_new_value_CheckProperty2>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 2 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Stack space for function parameters
+    requires
+        let eehci_slot:word := stack_get_val(old(mem), old(esp));
+        eehci_valid_slot_id(eehci_slot);
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let eehci_slot:word := stack_get_val(old(mem), old(esp));
+        let new_usbtd_slot_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let ret:word := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> (new_usbtd_slot_id == USBTD_SlotID_INVALID || usbtd_map_valid_slot_id(new_usbtd_slot_id));
+            // Property 1: The usbtd_slot must be either USBTD_SlotID_INVALID or in range
+        (ret == TRUE) ==> (usbtd_map_valid_slot_id(new_usbtd_slot_id) ==> (
+            let usbtd_flags := usbtd_map_get_flags(globals, new_usbtd_slot_id) in
+            usbtd_flags == SetBit(SetBit(0, USBTD_SLOT_FLAG_SubmitDone_Bit), USBTD_SLOT_FLAG_SlotSecure_Bit)
+        ));
+            // Property 2: The flags of newly refed USB TD is good
+        (ret == TRUE) ==> (usbtd_map_valid_slot_id(new_usbtd_slot_id) ==> (
+            let eehci_pid := eehci_info_get_pid(globals, eehci_slot) in
+            let usbtd_pid := usbtd_map_get_pid(globals, new_usbtd_slot_id) in
+            eehci_pid == usbtd_pid
+        ));
+            // Property 3: The PID of newly refed USB TD is good
+        (ret == TRUE) ==> (usbtd_map_valid_slot_id(new_usbtd_slot_id) ==> usbtd_slot_valid_busid(globals, new_usbtd_slot_id) &&
+        (
+            let eehci_busid:uint16 := usb_parse_eehci_id(eehci_mem_get_eehci_id(globals, eehci_slot)).bus_id in
+            let usbtd_busid:uint16 := usbtd_map_get_busid(globals, new_usbtd_slot_id) in
+            eehci_busid == usbtd_busid
+        ));
+            // Property 4: The bus id of newly refed USB TD is good
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        globals == old(globals);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let ret @= eax;
+    let tmp1 @= ebx;
+    let tmp2 @= ecx;
+    let new_usbtd_slot_id @= edx;
+    let eehci_slot @= edi;
+    let eehci_pid @= esi;
+    PUSH_Reg1ToReg6();
+
+    Load(new_usbtd_slot_id, ebp, 2 * ARCH_WORD_BYTES);   // Load <new_v>
+    Load(eehci_slot, ebp, 1 * ARCH_WORD_BYTES);   // Load <eehci_slot>
+
+    PUSH_VOID(1 * ARCH_WORD_BYTES);
+    MOV_ToReg(ret, eehci_slot);
+    eehci_info_get_pid(ret);        // Get PID of <eehci_slot>
+    Load(eehci_pid, esp, 0);
+    POP_VOID(1 * ARCH_WORD_BYTES);
+
+    // 1. Check the new_usbtd_slot_id must be either USBTD_SlotID_INVALID or in range
+    PUSH(new_usbtd_slot_id);
+    _WimpDrv_Write_eEHCI_USBTDReg_check_new_value_CheckProperty1();
+    Load(ret, esp, 0);
+    POP_VOID(1 * ARCH_WORD_BYTES);
+
+    if(ret == const(TRUE))
+    {
+        usbtd_check_td_slot_id(new_usbtd_slot_id, ret);
+        if(ret == const(TRUE))
+        {
+            // 2. Check The flags of newly refed USB TD is good
+            PUSH(new_usbtd_slot_id);
+            _WimpDrv_Write_eEHCI_USBTDReg_check_new_value_CheckProperty2();
+            Load(ret, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            if(ret == const(TRUE))
+            {
+                // 3. Check The PID of newly refed USB TD is good
+                PUSH(new_usbtd_slot_id);
+                usbtd_get_td_pid();
+                Load(tmp2, esp, 0);             // tmp2 := usbtd_get_td_pid(new_usbtd_slot_id)
+                POP_VOID(1 * ARCH_WORD_BYTES);
+
+                if(eehci_pid == tmp2)
+                {
+                    // 4. Check the bus id of newly refed USB TD is good
+                    PUSH(eehci_slot);
+                    eehci_mem_read_id();
+                    Load(tmp1, esp, 0);             // tmp1 := eehci_mem_read_id(eehci_slot)
+                    POP_VOID(1 * ARCH_WORD_BYTES);
+
+                    PUSH(tmp1);
+                    eechi_id_get_bus_id();
+                    Load(tmp1, esp, 0);             // tmp1 := eechi_id_get_bus_id(tmp1)
+                    POP_VOID(1 * ARCH_WORD_BYTES);
+
+                    PUSH(new_usbtd_slot_id);
+                    usbtd_get_bus_id();
+                    Load(tmp2, esp, 0);             // tmp2 := usbtd_get_bus_id(new_usbtd_slot_id)
+                    POP_VOID(1 * ARCH_WORD_BYTES);
+
+                    if(tmp1 == tmp2)
+                    {
+                        Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+                    }
+                    else
+                    {
+                        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+                    }
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+            }
+
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+// Check "new_usbtd_slot_id == USBTD_SlotID_INVALID || usbtd_map_valid_slot_id(new_usbtd_slot_id)"
+// Input params on stack: (new_usbtd_slot_id:word/uint32) at esp
+// Return params on stack: (ret:word) at esp
+procedure _WimpDrv_Write_eEHCI_USBTDReg_check_new_value_CheckProperty1()
+    reads
+        flags; globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            3 * ARCH_WORD_BYTES;                    // For local variables
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Stack space for function parameters
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let new_usbtd_slot_id:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> (new_usbtd_slot_id == USBTD_SlotID_INVALID || usbtd_map_valid_slot_id(new_usbtd_slot_id));
+            // Property 1: The usbtd_slot must be either USBTD_SlotID_INVALID or in range
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        globals == old(globals);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let ret @= eax;
+    let new_usbtd_slot_id @= edx;
+    PUSH_TwoRegs(ret, new_usbtd_slot_id);
+
+    Load(new_usbtd_slot_id, ebp, 1 * ARCH_WORD_BYTES);   // Load <new_usbtd_slot_id>
+
+    if(new_usbtd_slot_id != const(USBTD_SlotID_INVALID))
+    {
+        usbtd_check_td_slot_id(new_usbtd_slot_id, ret);
+        if(ret == const(TRUE))
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+    }
+
+
+    POP_TwoRegs(ret, new_usbtd_slot_id);
+    POP_OneReg(ebp);
+}
+
+// Check The flags of newly refed USB TD is good
+// Input params on stack: (new_usbtd_slot_id:word/uint32) at esp
+// Return params on stack: (ret:word) at esp
+procedure _WimpDrv_Write_eEHCI_USBTDReg_check_new_value_CheckProperty2()
+    reads
+        flags; globals;
+    modifies
+        mem;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            5 * ARCH_WORD_BYTES +                     // For local variables
+            6 * ARCH_WORD_BYTES +                     // For <usbtd_get_flags>
+            1 * ARCH_WORD_BYTES;                      // For params of <usbtd_get_flags>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Stack space for function parameters
+    requires
+        let new_usbtd_slot_id:word := stack_get_val(old(mem), old(esp));
+        usbtd_map_valid_slot_id(new_usbtd_slot_id);
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let new_usbtd_slot_id:word := stack_get_val(old(mem), old(esp));
+        let ret:word := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> (
+            let usbtd_flags := usbtd_map_get_flags(old(globals), new_usbtd_slot_id) in
+            usbtd_flags == SetBit(SetBit(0, USBTD_SLOT_FLAG_SubmitDone_Bit), USBTD_SLOT_FLAG_SlotSecure_Bit)
+        );
+            // Property 1: The flags of newly refed USB TD is good
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        globals == old(globals);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let ret @= eax;
+    let new_usbtd_slot_id @= ebx;
+    let usbtd_flags @= ecx;
+    let tmp1 @= edx;
+    PUSH_TwoRegs(ret, new_usbtd_slot_id);
+    PUSH_TwoRegs(usbtd_flags, tmp1);
+
+    Load(new_usbtd_slot_id, ebp, 1 * ARCH_WORD_BYTES);   // Load <new_usbtd_slot_id>
+
+    PUSH(new_usbtd_slot_id);
+    usbtd_get_flags();
+    Load(usbtd_flags, esp, 0);
+    POP_VOID(1 * ARCH_WORD_BYTES);
+
+    MOV_ToReg(tmp1, const(0));
+    SetBit(tmp1, USBTD_SLOT_FLAG_SubmitDone_Bit);
+    SetBit(tmp1, USBTD_SLOT_FLAG_SlotSecure_Bit);
+
+    if(usbtd_flags == tmp1)
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+    }
+    
+
+    POP_TwoRegs(usbtd_flags, tmp1);
+    POP_TwoRegs(ret, new_usbtd_slot_id);
+    POP_OneReg(ebp);
+}

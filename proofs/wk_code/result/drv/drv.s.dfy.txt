@@ -1,0 +1,75 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing drv/drv.s.dfy
+drv\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+drv\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+drv\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+drv\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+drv\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+drv\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+drv\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+drv\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+drv\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+drv\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+drv\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+drv\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+drv\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+drv\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+drv\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+drv\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0907584 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.WimpDrv__ID__RESERVED__EMPTY ...
+  [2.046 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__WimpDrvs__ValidGlobalVarValues ...
+  [1.247 s, 7 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__WimpDrvs__ValidGlobalVarValues__IDWords ...
+  [1.067 s, 19 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__WimpDrvs__ValidGlobalVarValues__PIDs ...
+  [1.078 s, 21 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__WimpDrvs__ValidGlobalVarValues__DOPAddrs ...
+  [1.023 s, 16 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__WimpDrv__DOMustNotOverlapWithEachOther ...
+  [1.308 s, 55 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.wimpdrv__info__newvalue ...
+  [4.604 s, 75 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.wimpdrv__info__oldandnewvalue ...
+  [6.417 s, 155 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.wimpdrv__get__id__word ...
+  [1.317 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.wimpdrv__get__pid ...
+  [1.234 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.wimpdrv__do__get__paddr__base ...
+  [1.373 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.wimpdrv__do__get__paddr__end ...
+  [1.484 s, 14 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.wimpdrv__do__get__flag ...
+  [1.326 s, 13 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.wimpdrv__get__slot ...
+  [2.055 s, 59 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p__wimpdrv__slot__equal ...
+  [1.184 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p__wimpdrv__slot__idword__unique ...
+  [1.138 s, 11 proof obligations]  verified
+
+Dafny program verifier finished with 16 verified, 0 errors

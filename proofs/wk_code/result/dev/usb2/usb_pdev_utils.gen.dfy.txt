@@ -1,0 +1,246 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/usb_pdev_utils.gen.dfy
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [3.0697888 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.va__code__usbpdev__is__empty__addr ...
+  [5.801 s, 27 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbpdev__is__empty__addr ...
+  [4.309 s, 213 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__usbpdev__is__empty__addr ...
+  [6.175 s, 509 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbpdev__get__id ...
+  [3.193 s, 61 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbpdev__get__id ...
+  [6.288 s, 546 proof obligations]  verified
+Linearising   [0.7539831 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbpdev__get__id ...
+  [68.624 s, 2189 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbpdev__get__pid ...
+  [3.446 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbpdev__get__pid ...
+  [4.987 s, 472 proof obligations]  verified
+Linearising   [0.6722045 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbpdev__get__pid ...
+  [20.195 s, 1857 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbpdev__get__update__flag ...
+  [3.412 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbpdev__get__update__flag ...
+  [5.173 s, 472 proof obligations]  verified
+Linearising   [0.5904206 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbpdev__get__update__flag ...
+  [18.469 s, 1857 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbpdev__set__pid__to__invalid ...
+  [3.561 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbpdev__set__pid__to__invalid ...
+  [5.258 s, 987 proof obligations]  verified
+Linearising   [0.908569 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbpdev__set__pid__to__invalid ...
+  [39.992 s, 3423 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbpdev__set__pid__to__valid ...
+  [3.738 s, 43 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbpdev__set__pid__to__valid ...
+  [6.473 s, 1343 proof obligations]  verified
+Linearising   [0.9454731 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbpdev__set__pid__to__valid ...
+  [45.623 s, 3426 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbpdev__set__addr ...
+  [3.571 s, 96 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbpdev__set__addr ...
+  [9.771 s, 2074 proof obligations]  verified
+Linearising   [2.1492551 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbpdev__set__addr ...
+  [541.278 s, 9319 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbpdev__find__slot__by__id ...
+  [7.430 s, 199 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbpdev__find__slot__by__id ...
+  [8.689 s, 767 proof obligations]  verified
+Linearising   [2.045528 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbpdev__find__slot__by__id ...
+  [496.473 s, 5850 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbpdev__check__slot__id ...
+  [7.523 s, 29 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbpdev__check__slot__id ...
+  [3.210 s, 282 proof obligations]  verified
+
+Verifying Impl$$_module.__default.va__lemma__usbpdev__check__slot__id ...
+  [8.040 s, 512 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbpdev__check__dev__addr ...
+  [3.417 s, 89 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbpdev__check__dev__addr ...
+  [3.226 s, 351 proof obligations]  verified
+Linearising   [0.5814439 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbpdev__check__dev__addr ...
+  [45.903 s, 1709 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbpdev__find__slot__in__partition ...
+  [3.437 s, 144 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbpdev__find__slot__in__partition ...
+  [9.281 s, 687 proof obligations]  verified
+Linearising   [1.5279134 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbpdev__find__slot__in__partition ...
+  [176.948 s, 4595 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbpdev__find__slot__not__in__partition ...
+  [7.605 s, 144 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbpdev__find__slot__not__in__partition ...
+  [8.549 s, 687 proof obligations]  verified
+Linearising   [1.4261862 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbpdev__find__slot__not__in__partition ...
+  [123.800 s, 4726 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbpdevlist__get__id ...
+  [7.788 s, 61 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbpdevlist__get__id ...
+  [6.572 s, 546 proof obligations]  verified
+Linearising   [0.7270562 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbpdevlist__get__id ...
+  [50.618 s, 2189 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbpdevlist__find__slot__by__id ...
+  [3.775 s, 199 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbpdevlist__find__slot__by__id ...
+  [9.003 s, 767 proof obligations]  verified
+Linearising   [1.8819648 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbpdevlist__find__slot__by__id ...
+  [415.618 s, 5850 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__code__usbpdevlist__clear__all__devices ...
+  [8.289 s, 63 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.va__lemma__usbpdevlist__clear__all__devices ...
+  [6.480 s, 340 proof obligations]  verified
+Linearising   [1.3583649 s]
+
+Verifying Impl$$_module.__default.va__lemma__usbpdevlist__clear__all__devices ...
+  [547.364 s, 4836 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.USBPDev__OwnedFDs ...
+  [55.689 s, 16 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.USBPDev__OwnedDOs ...
+  [75.496 s, 16 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.usbpdev__clear__multi__non__mstate__relationship ...
+  [3.665 s, 31 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.usbpdev__addrs__to__subjs__fds__dos__ids ...
+  [3.345 s, 35 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.usbpdevlist__get__addrs__until__slot ...
+  [4.196 s, 19 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.usbpdevlist__get__non__empty__addrs__until__slot ...
+  [3.117 s, 15 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbpdevlist__clear__all__devices__ProveAllAddrsMapToExistingUSBPDevs ...
+  [3.307 s, 8 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbpdevlist__clear__all__devices__ProveAllAddrsMapToExistingUSBPDevs ...
+  [3.242 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbpdevlist__clear__all__devices__ProveNonEmptyAddrMapsToExistingUSBPDev ...
+  [3.348 s, 57 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbpdevlist__clear__all__devices__ProveNonEmptyAddrMapsToExistingUSBPDev ...
+  [3.908 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbpdevlist__clear__all__devices__ProveInvariant1__WhenTmp1IsTrueAndIIsNot0 ...
+  [3.758 s, 114 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbpdevlist__clear__all__devices__ProveInvariant1__WhenTmp1IsTrueAndIIsNot0 ...
+  [111.547 s, 48 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbpdevlist__clear__all__devices__ProveInvariant1__WhenTmp1IsTrueAndIIs0 ...
+  [3.700 s, 80 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbpdevlist__clear__all__devices__ProveInvariant1__WhenTmp1IsTrueAndIIs0 ...
+  [8.651 s, 5 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbpdevlist__clear__all__devices__ProveInvariant1__WhenTmp1IsFalseAndIIsNot0 ...
+  [3.880 s, 123 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbpdevlist__clear__all__devices__ProveInvariant1__WhenTmp1IsFalseAndIIsNot0 ...
+  [21.398 s, 76 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbpdevlist__clear__all__devices__ProveInvariant1__WhenTmp1IsFalseAndIIs0 ...
+  [5.615 s, 89 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbpdevlist__clear__all__devices__ProveInvariant1__WhenTmp1IsFalseAndIIs0 ...
+  [10.336 s, 21 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbpdevlist__clear__all__devices__ProveProperty1 ...
+  [3.382 s, 17 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbpdevlist__clear__all__devices__ProveProperty1 ...
+  [3.335 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbpdevlist__clear__all__devices__PropertiesOfI__IfIIsNot0 ...
+  [2.966 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__usbpdev__set__id__ProveProperty2 ...
+  [5.860 s, 65 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__usbpdev__set__id__ProveProperty2 ...
+  [9.688 s, 69 proof obligations]  verified
+
+Dafny program verifier finished with 68 verified, 0 errors

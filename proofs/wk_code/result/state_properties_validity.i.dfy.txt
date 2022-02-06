@@ -1,0 +1,149 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing state_properties_validity.i.dfy
+utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0757982 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.Lemma__USBTD__AllIDsBelowCounterMapToExistingTDFDDOInSystem ...
+  [4.508 s, 16 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__ValidGlobalVarValues__ActiveUSBTDs ...
+  [2.235 s, 23 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__SI__Property__OnlyOSObjsAndUSBPDevObjsCanBeInOSPartition ...
+  [2.430 s, 405 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidState__ProveWK__ValidObjs__ObjIDs ...
+  [2.204 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidState__ImpliesWK__SI__Property__OnlyOSObjsAndUSBPDevObjsCanBeInOSPartition ...
+  [2.345 s, 49 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidState__ImpliesWK__SI__Property__OnlyOSObjsAndUSBPDevObjsCanBeInOSPartition ...
+  [6.340 s, 503 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidState__ImpliesWK__ValidGlobalVarValues__ActiveUSBTDs ...
+  [2.253 s, 16 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidState__ImpliesWK__ValidGlobalVarValues__ActiveUSBTDs ...
+  [3.007 s, 23 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidObjs__OnObjectModification__IfObjIDsAreSame__HCodedTDs ...
+  [2.495 s, 11 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidObjs__OnObjectModification__IfObjIDsAreSame__HCodedTDs ...
+  [12.017 s, 17 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidSubjsObjs__HoldIfOnlyWimpDrvDOValsAreChangedInObjs ...
+  [2.559 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidSubjsObjs__HoldIfOnlyWimpDrvDOValsAreChangedInObjs ...
+  [9.375 s, 31 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidIDMappings__OnObjectModification__IfObjIDsAreUnchanged ...
+  [3.183 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidSubjsObjs__HoldIfOnlyUSBPDevFDDOValsAreChangedInObjs ...
+  [2.433 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidSubjsObjs__HoldIfOnlyUSBPDevFDDOValsAreChangedInObjs ...
+  [12.270 s, 33 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidSubjsObjs__HoldIfOnlyInactiveObjsValsAreChanged ...
+  [2.454 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidSubjsObjs__HoldIfOnlyInactiveObjsValsAreChanged ...
+  [2.546 s, 8 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidObjAddrs__WimpDrv__DOPAddrs__OnWKMStateModification__IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID ...
+  [3.274 s, 115 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidObjAddrs__WimpDrv__DOPAddrs__OnWKMStateModification__IfWimpDrvsInfoEEHCIIMemPBaseAreUnchangedAndOSObjsHaveUnchangedPID ...
+  [3.245 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidGlobalVarValues__USBPDevs__OnWKMStateSubjectsModification__IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged ...
+  [2.261 s, 53 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidGlobalVarValues__USBPDevs__OnWKMStateSubjectsModification__IfWimpUSBPDevInfoAndUSBPDevListAreUnchanged ...
+  [4.847 s, 19 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidGlobalVarValues__USBPDevList__OnWKMStateSubjectsModification__IfUSBPDevListIsUnchanged ...
+  [2.501 s, 49 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidGlobalVarValues__USBPDevList__OnWKMStateSubjectsModification__IfUSBPDevListIsUnchanged ...
+  [24.996 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidSubjsObjs__HoldIfOSSubjsObjsPIDsAreChanged ...
+  [2.563 s, 27 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidSubjsObjs__HoldIfOSSubjsObjsPIDsAreChanged ...
+  [2.653 s, 80 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidGlobalVars__Vals__HoldForUnchangedGlobals ...
+  [2.234 s, 66 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidObjs__Properties ...
+  [2.256 s, 4 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidObjs__Properties ...
+  [2.616 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__ValidObjsAddrs__OnObjectModification__IfObjIDsAreUnchanged ...
+  [2.090 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__ValidObjsAddrs__OnObjectModification__IfObjIDsAreUnchanged ...
+  [4.868 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidState__DevsActivateCond__Property ...
+  [2.479 s, 47 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidState__DevsActivateCond__Property ...
+  [2.479 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidSubjsObjs__HoldIfOSSubjsObjsIDsAreUnchanged__Subjects ...
+  [2.315 s, 1 proof obligation]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidSubjsObjs__HoldIfOSSubjsObjsIDsAreUnchanged__Subjects ...
+  [2.814 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidSubjsObjs__HoldIfOSSubjsObjsPIDsAreChanged__Objects ...
+  [2.643 s, 27 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidSubjsObjs__HoldIfOSSubjsObjsPIDsAreChanged__Objects ...
+  [32.699 s, 59 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidSubjsObjs__HoldIfOSSubjsObjsIDsAreUnchanged__IDMappings ...
+  [2.218 s, 1 proof obligation]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidSubjsObjs__HoldIfOSSubjsObjsIDsAreUnchanged__IDMappings ...
+  [3.496 s, 7 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidSubjsObjs__HoldIfOSSubjsObjsPIDsAreChanged__Objects__HCodedTDs ...
+  [1.992 s, 31 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidSubjsObjs__HoldIfOSSubjsObjsPIDsAreChanged__Objects__HCodedTDs ...
+  [8.186 s, 54 proof obligations]  verified
+
+Dafny program verifier finished with 40 verified, 0 errors

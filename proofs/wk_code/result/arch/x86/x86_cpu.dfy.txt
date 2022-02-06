@@ -1,0 +1,26 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing arch/x86/x86_cpu.dfy
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0548535 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.interrupts__enabled ...
+  [0.781 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Valid__WKMState__RegsDecl ...
+  [0.215 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.x86__get__reg ...
+  [0.201 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.x86__get__sreg ...
+  [0.235 s, 2 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.x86__get__eflags ...
+  [0.266 s, 3 proof obligations]  verified
+
+Dafny program verifier finished with 5 verified, 0 errors

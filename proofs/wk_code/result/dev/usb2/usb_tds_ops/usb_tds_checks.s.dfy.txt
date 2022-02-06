@@ -1,0 +1,77 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing dev/usb2/usb_tds_ops/usb_tds_checks.s.dfy
+dev\usb2\usb_tds_ops\..\ffi\..\..\..\utils\model\utils_ids_any_state.s.dfy(53,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\ffi\..\..\..\utils\model\utils_ids_any_state.s.dfy(65,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+dev\usb2\usb_tds_ops\..\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+dev\usb2\usb_tds_ops\..\..\..\mm\..\dev\usb2\..\..\..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.1067164 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.Lemma__Is__USBTD__ModifyUSBPDevsAddrs__IfMostFieldsOfSecureUSBTDsAreUnchanged ...
+  [4.936 s, 53 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__Is__USBTD__ModifyUSBPDevsAddrs__IfMostFieldsOfSecureUSBTDsAreUnchanged__QTD32 ...
+  [2.599 s, 63 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__Is__USBTD__ModifyUSBPDevsAddrs__IfMostFieldsOfSecureUSBTDsAreUnchanged__QH32 ...
+  [2.544 s, 71 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__USBTD__Map__SecureGlobalVarValues ...
+  [3.209 s, 121 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__USBTD__Map__SecureGlobalVarValues__qTD32 ...
+  [2.286 s, 51 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__USBTD__Map__SecureGlobalVarValues__qh32 ...
+  [2.347 s, 78 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__USBTD__Map__SecureGlobalVarValues__iTD32 ...
+  [2.391 s, 41 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__USBTD__Map__SecureGlobalVarValues__siTD32 ...
+  [2.334 s, 41 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p____usbtd__verify__qtd32__step1__OnSuccessCheck ...
+  [2.314 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p____usbtd__verify__qtd32__step2__OnSuccessCheck ...
+  [2.908 s, 81 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p____usbtd__verify__qtd32__step3__OnSuccessCheck ...
+  [6.009 s, 114 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p____usbtd__verify__qtd32__step4__OnSuccessCheck ...
+  [2.281 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p____usbtd__verify__qh32__step1__OnSuccessCheck ...
+  [2.500 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p____usbtd__verify__qh32__step2__OnSuccessCheck ...
+  [3.517 s, 124 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p____usbtd__verify__qh32__step3__OnSuccessCheck ...
+  [2.531 s, 41 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.p____usbtd__verify__qh32__step4__OnSuccessCheck ...
+  [4.857 s, 114 proof obligations]  verified
+
+Dafny program verifier finished with 16 verified, 0 errors

@@ -1,0 +1,66 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing partition_id.s.dfy
+..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0767951 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.PID__INVALID ...
+  [1.608 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.PID__RESERVED__OS__PARTITION ...
+  [0.890 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.PID__MAX ...
+  [0.798 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__ValidPartitionIDs__InGlobalVars ...
+  [1.695 s, 15 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.pids__g__pid__counter__is__not__reserved__empty ...
+  [0.963 s, 10 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.pids__g__existing__pids__no__duplicate ...
+  [1.015 s, 9 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.pids__g__existing__pids__exclude__os__pid ...
+  [0.932 s, 5 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.pids__is__existing__wimp__pid ...
+  [1.034 s, 5 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.WK__GetAllPIDs ...
+  [1.532 s, 4 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.pids__parse__g__wimp__pids ...
+  [1.014 s, 16 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.pids__parse__g__pid__counter ...
+  [0.942 s, 15 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.pids__get__pid ...
+  [2.914 s, 17 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.pid__existing__updateslot__update__one__slot__only ...
+  [1.042 s, 17 proof obligations]  verified
+
+Dafny program verifier finished with 13 verified, 0 errors

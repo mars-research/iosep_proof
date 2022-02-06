@@ -1,0 +1,1082 @@
+include {:verbatim} "../../state_properties_OpsSaneStateSubset.i.dfy"
+
+include "usb_pdev_utils.vad"
+include "usb_tds_ops/usb_tds_ops.private.vad"
+include {:verbatim} "usb_pdev_utils.i.dfy"
+
+procedure _usbpdev_set_slot()
+    extern;
+procedure _usbpdev_clear_slot()
+    extern;
+procedure _usbpdev_activate_private()
+    extern;
+    
+
+
+
+/*********************** Public Methods - Impl ********************/
+// Activate the given USBPDev into a wimp partition
+// Input params on stack: (new_usbpdev_addr_high:word/uint32) at esp + 2 * ARCH_WORD_BYTES, 
+// (new_usbpdev_addr_low:word/uint32) at esp + ARCH_WORD_BYTES, (new_pid:word/uint32) at esp
+// Return params on stack: (ret:word) at esp, (usbpdev_slot:word) at esp + ARCH_WORD_BYTES
+// [NOTE] Needs 900s to verify
+procedure USBPDev_ActivateIntoWimpPartition_Impl() {:timeLimitMultiplier 100}
+    reads
+        flags;
+    modifies
+        mem; globals; objects;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            4 * ARCH_WORD_BYTES +                    // For local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         // For <_usbpdev_activate_private>
+            15 * ARCH_WORD_BYTES +                    // For saving registers for <CALL_USBPDev_Clear>
+            3 * ARCH_WORD_BYTES;                     // For params of <CALL_USBPDev_Clear>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Stack space for function parameters
+    requires
+        forall (usbpdev_id:Dev_ID) (WSM_IsUSBPDevID(this.subjects, usbpdev_id)
+            ==> this.subjects.usbpdevs[usbpdev_id].active_in_os == false);
+            // Requirement: USBPDevs in the model/system must have <active_in_os> to be false
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let new_usbpdev_addr_low := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_high := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_raw:uint64 := UInt64_FromTwoUInt32s(new_usbpdev_addr_high, new_usbpdev_addr_low);
+        let ret:uint32 := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> (
+            usb_is_usbpdev_addr_valid(new_usbpdev_addr_raw) &&
+            (
+                let new_usbpdev_addr:USBPDev_Addr := usb_parse_usbpdev_addr(new_usbpdev_addr_raw) in
+                let empty_addr := UInt64_FromTwoUInt32s(WimpUSBPDev_ADDR_EMPTY_HIGH, WimpUSBPDev_ADDR_EMPTY_LOW) in
+                    usb_is_usbpdev_addr_valid(empty_addr) &&
+                    new_usbpdev_addr != usb_parse_usbpdev_addr(empty_addr) &&
+                    // Property: The address of the USBPDev must be valid and not empty
+
+                old(this).subjects.usbpdevs?[Map_USBPDevAddr_ToDevID(old(this).subjects, old(this).objects, old(this).id_mappings, new_usbpdev_addr)]
+                    // Property: <new_usbpdev_addr> is valid for USBPDev address
+            )
+        );
+            // Properties needed by the properties below
+    ensures
+        let new_pid := stack_get_val(old(mem), old(esp));
+        let new_usbpdev_addr_low := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_high := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr:uint64 := UInt64_FromTwoUInt32s(new_usbpdev_addr_high, new_usbpdev_addr_low);
+        let out_usbpdev_slot:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+        let ret:uint32 := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> pids_is_existing_wimp_pid(old(globals), new_pid);
+        (ret == TRUE) ==> (
+                forall (i:word) (usbpdev_valid_slot_id(i)
+                        ==> !(usbpdev_get_addr_low(old(globals), i) == new_usbpdev_addr_low &&
+                             usbpdev_get_addr_high(old(globals), i) == new_usbpdev_addr_high))
+            );
+        (ret == TRUE) ==> usb_is_usbpdev_addr_valid(new_usbpdev_addr);
+            // Property 1: The <new_usbpdev_addr> is valid for USBPDev address, and <pid> must be an existing one.
+        (ret == TRUE) ==> usbpdev_valid_slot_id(out_usbpdev_slot);
+        (ret == TRUE) ==> usbpdev_info_newvalue(old(globals), globals, out_usbpdev_slot, new_usbpdev_addr_low, new_usbpdev_addr_high, new_pid, WimpUSBPDev_Slot_UpdateFlag_Complete);
+            // Property 2: Set USBPDev info
+        (ret == TRUE) ==> usbpdev_clear_non_mstate_relationship(old(this), this, usb_parse_usbpdev_addr(new_usbpdev_addr));
+            // Property 3: If return true, then state variables other than <wk_mstate> relates to prior ones correctly
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+        (ret != TRUE) ==> state_equal_except_mstate(old(this), this);
+            // Property 4: If return false, then non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let tmp1 @= edi;
+    let tmp2 @= esi;
+    let tmp3 @= edx;
+    PUSH_TwoRegs(tmp1, tmp2);
+    PUSH_OneReg(tmp3);
+
+
+    // 1. Check if the input addr is the empty addr
+    Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);   // Load <new_usbpdev_addr_high>
+    Load(tmp3, ebp, 2 * ARCH_WORD_BYTES);   // Load <new_usbpdev_addr_low>
+    usbpdev_is_empty_addr(tmp1, tmp3, tmp2);
+
+    if(tmp2 == const(FALSE))
+    {
+        // 2. Find if the <addr> exist in <g_wimpdevs_info>
+        Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);   // Load <new_usbpdev_addr_high>
+        PUSH(tmp1);
+        Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);   // Load <new_usbpdev_addr_low>
+        PUSH(tmp1);
+        usbpdev_find_slot_by_id();
+        Load(tmp2, esp, 0);
+        POP_VOID(2 * ARCH_WORD_BYTES);
+
+        if(tmp2 == const(FALSE))
+        {
+            // 3. Check <addr> must be exist in <g_wimpdevs_devlist>
+            Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);   // Load <new_usbpdev_addr_high>
+            PUSH(tmp1);
+            Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);   // Load <new_usbpdev_addr_low>
+            PUSH(tmp1);
+            usbpdevlist_find_slot_by_id();
+            Load(tmp1, esp, 0);
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            if(tmp1 == const(TRUE))
+            {
+                Lemma_usbpdevlist_clear_all_devices_ProveAllAddrsMapToExistingUSBPDevs(this);
+                Lemma_USBPDev_UniqueAddrLowAndHighWord_MapToUniqueUSBPDevAddr();
+
+                Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);   // Load <new_usbpdev_addr_high>
+                PUSH(tmp1);
+                Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);   // Load <new_usbpdev_addr_low>
+                PUSH(tmp1);
+                Load(tmp1, ebp, ARCH_WORD_BYTES);   // Load <new_pid>
+                PUSH(tmp1);
+                _usbpdev_activate_private();
+                Load(tmp1, esp, 0);
+                Load(tmp2, esp, ARCH_WORD_BYTES);
+                POP_VOID(3 * ARCH_WORD_BYTES);
+                
+                Store(ebp, ARCH_WORD_BYTES, tmp1);
+                Store(ebp, 2 * ARCH_WORD_BYTES, tmp2);
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+                Store(ebp, 2 * ARCH_WORD_BYTES, const(WimpUSBPDev_SlotID_EMPTY));  // Return WimpUSBPDev_SlotID_EMPTY
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+            Store(ebp, 2 * ARCH_WORD_BYTES, const(WimpUSBPDev_SlotID_EMPTY));  // Return WimpUSBPDev_SlotID_EMPTY
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(WimpUSBPDev_SlotID_EMPTY));  // Return WimpUSBPDev_SlotID_EMPTY
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+    
+
+    POP_OneReg(tmp3);
+    POP_TwoRegs(tmp1, tmp2);
+    POP_OneReg(ebp);
+
+    Lemma_modify_regs_objects_stateeq_USBPDev_ActivateIntoWimpPartitions(old(this), this);
+}
+
+// Deactivate the given USBPDev from its current wimp partition
+// Input params on stack: (usbpdev_slot:word) at esp
+// Return params on stack: (ret:word) at esp
+// [NOTE] Needs 240s to verify
+procedure USBPDev_DeactivateFromWimpPartition_Impl() {:timeLimitMultiplier 30}
+    reads
+        flags;
+    modifies
+        mem; globals;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            20 * ARCH_WORD_BYTES +                   // For <_usbpdev_find_referencing_secure_usbtd>
+            2 * ARCH_WORD_BYTES;                     // For params of <_usbpdev_find_referencing_secure_usbtd>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space); 
+            // Stack space for function parameters
+    requires
+        forall (usbpdev_id:Dev_ID) (WSM_IsUSBPDevID(this.subjects, usbpdev_id)
+            ==> this.subjects.usbpdevs[usbpdev_id].active_in_os == false);
+            // Requirement: USBPDevs in the model/system must have <active_in_os> to be false
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let usbpdev_slot:word := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> usbpdev_valid_slot_id(usbpdev_slot);
+        (ret == TRUE) ==> pids_is_existing_wimp_pid(old(globals), usbpdev_get_pid(old(globals), usbpdev_slot).v);
+            // Property: If return true, then the USBPDev must be in an wimp partition previously
+        (ret == TRUE) ==> usbpdev_get_updateflag(old(globals), usbpdev_slot) == WimpUSBPDev_Slot_UpdateFlag_Complete;
+            // Property: If return true, then the USBPDev has the flag WimpUSBPDev_Slot_UpdateFlag_Complete
+        (ret == TRUE) ==> usbtds_verifiedtds_do_not_associate_usb_pdev(old(globals), usbpdev_slot);
+            // Property: If return true, then no USB TD refs the USBPDev
+        (ret == TRUE) ==> usbpdev_get_pid(globals, usbpdev_slot) == WS_PartitionID(PID_INVALID);
+            // Property 1: The corresponding slot is set to the invalid PID
+        (ret == TRUE) ==> usbpdev_info_newvalue(old(globals), globals, usbpdev_slot, WimpUSBPDev_ADDR_EMPTY_LOW, WimpUSBPDev_ADDR_EMPTY_HIGH, PID_INVALID, WimpUSBPDev_Slot_UpdateFlag_Complete);
+            // Property 2: Clear USBPDev info
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+            // Property 3: If return false, then non scratch-pad global variables are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let slot_id @= edi;
+    let tmp1 @= esi;
+    let tmp2 @= edx;
+    let ret @= eax;
+    PUSH_Reg1ToReg6();
+
+
+    // 1. Check if <usbpdev_slot> is valid
+    Load(slot_id, ebp, ARCH_WORD_BYTES);        // Load <usbpdev_slot>
+    let in_slot_id := slot_id;
+    usbpdev_check_slot_id(slot_id, ret);
+    if(ret == const(TRUE))
+    {
+        // 2. Check the update flag
+        PUSH(slot_id);
+        usbpdev_get_update_flag();
+        Load(ret, esp, 0);
+        POP_VOID(1 * ARCH_WORD_BYTES);
+
+        if(ret == const(WimpUSBPDev_Slot_UpdateFlag_Complete))
+        {
+            // 2. Check if the wimp driver's PID is an existing one
+            PUSH(slot_id);
+            usbpdev_get_pid();      // tmp2 := eehci_info_get_pid(eehci_slot);
+            Load(tmp2, esp, 0);
+            POP_VOID(1 * ARCH_WORD_BYTES);
+
+            PUSH_VOID(1 * ARCH_WORD_BYTES);
+            PUSH(tmp2);
+            pids_is_existing_wimp_pid();
+            Load(ret, esp, 0);
+            POP_VOID(2 * ARCH_WORD_BYTES);
+
+            if(ret == const(TRUE))
+            {
+                // 3. Check if any verified/secure USB TDs refs the <slot_id>
+                PUSH_VOID(1 * ARCH_WORD_BYTES);
+                PUSH(slot_id);
+                _usbpdev_find_referencing_secure_usbtd();  // ret, _ := _usbpdev_find_referencing_secure_usbtd(slot_id)
+                Load(ret, esp, 0);                     
+                POP_VOID(2 * ARCH_WORD_BYTES);
+
+                if(ret == const(FALSE))
+                {
+                    assert usbtds_verifiedtds_do_not_associate_usb_pdev(old(globals), in_slot_id);
+
+                    // 4. Clear USBPDev slot
+                    PUSH(slot_id);
+                    _usbpdev_clear_slot();
+                    POP_VOID(1 * ARCH_WORD_BYTES);
+
+                    // 5. Summary
+                    Store(ebp, ARCH_WORD_BYTES, const(TRUE));                       // Return TRUE
+                }
+                else
+                {
+                    Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                    assert globals == old(globals);
+                    Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+                }
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+
+
+
+/*********************** Private Methods ********************/
+// Activate the given USBPDev into a wimp partition
+// Input params on stack: (new_usbpdev_addr_high:word/uint32) at esp + 2 * ARCH_WORD_BYTES, 
+// (new_usbpdev_addr_low:word/uint32) at esp + ARCH_WORD_BYTES, (new_pid:word/uint32) at esp
+// Return params on stack: (ret:word) at esp, (usbpdev_slot:word) at esp + ARCH_WORD_BYTES
+// [NOTE] Needs 100s to verify
+procedure USBPDev_ActivateIntoWimpPartition_Inner() {:timeLimitMultiplier 10}
+    reads
+        flags;
+    modifies
+        mem; globals; objects;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            4 * ARCH_WORD_BYTES +                    // For local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         // For <_usbpdev_activate_private>
+            15 * ARCH_WORD_BYTES +                    // For saving registers for <CALL_USBPDev_Clear>
+            3 * ARCH_WORD_BYTES;                     // For params of <CALL_USBPDev_Clear>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Stack space for function parameters
+    requires
+        forall (usbpdev_id:Dev_ID) (WSM_IsUSBPDevID(this.subjects, usbpdev_id)
+            ==> this.subjects.usbpdevs[usbpdev_id].active_in_os == false);
+            // Requirement: USBPDevs in the model/system must have <active_in_os> to be false
+    requires
+        let new_usbpdev_addr_low := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_high := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_raw:uint64 := UInt64_FromTwoUInt32s(new_usbpdev_addr_high, new_usbpdev_addr_low);
+        let ret:uint32 := stack_get_val(mem, old(esp));
+
+        (
+            usb_is_usbpdev_addr_valid(new_usbpdev_addr_raw) &&
+            (
+                let new_usbpdev_addr:USBPDev_Addr := usb_parse_usbpdev_addr(new_usbpdev_addr_raw) in
+                let empty_addr := UInt64_FromTwoUInt32s(WimpUSBPDev_ADDR_EMPTY_HIGH, WimpUSBPDev_ADDR_EMPTY_LOW) in
+                    usb_is_usbpdev_addr_valid(empty_addr) &&
+                    new_usbpdev_addr != usb_parse_usbpdev_addr(empty_addr) &&
+                    // Property: The address of the USBPDev must be valid and not empty
+
+                old(this).subjects.usbpdevs?[Map_USBPDevAddr_ToDevID(old(this).subjects, old(this).objects, old(this).id_mappings, new_usbpdev_addr)]
+                    // Property: <new_usbpdev_addr> is valid for USBPDev address
+            )
+        );
+            // Properties needed by the properties below
+    requires
+        let new_pid := stack_get_val(old(mem), old(esp));
+        let new_usbpdev_addr_low := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_high := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_raw:uint64 := UInt64_FromTwoUInt32s(new_usbpdev_addr_high, new_usbpdev_addr_low);
+        pids_is_existing_wimp_pid(old(globals), new_pid);
+        (
+            forall (i:word) (usbpdev_valid_slot_id(i)
+                    ==> !(usbpdev_get_addr_low(old(globals), i) == new_usbpdev_addr_low &&
+                            usbpdev_get_addr_high(old(globals), i) == new_usbpdev_addr_high))
+        );
+        usb_is_usbpdev_addr_valid(new_usbpdev_addr_raw);
+            // Requirement: The <new_usbpdev_addr_raw> is valid for USBPDev address, and <pid> must be an existing one.
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let new_pid := stack_get_val(old(mem), old(esp));
+        let new_usbpdev_addr_low := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_high := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr:uint64 := UInt64_FromTwoUInt32s(new_usbpdev_addr_high, new_usbpdev_addr_low);
+        let out_usbpdev_slot:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+        let ret:uint32 := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> usbpdev_valid_slot_id(out_usbpdev_slot);
+        (ret == TRUE) ==> usbpdev_info_newvalue(old(globals), globals, out_usbpdev_slot, new_usbpdev_addr_low, new_usbpdev_addr_high, new_pid, WimpUSBPDev_Slot_UpdateFlag_Complete);
+            // Property 2: Set USBPDev info
+        (ret == TRUE) ==> usbpdev_clear_non_mstate_relationship(old(this), this, usb_parse_usbpdev_addr(new_usbpdev_addr));
+            // Property 3: If return true, then state variables other than <wk_mstate> relates to prior ones correctly
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+        (ret != TRUE) ==> state_equal_except_mstate(old(this), this);
+            // Property 4: If return false, then non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let tmp1 @= edi;
+    let tmp2 @= esi;
+    let tmp3 @= edx;
+    PUSH_TwoRegs(tmp1, tmp2);
+    PUSH_OneReg(tmp3);
+
+
+    // 3. Check <addr> must be exist in <g_wimpdevs_devlist>
+    Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);   // Load <new_usbpdev_addr_high>
+    PUSH(tmp1);
+    Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);   // Load <new_usbpdev_addr_low>
+    PUSH(tmp1);
+    usbpdevlist_find_slot_by_id();
+    Load(tmp1, esp, 0);
+    POP_VOID(2 * ARCH_WORD_BYTES);
+
+    if(tmp1 == const(TRUE))
+    {
+        Lemma_usbpdevlist_clear_all_devices_ProveAllAddrsMapToExistingUSBPDevs(this);
+        Lemma_USBPDev_UniqueAddrLowAndHighWord_MapToUniqueUSBPDevAddr();
+
+        Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);   // Load <new_usbpdev_addr_high>
+        PUSH(tmp1);
+        Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);   // Load <new_usbpdev_addr_low>
+        PUSH(tmp1);
+        Load(tmp1, ebp, ARCH_WORD_BYTES);   // Load <new_pid>
+        PUSH(tmp1);
+        _usbpdev_activate_private();
+        Load(tmp1, esp, 0);
+        Load(tmp2, esp, ARCH_WORD_BYTES);
+        POP_VOID(3 * ARCH_WORD_BYTES);
+        
+        Store(ebp, ARCH_WORD_BYTES, tmp1);
+        Store(ebp, 2 * ARCH_WORD_BYTES, tmp2);
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(WimpUSBPDev_SlotID_EMPTY));  // Return WimpUSBPDev_SlotID_EMPTY
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_OneReg(tmp3);
+    POP_TwoRegs(tmp1, tmp2);
+    POP_OneReg(ebp);
+}
+
+// Activate the given USBPDev
+// Input params on stack: (new_usbpdev_addr_high:word/uint32) at esp + 2 * ARCH_WORD_BYTES, 
+// (new_usbpdev_addr_low:word/uint32) at esp + ARCH_WORD_BYTES, (new_pid:word/uint32) at esp
+// Return params on stack: (ret:word) at esp, (usbpdev_slot:word) at esp + ARCH_WORD_BYTES
+// [NOTE] Needs 400s to verify
+procedure _usbpdev_activate_private() {:timeLimitMultiplier 50}
+    reads
+        flags;
+    modifies
+        mem; globals; objects;
+        eax; ebx; ecx; edx; esi; edi; esp; ebp;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         // For <CALL_USBPDev_Clear>
+            6 * ARCH_WORD_BYTES +                    // For saving registers for <CALL_USBPDev_Clear>
+            2 * ARCH_WORD_BYTES;                     // For params of <CALL_USBPDev_Clear>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space := 3 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Stack space for function parameters
+    requires
+        let new_usbpdev_addr_low := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_high := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_raw:uint64 := UInt64_FromTwoUInt32s(new_usbpdev_addr_high, new_usbpdev_addr_low);
+            
+        usb_is_usbpdev_addr_valid(new_usbpdev_addr_raw);
+        let new_usbpdev_addr:USBPDev_Addr := usb_parse_usbpdev_addr(new_usbpdev_addr_raw);
+        let empty_addr := UInt64_FromTwoUInt32s(WimpUSBPDev_ADDR_EMPTY_HIGH, WimpUSBPDev_ADDR_EMPTY_LOW);
+             usb_is_usbpdev_addr_valid(empty_addr) &&
+             new_usbpdev_addr != usb_parse_usbpdev_addr(empty_addr);
+            // Requirement: The address of the USBPDev must be valid and not empty
+
+        this.subjects.usbpdevs?[Map_USBPDevAddr_ToDevID(this.subjects, this.objects, this.id_mappings, new_usbpdev_addr)];
+            // Requirement: <new_usbpdev_addr> maps to a USBPDev existing in the system
+    requires
+        let new_usbpdev_addr_low := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_high := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_raw:uint64 := UInt64_FromTwoUInt32s(new_usbpdev_addr_high, new_usbpdev_addr_low);
+        let new_usbpdev_addr:USBPDev_Addr := usb_parse_usbpdev_addr(new_usbpdev_addr_raw);
+        usbpdevlist_get_all_non_empty_addrs(globals)?[new_usbpdev_addr];
+            // Requirement: the new USBPDev addr must be in <g_wimpdevs_devlist>
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let new_addr_low:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_addr_high:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+
+        forall (i:uint32) (usbpdev_valid_slot_id(i) &&
+                    usbpdev_get_updateflag(globals, i) == WimpUSBPDev_Slot_UpdateFlag_Complete &&
+                    !(usbpdev_get_addr_low(globals, i) == WimpUSBPDev_ADDR_EMPTY_LOW && usbpdev_get_addr_high(globals, i) == WimpUSBPDev_ADDR_EMPTY_HIGH)
+                ==> (usbpdev_get_addr_low(globals, i) != new_addr_low || usbpdev_get_addr_high(globals, i) != new_addr_high));
+            // Requirement: No duplicate USBPDev address after update
+    requires
+        forall (usbpdev_id:Dev_ID) (WSM_IsUSBPDevID(this.subjects, usbpdev_id)
+            ==> this.subjects.usbpdevs[usbpdev_id].active_in_os == false);
+            // Requirement: USBPDevs in the model/system must have <active_in_os> to be false
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let new_pid := stack_get_val(old(mem), old(esp));
+        let new_usbpdev_addr_low := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_high := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr:uint64 := UInt64_FromTwoUInt32s(new_usbpdev_addr_high, new_usbpdev_addr_low);
+        let out_usbpdev_slot:word := stack_get_val(mem, old(esp) + ARCH_WORD_BYTES);
+        let ret:uint32 := stack_get_val(mem, old(esp));
+
+        (ret == TRUE) ==> pids_is_existing_wimp_pid(old(globals), new_pid);
+        (ret == TRUE) ==> usb_is_usbpdev_addr_valid(new_usbpdev_addr);
+            // Property 1: The <new_usbpdev_addr> is valid for USBPDev address, and <pid> must be an existing one.
+        (ret == TRUE) ==> usbpdev_valid_slot_id(out_usbpdev_slot);
+        (ret == TRUE) ==> usbpdev_info_newvalue(old(globals), globals, out_usbpdev_slot, new_usbpdev_addr_low, new_usbpdev_addr_high, new_pid, WimpUSBPDev_Slot_UpdateFlag_Complete);
+            // Property 2: Set USBPDev info
+        (ret == TRUE) ==> usbpdev_clear_non_mstate_relationship(old(this), this, usb_parse_usbpdev_addr(new_usbpdev_addr));
+            // Property 3: If return true, then state variables other than <wk_mstate> relates to prior ones correctly
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+        (ret != TRUE) ==> state_equal_except_mstate(old(this), this);
+            // Property 4: If return false, then non scratch-pad global variables and state variables other than 
+            // <wk_mstate> are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx);
+    ensures
+        let stack_retval_space := 2 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let slot_id @= edi;
+    let new_pid @= esi;
+    let new_usbpdev_addr_high @= ecx;
+    let new_usbpdev_addr_low @= ebx;
+    let tmp1 @= edx;
+    let ret @= eax;
+    PUSH_Reg1ToReg6();
+
+    // 1. Check "<new_pid> must be an existing wimp partition's PID"
+    PUSH_VOID(1 * ARCH_WORD_BYTES);
+    Load(new_pid, ebp, 1 * ARCH_WORD_BYTES);   // Load <new_pid>
+    PUSH(new_pid);
+    pids_is_existing_wimp_pid();
+    Load(ret, esp, 0);
+    POP_VOID(2 * ARCH_WORD_BYTES);
+
+    if(ret == const(TRUE))
+    {
+        // 2. Find empty wimp device slot
+        PUSH(const(WimpUSBPDev_ADDR_EMPTY_HIGH));
+        PUSH(const(WimpUSBPDev_ADDR_EMPTY_LOW));
+        usbpdev_find_slot_by_id();
+        Load(ret, esp, 0);
+        Load(slot_id, esp, ARCH_WORD_BYTES);
+        POP_VOID(2 * ARCH_WORD_BYTES);
+
+        if(ret == const(TRUE))
+        {
+            Lemma__usbpdev_find_slot_Prove_usbtds_verifiedtds_do_not_associate_usb_pdev(globals, slot_id);
+            assert usbtds_verifiedtds_do_not_associate_usb_pdev(globals, slot_id);
+
+            // 3. Check the new USBPDev ID
+            Load(new_usbpdev_addr_high, ebp, 3 * ARCH_WORD_BYTES);   // Load <new_usbpdev_addr_high>
+            Load(new_usbpdev_addr_low, ebp, 2 * ARCH_WORD_BYTES);   // Load <new_usbpdev_addr_low>
+            let new_usbpdev_addr:uint64 := UInt64_FromTwoUInt32s(new_usbpdev_addr_high, new_usbpdev_addr_low);
+            usbpdev_check_dev_addr(new_usbpdev_addr_high, new_usbpdev_addr_low, ret);
+
+            if(ret == const(TRUE))
+            {
+                assert usb_is_usbpdev_addr_valid(new_usbpdev_addr);
+
+                // 3. Set new USBPDev ID and PID
+                PUSH(new_usbpdev_addr_high);
+                PUSH(new_usbpdev_addr_low);
+                PUSH(new_pid);
+                PUSH(slot_id);
+                _usbpdev_set_slot();
+                POP_VOID(4 * ARCH_WORD_BYTES);
+
+                // 4. Clear the USBPDev's objects
+                PUSH_Reg1ToReg6();
+                PUSH(new_usbpdev_addr_high);
+                PUSH(new_usbpdev_addr_low);
+                CALL_USBPDev_Clear();
+                POP_VOID(2 * ARCH_WORD_BYTES);
+                POP_Reg1ToReg6();
+
+                // Summary
+                Store(ebp, ARCH_WORD_BYTES, const(TRUE));                      // Return TRUE
+                Store(ebp, 2 * ARCH_WORD_BYTES, slot_id);
+            }
+            else
+            {
+                Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+                Store(ebp, 2 * ARCH_WORD_BYTES, const(WimpUSBPDev_SlotID_EMPTY));  // Return WimpUSBPDev_SlotID_EMPTY
+
+                assert globals == old(globals);
+                Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+            }
+        }
+        else
+        {
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+            Store(ebp, 2 * ARCH_WORD_BYTES, const(WimpUSBPDev_SlotID_EMPTY));  // Return WimpUSBPDev_SlotID_EMPTY
+
+            assert globals == old(globals);
+            Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+        Store(ebp, 2 * ARCH_WORD_BYTES, const(WimpUSBPDev_SlotID_EMPTY));  // Return WimpUSBPDev_SlotID_EMPTY
+
+        assert globals == old(globals);
+        Lemma_global_non_scratchpad_vars_are_unchanged_ProveIfGlobalVarsAreEqual(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+}
+
+// Clear a given USBPDev slot
+// Input params on stack: (slot:word) at esp
+// Return params on stack: None
+procedure _usbpdev_clear_slot()
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        eax; ebx; ecx; edx; edi; esi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            2 * ARCH_WORD_BYTES +                   // For local variables
+            9 * ARCH_WORD_BYTES +                   // For <usbpdev_set_addr>
+            3 * ARCH_WORD_BYTES;                    // For params of <usbpdev_set_addr>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            1 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        usbpdev_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_wimpdevs_info>
+        forall (usbpdev_id:Dev_ID) (WSM_IsUSBPDevID(this.subjects, usbpdev_id)
+            ==> this.subjects.usbpdevs[usbpdev_id].active_in_os == false);
+            // Requirement: USBPDevs in the model/system must have <active_in_os> to be false
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        usbtds_verifiedtds_do_not_associate_usb_pdev(globals, slot);
+            // Requirement: No verified/secure USB TD is associated with the given USBPDev
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let usbpdev_slot:word := stack_get_val(old(mem), old(esp));
+
+        usbpdev_info_newvalue(old(globals), globals, usbpdev_slot, WimpUSBPDev_ADDR_EMPTY_LOW, WimpUSBPDev_ADDR_EMPTY_HIGH, PID_INVALID, WimpUSBPDev_Slot_UpdateFlag_Complete);
+            // Property 1: The globals are modified as expected
+    ensures
+        esp == old(esp); ebp == old(ebp);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); edi == old(edi); esi == old(esi);
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal p_wimpdrv_slot_equal;
+
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let slot_id @= edi;
+    PUSH_OneReg(slot_id);
+
+
+    Load(slot_id, ebp, ARCH_WORD_BYTES);
+    let in_slot_id := slot_id;
+
+    let new_id:uint64 := UInt64_FromTwoUInt32s(WimpUSBPDev_ADDR_EMPTY_HIGH, WimpUSBPDev_ADDR_EMPTY_LOW);
+    Lemma_usb_is_usbpdev_addr_valid_ValidIfAddrIsEmpty();
+    assert usb_is_usbpdev_addr_valid(new_id);
+
+    // 3. Clear USBPDev PID
+    PUSH_IMM(PID_INVALID);
+    PUSH(slot_id);
+    usbpdev_set_pid_to_invalid();
+    POP_VOID(2 * ARCH_WORD_BYTES);
+
+    let globals1 := globals;
+    let vaddr := AddressOfGlobal(G_WimpUSBPDev_Info()) + in_slot_id * WimpUSBPDev_Info_ENTRY_SZ + WimpUSBPDev_Info_ENTRY_PID_ByteOffset;
+    assert globals1 == global_write_word(old(globals), G_WimpUSBPDev_Info(), vaddr, PID_INVALID);
+
+    Lemma_usbtds_verifiedtds_do_not_associate_usb_pdev_HoldIfGUSBTDMemUnchanged(old(globals), globals, in_slot_id);
+    assert usbtds_verifiedtds_do_not_associate_usb_pdev(globals, in_slot_id);
+
+    // 4. Clear USBPDev ID (which also set the flag to be WimpUSBPDev_Slot_UpdateFlag_Complete)
+    PUSH_IMM(WimpUSBPDev_ADDR_EMPTY_HIGH);
+    PUSH_IMM(WimpUSBPDev_ADDR_EMPTY_LOW);
+    PUSH(slot_id);
+    usbpdev_set_addr();
+    POP_VOID(3 * ARCH_WORD_BYTES);
+    assert usbpdev_info_newvalue(globals1, globals, in_slot_id, WimpUSBPDev_ADDR_EMPTY_LOW, WimpUSBPDev_ADDR_EMPTY_HIGH, PID_INVALID, WimpUSBPDev_Slot_UpdateFlag_Complete);
+
+    Lemma__usbpdev_clear_slot_ProveProperty1(old(globals), globals1, globals, in_slot_id);
+
+    POP_OneReg(slot_id);
+    POP_OneReg(ebp);
+}
+
+// Set a given USBPDev slot to valid USBPDev address and PID
+// Input params on stack: (new_usbpdev_addr_high:word/uint32) at esp + 3 * ARCH_WORD_BYTES, 
+// (new_usbpdev_addr_low:word/uint32) at esp + 2 * ARCH_WORD_BYTES, (new_pid:word/uint32) at esp + 1 * ARCH_WORD_BYTES
+// (usbpdev_slot:word) at esp
+// Return params on stack: None
+// [NOTE] Needs 90s to verify
+procedure _usbpdev_set_slot() {:timeLimitMultiplier 10}
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        eax; ebx; ecx; edx; edi; esi;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space := 
+            3 * ARCH_WORD_BYTES +                   // For local variables
+            9 * ARCH_WORD_BYTES +                   // For <usbpdev_set_addr>
+            3 * ARCH_WORD_BYTES;                    // For params of <usbpdev_set_addr>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            4 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        usbpdev_valid_slot_id(slot);
+            // Requirement: <slot> must be inside the global variable <g_wimpdevs_info>
+    requires
+        let new_usbpdev_addr_low:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_high:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_raw:uint64 := UInt64_FromTwoUInt32s(new_usbpdev_addr_high, new_usbpdev_addr_low);
+
+        !(new_usbpdev_addr_low == WimpUSBPDev_ADDR_EMPTY_LOW && new_usbpdev_addr_high == WimpUSBPDev_ADDR_EMPTY_HIGH);
+            // Requirement: The address of the USBPDev must be valid 
+        usb_is_usbpdev_addr_valid(new_usbpdev_addr_raw);
+            // Requirement: <new_usbpdev_addr> must be valid
+    requires
+        let new_usbpdev_addr_low:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_high:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_raw:uint64 := UInt64_FromTwoUInt32s(new_usbpdev_addr_high, new_usbpdev_addr_low);
+        let new_usbpdev_addr:USBPDev_Addr := usb_parse_usbpdev_addr(new_usbpdev_addr_raw);
+        usbpdevlist_get_all_non_empty_addrs(globals)?[new_usbpdev_addr];
+            // Requirement: the new USBPDev addr must be in <g_wimpdevs_devlist>
+    requires
+        let new_pid:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        pids_parse_g_wimp_pids(globals)?[WS_PartitionID(new_pid)];
+            // Requirement: <new_pid> must be an existing wimp partition's PID
+        forall (usbpdev_id:Dev_ID) (WSM_IsUSBPDevID(this.subjects, usbpdev_id)
+            ==> this.subjects.usbpdevs[usbpdev_id].active_in_os == false);
+            // Requirement: USBPDevs in the model/system must have <active_in_os> to be false
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        usbtds_verifiedtds_do_not_associate_usb_pdev(globals, slot);
+            // Requirement: No verified/secure USB TD is associated with the given USBPDev
+    requires
+        let slot:word := stack_get_val(old(mem), old(esp));
+        let new_addr_low:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_addr_high:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+
+        forall (i:uint32) (usbpdev_valid_slot_id(i) && i != slot &&
+                    usbpdev_get_updateflag(globals, i) == WimpUSBPDev_Slot_UpdateFlag_Complete &&
+                    !(usbpdev_get_addr_low(globals, i) == WimpUSBPDev_ADDR_EMPTY_LOW && usbpdev_get_addr_high(globals, i) == WimpUSBPDev_ADDR_EMPTY_HIGH)
+                ==> (usbpdev_get_addr_low(globals, i) != new_addr_low || usbpdev_get_addr_high(globals, i) != new_addr_high));
+            // Requirement: No duplicate USBPDev address after update
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires 
+        !interrupts_enabled(old(flags));
+    ensures
+        let usbpdev_slot:word := stack_get_val(old(mem), old(esp));
+        let new_pid:word := stack_get_val(old(mem), old(esp) + ARCH_WORD_BYTES);
+        let new_usbpdev_addr_low:word := stack_get_val(old(mem), old(esp) + 2 * ARCH_WORD_BYTES);
+        let new_usbpdev_addr_high:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+
+        usbpdev_info_newvalue(old(globals), globals, usbpdev_slot, new_usbpdev_addr_low, new_usbpdev_addr_high, new_pid, WimpUSBPDev_Slot_UpdateFlag_Complete);
+            // Property 1: The globals are modified as expected
+    ensures
+        esp == old(esp); ebp == old(ebp);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); edi == old(edi); esi == old(esi);
+    ensures
+        stack_under_sp_is_unchanged(old(mem), mem, esp);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    reveal p_wimpdrv_slot_equal;
+
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);                                 // Because we have return value on stack, need ebp now
+
+    let slot_id @= edi;
+    let tmp1 @= esi;
+    PUSH_TwoRegs(slot_id, tmp1);
+
+
+    Load(slot_id, ebp, ARCH_WORD_BYTES);
+    let in_slot_id := slot_id;
+
+    // Set USBPDev Addr
+    Load(tmp1, ebp, 4 * ARCH_WORD_BYTES);           // Load <new_usbpdev_addr_high>
+    PUSH(tmp1);
+    let new_usbpdev_addr_high := tmp1;
+    Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);           // Load <new_usbpdev_addr_low>
+    PUSH(tmp1);
+    let new_usbpdev_addr_low := tmp1;
+    PUSH(slot_id); 
+    usbpdev_set_addr();
+    POP_VOID(3 * ARCH_WORD_BYTES);
+
+    let globals1 := globals;
+    assert usbpdev_info_newvalue(old(globals), globals1, slot_id, new_usbpdev_addr_low, new_usbpdev_addr_high, usbpdev_get_pid(old(globals), slot_id).v, WimpUSBPDev_Slot_UpdateFlag_Complete);
+
+    // Set USBPDev PID
+    Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);           // Load <new_pid>
+    PUSH(tmp1);
+    let new_pid := tmp1;
+    PUSH(slot_id);
+    usbpdev_set_pid_to_valid();
+    POP_VOID(2 * ARCH_WORD_BYTES);
+
+    let vaddr := AddressOfGlobal(G_WimpUSBPDev_Info()) + in_slot_id * WimpUSBPDev_Info_ENTRY_SZ + WimpUSBPDev_Info_ENTRY_PID_ByteOffset;
+    assert globals == global_write_word(globals1, G_WimpUSBPDev_Info(), vaddr, new_pid);
+
+    Lemma__usbpdev_set_slot_ProveProperty1(old(globals), globals1, globals, in_slot_id, 
+        new_usbpdev_addr_low, new_usbpdev_addr_high, new_pid);
+
+    POP_TwoRegs(slot_id, tmp1);
+    POP_OneReg(ebp);
+}
+
+
+
+
+/*********************** Private Lemmas ********************/
+#verbatim
+// Prove the property 1 of <_usbpdev_clear_slot>
+// [TODO][Need fix] The proof code does not quite make sense. We leave it here as the proof goes through
+lemma Lemma__usbpdev_clear_slot_ProveProperty1(
+    old_globals:globalsmap, globals1:globalsmap, new_globals:globalsmap, slot:word
+)
+    requires WK_ValidGlobalVars_Decls(old_globals)
+    requires WK_ValidGlobalVars_Decls(globals1)
+    requires WK_ValidGlobalVars_Decls(new_globals)
+
+    requires usbpdev_valid_slot_id(slot)
+
+    requires var vaddr := AddressOfGlobal(G_WimpUSBPDev_Info()) + slot * WimpUSBPDev_Info_ENTRY_SZ + WimpUSBPDev_Info_ENTRY_PID_ByteOffset;
+            is_gvar_valid_addr(G_WimpUSBPDev_Info(), vaddr)
+
+    requires var vaddr := AddressOfGlobal(G_WimpUSBPDev_Info()) + slot * WimpUSBPDev_Info_ENTRY_SZ + WimpUSBPDev_Info_ENTRY_PID_ByteOffset;
+            globals1 == global_write_word(old_globals, G_WimpUSBPDev_Info(), vaddr, PID_INVALID)
+
+    requires usbpdev_info_newvalue(globals1, new_globals, slot, WimpUSBPDev_ADDR_EMPTY_LOW, WimpUSBPDev_ADDR_EMPTY_HIGH, PID_INVALID, WimpUSBPDev_Slot_UpdateFlag_Complete);
+
+    ensures usbpdev_info_newvalue(old_globals, new_globals, slot, WimpUSBPDev_ADDR_EMPTY_LOW, WimpUSBPDev_ADDR_EMPTY_HIGH, PID_INVALID, WimpUSBPDev_Slot_UpdateFlag_Complete)
+{
+    reveal p_usbpdev_slot_equal();
+
+    // Prove other global variables are unchanged
+    forall i:uint32 | usbpdev_valid_slot_id(i) && i != slot
+        ensures p_usbpdev_slot_equal(old_globals, new_globals, i)
+    {
+        // Dafny can automatically prove it
+    }
+    assert globals_other_gvar_unchanged(old_globals, new_globals, G_WimpUSBPDev_Info());
+
+    // Apply usbpdev_info_newvalue 
+    var vaddr1 := AddressOfGlobal(G_WimpUSBPDev_Info()) + slot * WimpUSBPDev_Info_ENTRY_SZ + WimpUSBPDev_Info_ENTRY_LowAddr_ByteOffset;
+    var vaddr2 := AddressOfGlobal(G_WimpUSBPDev_Info()) + slot * WimpUSBPDev_Info_ENTRY_SZ + WimpUSBPDev_Info_ENTRY_HighAddr_ByteOffset;
+    var vaddr3 := AddressOfGlobal(G_WimpUSBPDev_Info()) + slot * WimpUSBPDev_Info_ENTRY_SZ + WimpUSBPDev_Info_ENTRY_PID_ByteOffset;
+    var vaddr4 := AddressOfGlobal(G_WimpUSBPDev_Info()) + slot * WimpUSBPDev_Info_ENTRY_SZ + WimpUSBPDev_Info_ENTRY_UpdateFlag_ByteOffset;
+
+    var t_globals1 := global_write_word(old_globals, G_WimpUSBPDev_Info(), vaddr1, WimpUSBPDev_ADDR_EMPTY_LOW);
+    var t_globals2 := global_write_word(t_globals1, G_WimpUSBPDev_Info(), vaddr2, WimpUSBPDev_ADDR_EMPTY_HIGH);
+    var t_globals3 := global_write_word(t_globals2, G_WimpUSBPDev_Info(), vaddr3, PID_INVALID);
+    var t_globals := global_write_word(t_globals3, G_WimpUSBPDev_Info(), vaddr4, WimpUSBPDev_Slot_UpdateFlag_Complete);
+
+    forall i:uint32 | usbpdev_valid_slot_id(i) && i != slot
+        ensures p_usbpdev_slot_equal(t_globals, new_globals, i)
+    {
+        // Dafny can automatically prove it
+    }
+    assert globals_other_gvar_unchanged(t_globals, new_globals, G_WimpUSBPDev_Info());
+
+    if(!usbpdev_info_newvalue(old_globals, new_globals, slot, WimpUSBPDev_ADDR_EMPTY_LOW, WimpUSBPDev_ADDR_EMPTY_HIGH, PID_INVALID, WimpUSBPDev_Slot_UpdateFlag_Complete))
+    {
+        assert t_globals != new_globals;
+        assert global_read_fullval(t_globals, G_WimpUSBPDev_Info()) != global_read_fullval(new_globals, G_WimpUSBPDev_Info());
+        
+        var i :| usbpdev_valid_slot_id(i) && !p_usbpdev_slot_equal(t_globals, new_globals, i);
+        assert i == slot;
+
+        assert false;
+    }
+}
+
+// Prove the property 1 of <_usbpdev_set_slot>
+lemma Lemma__usbpdev_set_slot_ProveProperty1(
+    old_globals:globalsmap, globals1:globalsmap, new_globals:globalsmap, slot:word,
+    new_usbpdev_addr_low:word, new_usbpdev_addr_high:word, new_pid:word
+)
+    requires WK_ValidGlobalVars_Decls(old_globals)
+    requires WK_ValidGlobalVars_Decls(globals1)
+    requires WK_ValidGlobalVars_Decls(new_globals)
+
+    requires usbpdev_valid_slot_id(slot)
+
+    requires var vaddr := AddressOfGlobal(G_WimpUSBPDev_Info()) + slot * WimpUSBPDev_Info_ENTRY_SZ + WimpUSBPDev_Info_ENTRY_PID_ByteOffset;
+            is_gvar_valid_addr(G_WimpUSBPDev_Info(), vaddr)
+
+    requires usbpdev_info_newvalue(old_globals, globals1, slot, new_usbpdev_addr_low, new_usbpdev_addr_high, usbpdev_get_pid(old_globals, slot).v, WimpUSBPDev_Slot_UpdateFlag_Complete);
+    
+    requires var vaddr := AddressOfGlobal(G_WimpUSBPDev_Info()) + slot * WimpUSBPDev_Info_ENTRY_SZ + WimpUSBPDev_Info_ENTRY_PID_ByteOffset;
+            new_globals == global_write_word(globals1, G_WimpUSBPDev_Info(), vaddr, new_pid)
+
+    ensures usbpdev_info_newvalue(old_globals, new_globals, slot, new_usbpdev_addr_low, new_usbpdev_addr_high, new_pid, WimpUSBPDev_Slot_UpdateFlag_Complete)
+{
+    reveal p_usbpdev_slot_equal();
+    var old_pid := usbpdev_get_pid(old_globals, slot).v;
+
+    // Prove other global variables are unchanged
+    forall i:uint32 | usbpdev_valid_slot_id(i) && i != slot
+        ensures p_usbpdev_slot_equal(old_globals, new_globals, i)
+    {
+        // Dafny can automatically prove it
+    }
+    assert globals_other_gvar_unchanged(old_globals, new_globals, G_WimpUSBPDev_Info());
+
+    // Expand <new_globals> 
+    var vaddr1 := AddressOfGlobal(G_WimpUSBPDev_Info()) + slot * WimpUSBPDev_Info_ENTRY_SZ + WimpUSBPDev_Info_ENTRY_LowAddr_ByteOffset;
+    var vaddr2 := AddressOfGlobal(G_WimpUSBPDev_Info()) + slot * WimpUSBPDev_Info_ENTRY_SZ + WimpUSBPDev_Info_ENTRY_HighAddr_ByteOffset;
+    var vaddr3 := AddressOfGlobal(G_WimpUSBPDev_Info()) + slot * WimpUSBPDev_Info_ENTRY_SZ + WimpUSBPDev_Info_ENTRY_PID_ByteOffset;
+    var vaddr4 := AddressOfGlobal(G_WimpUSBPDev_Info()) + slot * WimpUSBPDev_Info_ENTRY_SZ + WimpUSBPDev_Info_ENTRY_UpdateFlag_ByteOffset;
+
+    var globals1 := global_write_word(old_globals, G_WimpUSBPDev_Info(), vaddr1, new_usbpdev_addr_low);
+    var t_new_globals2 := global_write_word(globals1, G_WimpUSBPDev_Info(), vaddr2, new_usbpdev_addr_high);
+    var t_new_globals3 := global_write_word(t_new_globals2, G_WimpUSBPDev_Info(), vaddr3, old_pid);
+    var t_new_globals4 := global_write_word(t_new_globals3, G_WimpUSBPDev_Info(), vaddr4, WimpUSBPDev_Slot_UpdateFlag_Complete);
+
+    assert new_globals == global_write_word(t_new_globals4, G_WimpUSBPDev_Info(), vaddr3, new_pid);
+
+    // Expand the post condition
+    var t_globals1 := global_write_word(old_globals, G_WimpUSBPDev_Info(), vaddr1, new_usbpdev_addr_low);
+    var t_globals2 := global_write_word(t_globals1, G_WimpUSBPDev_Info(), vaddr2, new_usbpdev_addr_high);
+    var t_globals3 := global_write_word(t_globals2, G_WimpUSBPDev_Info(), vaddr3, new_pid);
+    var t_globals := global_write_word(t_globals3, G_WimpUSBPDev_Info(), vaddr4, WimpUSBPDev_Slot_UpdateFlag_Complete);
+
+    if(!usbpdev_info_newvalue(old_globals, new_globals, slot, new_usbpdev_addr_low, new_usbpdev_addr_high, new_pid, WimpUSBPDev_Slot_UpdateFlag_Complete))
+    {
+        assert t_globals != new_globals;
+        assert global_read_fullval(t_globals, G_WimpUSBPDev_Info()) != global_read_fullval(new_globals, G_WimpUSBPDev_Info());
+        
+        // Show conflict
+        var i :| usbpdev_valid_slot_id(i) && !p_usbpdev_slot_equal(t_globals, new_globals, i);
+        assert i == slot;
+
+        assert false;
+    }
+}
+
+lemma Lemma_modify_regs_objects_stateeq_USBPDev_ActivateIntoWimpPartitions(old_s:state, new_s:state)
+    requires WK_ValidMState(old_s.wk_mstate)
+    requires WK_ValidMState(new_s.wk_mstate)
+
+    requires new_s.wk_mstate.sregs == old_s.wk_mstate.sregs
+    requires old_s.subjects == new_s.subjects &&
+            old_s.objs_addrs == new_s.objs_addrs &&
+            old_s.id_mappings == new_s.id_mappings &&
+            old_s.activate_conds == new_s.activate_conds &&
+            old_s.os_mem_active_map == new_s.os_mem_active_map &&
+            old_s.ok == new_s.ok
+
+    ensures va_state_eq(new_s, va_update_reg(EBP, new_s, va_update_reg(ESP, new_s,
+        va_update_reg(EDI, new_s, va_update_reg(ESI, new_s, va_update_reg(EDX, new_s,
+        va_update_reg(ECX, new_s, va_update_reg(EBX, new_s, va_update_reg(EAX, new_s,
+        va_update_objects(new_s, va_update_globals(new_s, va_update_mem(new_s, va_update_ok(new_s,
+        old_s)))))))))))))
+{
+    var s1 := va_update_objects(new_s, va_update_mem(new_s, va_update_ok(new_s, old_s)));
+
+    assert s1.wk_mstate.m == new_s.wk_mstate.m;
+    assert s1.objects == new_s.objects;
+    assert s1.ok == new_s.ok;
+
+    var s2 := va_update_reg(EBP, new_s, va_update_reg(ESP, new_s,
+    va_update_reg(EDI, new_s, va_update_reg(ESI, new_s, va_update_reg(EDX, new_s,
+    va_update_reg(ECX, new_s, va_update_reg(EBX, new_s, va_update_reg(EAX, new_s, s1))))))));
+
+    assert s1.wk_mstate.m == s2.wk_mstate.m;
+    assert s1.wk_mstate.globals == s2.wk_mstate.globals;
+    assert s1.ok == s2.ok; 
+
+    // Prove s2.wk_mstate.regs == new_s.wk_mstate.regs
+    Lemma_EachRegsIsSameThenRegsAreSame(s2.wk_mstate.regs, new_s.wk_mstate.regs);
+    assert s2.wk_mstate.regs == new_s.wk_mstate.regs;
+}
+#endverbatim
+
+
+
+

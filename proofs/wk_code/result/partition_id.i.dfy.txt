@@ -1,0 +1,99 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing partition_id.i.dfy
+..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\BuildCAS\../Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+..\DetailedModel\..\Abstract\BuildCAS\..\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.0837755 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.Lemma__pids__parse__g__existing__pids__CorrectOutput ...
+  [1.909 s, 3 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__pids__parse__g__existing__pids__CorrectOutput ...
+  [1.011 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__pids__parse__g__wimp__pids__CorrectnessOfSetChange ...
+  [0.880 s, 18 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__pids__parse__g__wimp__pids__CorrectnessOfSetChange ...
+  [2.994 s, 68 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidPartitionIDs__InGlobalVars__PreserveInNewState__IfGVarUnchanged ...
+  [1.017 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidPartitionIDs__InGlobalVars__PreserveInNewState__IfGVarUnchanged ...
+  [0.888 s, 16 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__WK__ValidPartitionIDs__InGlobalVars__PreserveInNewState__IfGExistingPIDsAndPIDCounterUnchanged ...
+  [1.052 s, 10 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__WK__ValidPartitionIDs__InGlobalVars__PreserveInNewState__IfGExistingPIDsAndPIDCounterUnchanged ...
+  [1.062 s, 18 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__pids__g__existing__pids__no__duplicate__HoldAfterWritingNonDuplicateValue ...
+  [0.966 s, 10 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__pids__g__existing__pids__no__duplicate__HoldAfterWritingNonDuplicateValue ...
+  [2.450 s, 55 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__pids__parse__g__wimp__pids__IfNewPIDIsDiffFromOverwrittenOldPID__ThenAllResultPIDsAreDiffFromOverwrittenOlDPID ...
+  [0.918 s, 15 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__pids__parse__g__wimp__pids__IfNewPIDIsDiffFromOverwrittenOldPID__ThenAllResultPIDsAreDiffFromOverwrittenOlDPID ...
+  [1.432 s, 34 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__pids__g__existing__pids__no__duplicate__PreserveInNewState__IfGVarUnchanged ...
+  [0.847 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__pids__g__existing__pids__no__duplicate__PreserveInNewState__IfGVarUnchanged ...
+  [0.938 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__pids__g__existing__pids__exclude__os__pid__PreserveInNewState__IfGVarUnchanged ...
+  [1.080 s, 2 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__pids__g__existing__pids__exclude__os__pid__PreserveInNewState__IfGVarUnchanged ...
+  [0.956 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__pids__g__existing__pids__no__duplicate__PreserveInNewState__IfGExistingPIDsUnchanged ...
+  [0.934 s, 6 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__pids__g__existing__pids__no__duplicate__PreserveInNewState__IfGExistingPIDsUnchanged ...
+  [1.007 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__pids__g__existing__pids__exclude__os__pid__PreserveInNewState__IfGExistingPIDsUnchanged ...
+  [1.015 s, 6 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__pids__g__existing__pids__exclude__os__pid__PreserveInNewState__IfGExistingPIDsUnchanged ...
+  [0.989 s, 6 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__pids__g__existing__pids__no__duplicate__Apply ...
+  [1.022 s, 9 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__pids__g__existing__pids__no__duplicate__Apply ...
+  [0.856 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__pids__g__existing__pids__exclude__os__pid__PreserveInNewState__IfNotWritingInOSPID ...
+  [1.003 s, 9 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__pids__g__existing__pids__exclude__os__pid__PreserveInNewState__IfNotWritingInOSPID ...
+  [1.040 s, 16 proof obligations]  verified
+
+Dafny program verifier finished with 24 verified, 0 errors

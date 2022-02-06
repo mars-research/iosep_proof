@@ -1,0 +1,141 @@
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+Dafny 2.3.0.10506
+Parsing proof/DM_AdditionalPropertiesLemmas.i.dfy
+proof\..\..\WK_Design\..\DetailedModel\../Abstract/Model.dfy(2123,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\../Abstract/Model.dfy(2184,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(12,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(21,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(30,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(39,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils.dfy(48,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas.dfy(6,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas.dfy(20,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas.dfy(21,12): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1677,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(1685,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2493,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(2501,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3159,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3151,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3274,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjActivate_ReachableTDsStates.dfy(3282,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2162,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2267,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2303,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_Ops.dfy(2375,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\./BuildCAS/ReachableTDsStates.dfy(2147,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(73,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(83,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(124,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(134,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Utils_SlimState.dfy(144,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\HCodedTD_Ops.dfy(241,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\HCodedTD_Ops.dfy(242,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\HCodedTD_Ops.dfy(243,5): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2138,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2146,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2547,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2555,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2652,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\Lemmas_SubjDeactivate_ReachableTDsStates.dfy(2644,13): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(239,4): Warning: /!\ No trigger covering all quantified variables found.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(333,24): Warning: /!\ No terms found to trigger on.
+proof\..\..\WK_Design\..\DetailedModel\..\Abstract\.\BuildCAS\ReachableTDsStates_Utils.dfy(950,20): Warning: /!\ No trigger covering all quantified variables found.
+Coalescing blocks...
+Inlining...
+
+Running abstract interpretation...
+  [0.092752 s]
+[TRACE] Using prover: E:\utils\dafny-latest\z3.exe
+
+Verifying CheckWellformed$$_module.__default.DM__DrvDevRead__ChkSubjAndObjsAreInSamePartition ...
+  [5.533 s, 21 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__TDFDDOIDsToObjIDs__Sum__Property ...
+  [3.322 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__DevWrite__Property ...
+  [3.014 s, 186 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__DevWrite__Property ...
+  [6.761 s, 145 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__K__DevAModesToObjFromTDs__ExistR__SlimState__PropertyDevAModesToObjFromTDs__ExistR__SlimState ...
+  [3.024 s, 25 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__K__DevAModesToObjFromTDs__ExistR__SlimState__PropertyDevAModesToObjFromTDs__ExistR__SlimState ...
+  [3.257 s, 20 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__K__DevRead__ReadObjsMustInSystemAndNotHCodedTDs ...
+  [5.494 s, 170 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__K__DevRead__ReadObjsMustInSystemAndNotHCodedTDs ...
+  [7.736 s, 92 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__K__TDsInTransitiveClosureRefsTDsFDsDOsInSystemOnly ...
+  [3.429 s, 41 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__K__TDsInTransitiveClosureRefsTDsFDsDOsInSystemOnly ...
+  [6.883 s, 27 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__K__DevRead__ReadFDMustBeInATransfer__ImpliesDevAModesToObjFromTDs__ExistR__SlimState ...
+  [2.981 s, 73 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__K__DevRead__ReadFDMustBeInATransfer__ImpliesDevAModesToObjFromTDs__ExistR__SlimState ...
+  [52.657 s, 113 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__K__DevRead__ReadDOMustBeInATransfer__ImpliesDevAModesToObjFromTDs__ExistR__SlimState ...
+  [2.987 s, 73 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__K__DevRead__ReadDOMustBeInATransfer__ImpliesDevAModesToObjFromTDs__ExistR__SlimState ...
+  [61.297 s, 113 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__RedDrvRead__InnerFunc__Properties ...
+  [3.364 s, 150 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__RedDrvRead__InnerFunc__Properties ...
+  [2.776 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__DM__GreenDrvRead__InnerFunc__Properties ...
+  [2.919 s, 152 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__DM__GreenDrvRead__InnerFunc__Properties ...
+  [3.291 s, 1 proof obligation]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__K__DevRead__ReadTDMustBeInATransfer__ProveReadInDevAModesToObj ...
+  [2.867 s, 67 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__K__DevRead__ReadTDMustBeInATransfer__ProveReadInDevAModesToObj ...
+  [20.103 s, 86 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__K__DevRead__ReadFDMustBeInATransfer__ProveReadInDevAModesToObj ...
+  [5.630 s, 67 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__K__DevRead__ReadFDMustBeInATransfer__ProveReadInDevAModesToObj ...
+  [50.619 s, 98 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__K__DevRead__ReadDOMustBeInATransfer__ProveReadInDevAModesToObj ...
+  [3.379 s, 67 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__K__DevRead__ReadDOMustBeInATransfer__ProveReadInDevAModesToObj ...
+  [49.687 s, 98 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__K__DevRead__ReadFDMustBeInATransfer__ProveReadInDevAModesToObj__Inner ...
+  [5.678 s, 14 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__K__DevRead__ReadFDMustBeInATransfer__ProveReadInDevAModesToObj__Inner ...
+  [3.077 s, 11 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__K__DevRead__ReadDOMustBeInATransfer__ProveReadInDevAModesToObj__Inner ...
+  [2.682 s, 14 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__K__DevRead__ReadDOMustBeInATransfer__ProveReadInDevAModesToObj__Inner ...
+  [2.795 s, 11 proof obligations]  verified
+
+Verifying CheckWellformed$$_module.__default.Lemma__K__DevRead__ReadObjsMustInSystemAndNotHCodedTDs__Inner ...
+  [12.223 s, 153 proof obligations]  verified
+
+Verifying Impl$$_module.__default.Lemma__K__DevRead__ReadObjsMustInSystemAndNotHCodedTDs__Inner ...
+  [159.665 s, 148 proof obligations]  verified
+
+Dafny program verifier finished with 30 verified, 0 errors

@@ -1,0 +1,391 @@
+include "usb_tds_ops_impl.vad"
+include "usb_tds_checks_qh.vad"
+
+include {:verbatim} "usb_tds_ops.i.dfy"
+
+/*********************** Private Methods ********************/
+// Handle QH32 submitted by a wimp driver
+// Input params on stack: (usbpdev_slot:word/uint32) at esp + 8 * ARCH_WORD_BYTES
+// (new_input_param3:word/uint32) at esp + 7 * ARCH_WORD_BYTES, 
+// (new_input_param2:word/uint32) at esp + 6 * ARCH_WORD_BYTES, (new_input_param1:word/uint32) at esp + 5 * ARCH_WORD_BYTES, 
+// (td_paddr:paddr) at esp + 4 * ARCH_WORD_BYTES, (eehci_id:word) at esp + 3 * ARCH_WORD_BYTES,
+// (wimpdrv_id:word) at esp + 2 * ARCH_WORD_BYTES, (wimpdrv_slot_id:word) at esp + ARCH_WORD_BYTES, 
+// (td_slot:word/uint32) at esp
+// Return params on stack: (ret:uint32) at esp
+// [NOTE] Needs 1700s to verify
+procedure _usbtd_slot_submit_and_verify_qh32_inner() {:timeLimitMultiplier 200}
+    reads
+        flags;
+    modifies
+        globals; 
+    modifies
+        ebp; esp; mem;
+        esi; edi;
+        eax; ebx; ecx; edx;
+    requires/ensures
+        InstSaneState(this);
+    requires
+        let stack_req_space :=
+            7 * ARCH_WORD_BYTES +                    // For local variables
+            26 * ARCH_WORD_BYTES +                    // For <usbtd_verify_qh32>
+            WK_STACK_FOR_EXTERNEL_FUNCS_SZ +         
+            FFI_USBTD_Qh32_ParseDataBufPtrs_ReturnWords * ARCH_WORD_BYTES +
+            3 * ARCH_WORD_BYTES;                    // For params of <usbtd_verify_qh32>
+        IsAddrInStack(esp - stack_req_space); // Stack must have free space
+        let stack_params_space :=
+            9 * ARCH_WORD_BYTES;
+        IsAddrInStack(esp + stack_params_space - ARCH_WORD_BYTES); 
+            // Because the caller needs to allocate stack, even <esp + stack_params_space - ARCH_WORD_BYTES> is a stack address
+    requires
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        usbtd_map_valid_slot_id(td_slot);
+            // Requirement: <td_slot> must be inside the global variable <g_usbtd_map_mem>
+        eehci_mem_no_ref_to_usbtd_slot(globals, td_slot);
+            // Requirement: No eEHCI refs the USB TD at current
+        usbtds_verifiedtds_do_not_associate_usbtd(globals, td_slot);
+            // Requirement: No verified/secure USB TDs references this USB TD
+        //Is_USBTD_NotModifyUSBPDevsAddrs(globals, td_slot);
+            // Requirement: External function make sure the given USB TD cannot modify any USBPDevs' addresses
+    requires
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        usbtd_slot_valid_pid(globals, td_slot);
+    requires
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        usbtd_map_get_flags(globals, td_slot) == 0;
+            // Requirement: After allocating the slot, the flag of the USB TD must be 0
+    requires
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        usbtd_map_get_type(globals, td_slot) == USBTDs_TYPE_QH32;
+            // Requirement: The USB TD must have the type USBTDs_TYPE_QTD32
+    requires
+        let usbpdev_slot:word := stack_get_val(old(mem), old(esp) + 8 * ARCH_WORD_BYTES);
+        usbpdev_slot == WimpUSBPDev_SlotID_EMPTY || usbpdev_valid_slot_id(usbpdev_slot);
+            // Requirement: <usbpdev_slot> must be empty or valid
+    requires
+        WSM_physical_EHCIs_must_be_inactive(this.subjects, this.activate_conds);
+            // Requirement: physical EHCIs that map to ephemeral EHCIs must be inactive
+    requires
+        !interrupts_enabled(old(flags));
+    ensures
+        let wimpdrv_slot_id:word := stack_get_val(old(mem), old(esp) + 1 * ARCH_WORD_BYTES);
+        let usbpdev_slot:word := stack_get_val(old(mem), old(esp) + 8 * ARCH_WORD_BYTES);
+        let input_param1:uint32 := stack_get_val(old(mem), old(esp) + 5 * ARCH_WORD_BYTES);
+        let input_param2:uint32 := stack_get_val(old(mem), old(esp) + 6 * ARCH_WORD_BYTES);
+        let input_param3:uint32 := stack_get_val(old(mem), old(esp) + 7 * ARCH_WORD_BYTES);
+        let eehci_id:word := stack_get_val(old(mem), old(esp) + 3 * ARCH_WORD_BYTES);
+        let td_slot:uint32 := stack_get_val(old(mem), old(esp));
+        let ret:uint32 := stack_get_val(mem, old(esp));
+        (ret == TRUE) ==> p_usbtd_slot_submit_and_verify_usbtd_ret_global(old(globals), globals, td_slot);
+            // Property 1: If return true, partial correctness properties hold for the new global variable output by 
+            // <_usbtd_slot_submit>
+        (ret == TRUE) ==> (
+            usbtd_map_get_type(globals, td_slot) == USBTDs_TYPE_QH32 &&
+            usbtd_map_get_flags(globals, td_slot) == SetBit(SetBit(0, USBTD_SLOT_FLAG_SubmitDone_Bit), USBTD_SLOT_FLAG_SlotSecure_Bit)
+        );
+            // Property 2: The type and flags of the QH is set correctly
+        (ret == TRUE) ==> (
+            p_usbtd_slot_submit_modification_to_usbtd(globals, td_slot, wimpdrv_slot_id, usbpdev_slot, 
+                input_param1, input_param2, input_param3, USBTDs_TYPE_QH32, eehci_id)
+        );
+            // Property 3: Except USB TD's content, the USB TD is updated correctly
+            // [NOTE] The security proof may not need the correctness of updating USB TD's content
+        (ret != TRUE) ==> global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+            // Property: If return false, then non scratch-pad global variables are unchanged
+    ensures
+        esp == old(esp); ebp == old(ebp); edi == old(edi); esi == old(esi);
+        eax == old(eax); ebx == old(ebx); ecx == old(ecx); edx == old(edx); 
+    ensures
+        let stack_retval_space := 1 * ARCH_WORD_BYTES;
+        stack_under_sp_is_unchanged(old(mem), mem, esp + stack_retval_space);   // Caller stacks are unchanged
+    ensures
+        is_flags_unchanged(old(flags), flags);
+        state_equal_except_mstate(old(this), this);
+{
+    PUSH_OneReg(ebp);
+    MOV_ToReg(ebp, esp);
+
+    let tmp1 @= edi;
+    let td_slot @= esi;
+    let ret @= eax;
+    PUSH_Reg1ToReg6();
+
+    let orig_esp := esp;
+    let orig_ebp := ebp;
+    assert IsAddrInStack(orig_esp - WK_STACK_FOR_EXTERNEL_FUNCS_SZ);
+
+    // 1. Backup QH
+    Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);        // tmp1 := <td_slot>
+    PUSH(tmp1);
+    let in_td_slot := tmp1;
+    CALL_USBTD_Backup();
+    POP_VOID(1 * ARCH_WORD_BYTES);
+    assert esp == orig_esp;
+
+    let globals1 := globals;
+    Lemma_ffi_usbtd_backup_stack_and_globals_ImpliesNonScratchpadGlobalVarsUnchanged(old(globals), globals1, in_td_slot);
+    assert global_non_scratchpad_vars_are_unchanged(old(globals), globals1);
+    Lemma_eehci_mem_no_ref_to_usbtd_slot_HoldIfOnlyScratchpadGlobalVarsModified(old(globals), globals1, in_td_slot);
+    assert eehci_mem_no_ref_to_usbtd_slot(globals1, in_td_slot);
+
+    Lemma_ffi_usbtd_backup_stack_and_globals_ImpliesIDOfUSBTDIsWrittenInTempUSBTD(old(globals), globals1, in_td_slot);
+    Lemma_ffi_usbtd_backup_stack_and_globals_ImpliesPIDOfUSBTDIsWrittenInTempUSBTD(old(globals), globals1, in_td_slot);
+    assert usbtd_map_get_pid(old(globals), in_td_slot) == usbtd_temp_get_pid(globals1);
+
+    Lemma_ffi_usbtd_backup_stack_and_globals_inner_TempUSBTDMustBeValid(old(globals), globals1, in_td_slot);
+    assert usbtd_temp_valid_id(globals1);
+    assert usbtd_temp_valid_pid(globals1);
+    assert usbtd_temp_valid_type(globals1);
+    assert usbtd_temp_valid_busid(globals1);
+    assert usbtd_temp_valid_wimpdrv_slotid(globals1);
+    assert usbtd_temp_valid_usbpdev_slotid(globals1);
+
+    Lemma_ffi_usbtd_backup_stack_and_globals_ProveTempUSBTDFlagsIsEmpty(old(globals), globals1, in_td_slot);
+    assert usbtd_temp_get_flags(globals1) == 0;
+
+    Lemma_ffi_usbtd_backup_stack_and_globals_PreserveUSBTDFlags(old(globals), globals1, in_td_slot);
+    assert usbtd_map_get_flags(globals1, in_td_slot) == 0;
+    Lemma_TestBit_ReturnFalseIfANumberIs0();
+    Lemma_TestBit_ReturnFalse_IfBitNotSetAndAfterSetOtherBits(USBTD_SLOT_FLAG_SlotSecure_Bit);
+    assert TestBit(usbtd_map_get_flags(globals1, in_td_slot), USBTD_SLOT_FLAG_SlotSecure_Bit) == false;
+
+    Lemma_usbtds_verifiedtds_do_not_associate_usbtd_HoldIfNonScratchpadGVarsAreUnmodified(old(globals), globals1, in_td_slot);
+    assert usbtds_verifiedtds_do_not_associate_usbtd(globals1, in_td_slot);
+
+    Lemma_ffi_usbtd_backup_stack_and_globals_PreserveUSBTDType(old(globals), globals1, in_td_slot);
+    assert usbtd_map_get_type(globals1, in_td_slot) == USBTDs_TYPE_QH32;
+
+    // 2. Submit QH32
+    Load(tmp1, ebp, 9 * ARCH_WORD_BYTES);        // tmp1 := <usbpdev_slot>
+    PUSH(tmp1);
+    Load(tmp1, ebp, 8 * ARCH_WORD_BYTES);        // tmp1 := <new_input_param3>
+    PUSH(tmp1);
+    Load(tmp1, ebp, 7 * ARCH_WORD_BYTES);        // tmp1 := <new_input_param2>
+    PUSH(tmp1);
+    Load(tmp1, ebp, 6 * ARCH_WORD_BYTES);        // tmp1 := <new_input_param1>
+    PUSH(tmp1);
+    PUSH(const(QH32_SIZE_BYTES));
+    assert ebp == orig_ebp;
+    assert esp == orig_esp - 5 * ARCH_WORD_BYTES;
+    Load(tmp1, ebp, 5 * ARCH_WORD_BYTES);        // tmp1 := <td_paddr>
+    PUSH(tmp1);
+    Load(tmp1, ebp, 4 * ARCH_WORD_BYTES);        // tmp1 := <eehci_id>
+    PUSH(tmp1);
+    Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);        // tmp1 := <wimpdrv_id>
+    PUSH(tmp1);
+    assert ebp == orig_ebp;
+    assert esp == orig_esp - 8 * ARCH_WORD_BYTES;
+    Load(tmp1, ebp, 2 * ARCH_WORD_BYTES);        // tmp1 := <wimpdrv_slot_id>
+    PUSH(tmp1);
+    Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);        // tmp1 := <td_slot>
+    PUSH(tmp1);
+    assert tmp1 == in_td_slot;
+    _usbtd_slot_submit();
+    let globals2 := globals;
+    Load(tmp1, esp, 0);                          // tmp1 := <ret>
+    POP_VOID(10 * ARCH_WORD_BYTES);
+    assert esp == orig_esp;
+    assert ebp == orig_ebp;
+
+    assert usbtd_temp_valid_pid(globals2);
+    assert usbtd_temp_valid_type(globals2);
+    assert usbtd_temp_valid_busid(globals2);
+    assert usbtd_temp_valid_wimpdrv_slotid(globals2);
+    assert usbtd_temp_valid_usbpdev_slotid(globals2);
+
+    if(tmp1 == const(TRUE))
+    {
+        assert usbtd_map_get_type(globals2, in_td_slot) == USBTDs_TYPE_QH32;
+        assert usbtd_temp_get_flags(globals1) == usbtd_temp_get_flags(globals2);
+        assert usbtd_temp_get_flags(globals2) == 0;
+        assert usbtd_map_get_flags(globals2, in_td_slot) == SetBit(0, USBTD_SLOT_FLAG_SubmitDone_Bit);
+        Lemma_TestBit_ReturnFalseIfANumberIs0();
+        Lemma_TestBit_ReturnFalse_IfBitNotSetAndAfterSetOtherBits(USBTD_SLOT_FLAG_SlotSecure_Bit);
+        assert TestBit(usbtd_map_get_flags(globals2, in_td_slot), USBTD_SLOT_FLAG_SlotSecure_Bit) == false;
+
+        assert p_usbtd_slot_submit_usbtd_ret_global(globals1, globals2, in_td_slot);
+        Lemma__usbtd_slot_submit_usbtd_UnmodifiedGEEHCIMem(globals1, globals2, in_td_slot);
+        assert global_read_fullval(globals1, G_EEHCI_MEM()) == global_read_fullval(globals2, G_EEHCI_MEM());
+        Lemma_eehci_mem_no_ref_to_usbtd_slot_Equivilant(globals1, globals2, in_td_slot);
+        assert eehci_mem_no_ref_to_usbtd_slot(globals2, in_td_slot);
+
+        // 3. Check the QH
+        Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);        // tmp1 := <td_slot>
+        PUSH(tmp1);
+        Load(tmp1, ebp, 3 * ARCH_WORD_BYTES);        // tmp1 := <wimpdrv_id>
+        PUSH(tmp1);
+        usbtd_verify_qh32();
+        Load(tmp1, esp, 0);                          // tmp1 := <ret>
+        assert esp == orig_esp - 2 * ARCH_WORD_BYTES;
+        POP_VOID(2 * ARCH_WORD_BYTES);
+        assert esp == orig_esp;
+
+        let globals3 := globals;
+        assert globals3 == globals2;
+        assert eehci_mem_no_ref_to_usbtd_slot(globals3, in_td_slot);
+
+        Lemma_usbtd_slot_submit_and_verify_qh32_inner_impl_ProveIDUniquenessForTempUSBTD(globals1, globals2, globals3, in_td_slot);
+        if(tmp1 == const(TRUE))
+        {
+            // 4. Update flags
+            MOV_ToReg(tmp1, const(0));
+            SetBit(tmp1, USBTD_SLOT_FLAG_SubmitDone_Bit);
+            SetBit(tmp1, USBTD_SLOT_FLAG_SlotSecure_Bit);
+            PUSH(tmp1);
+            let new_flags := tmp1;
+            Lemma_SetBit_Associative(USBTD_SLOT_FLAG_SlotSecure_Bit, USBTD_SLOT_FLAG_SubmitDone_Bit);
+            Lemma_TestBit_ReturnTrueIfANumberSetBit(USBTD_SLOT_FLAG_SlotSecure_Bit);
+            assert TestBit(new_flags, USBTD_SLOT_FLAG_SlotSecure_Bit);
+            Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);        // tmp1 := <td_slot>
+            PUSH(tmp1);
+            assert tmp1 == in_td_slot;
+            usbtd_set_flags();
+            POP_VOID(2 * ARCH_WORD_BYTES);
+            assert esp == orig_esp;
+
+            let globals4 := globals;
+            Lemma_usbtd_slot_offset_AlwaysValidGUSBTDMapMemAddr(in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset);
+            Lemma_WK_USB_TD_Map_PreservePIDFieldIfModifyOtherFields(globals3, globals4, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+            Lemma_USBTD_PreserveOtherSlots_WhenModifyingOneSlot(globals3, globals4, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+            Lemma_WK_USB_TD_Map_PreserveTypeFieldIfModifyOtherFields(globals3, globals4, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+            Lemma_WK_USB_TD_Map_PreserveOtherNonScratchpadGVarsIfModifyAnyUSBTDFields(globals3, globals4, in_td_slot, G_USBTDs_MAP_ENTRY_FLAGS_BytesOffset, new_flags);
+
+            Lemma__usbtd_slot_submit_and_verify_qh32_inner_ProveProperty1(old(globals), globals1, globals3, globals4, in_td_slot);
+            Lemma__usbtd_slot_submit_and_verify_qh32_inner_ProveProperty2(globals3, globals4, in_td_slot);
+
+            // Return
+            Store(ebp, ARCH_WORD_BYTES, const(TRUE));                       // Return TRUE
+        }
+        else
+        {
+            assert usbtd_temp_get_pid(globals1) == usbtd_temp_get_pid(globals);
+            assert usbtd_map_get_pid(old(globals), in_td_slot) == usbtd_temp_get_pid(globals);
+
+            assert usbtd_temp_valid_pid(globals3);
+            assert usbtd_temp_valid_type(globals3);
+            assert usbtd_temp_valid_busid(globals3);
+            assert usbtd_temp_valid_wimpdrv_slotid(globals3);
+            assert usbtd_temp_valid_usbpdev_slotid(globals3);
+
+            assert usbtd_temp_get_flags(globals3) == 0;
+            assert usbtd_map_get_flags(globals3, in_td_slot) == SetBit(0, USBTD_SLOT_FLAG_SubmitDone_Bit);
+            Lemma_TestBit_ReturnFalseIfANumberIs0();
+            Lemma_TestBit_ReturnFalse_IfBitNotSetAndAfterSetOtherBits(USBTD_SLOT_FLAG_SlotSecure_Bit);
+            assert TestBit(usbtd_map_get_flags(globals3, in_td_slot), USBTD_SLOT_FLAG_SlotSecure_Bit) == false;
+
+            // Restore the USB TD
+            Load(tmp1, ebp, 1 * ARCH_WORD_BYTES);        // tmp1 := <td_slot>
+            PUSH(tmp1);
+            assert eehci_mem_no_ref_to_usbtd_slot(globals3, in_td_slot);
+            CALL_USBTD_Restore();
+            POP_VOID(1 * ARCH_WORD_BYTES);
+            assert esp == orig_esp;
+
+            assert ffi_usbtd_restore_stack_and_globals_inner(globals2, globals, in_td_slot);
+            Lemma_USBTD_BackupAndRestore_ResultsInOriginalNonScratchpadGlobalVars(old(globals), globals1, globals2, globals, in_td_slot);
+            assert global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+
+            Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+        }
+    }
+    else
+    {
+        Store(ebp, ARCH_WORD_BYTES, const(FALSE));                      // Return FALSE
+        assert global_non_scratchpad_vars_are_unchanged(old(globals), globals);
+    }
+
+
+    POP_Reg1ToReg6();
+    POP_OneReg(ebp);
+    assert is_flags_unchanged(old(flags), flags);
+
+    Lemma_x86_IfEFlagsIsUnchanged_ThenSRegsIsUnchanged(old(this), this, old(flags), flags);
+    Lemma_modify_regs_stateeq(old(this), this);
+}
+
+
+
+
+/*********************** Private Lemmas ********************/
+#verbatim
+lemma Lemma_usbtd_slot_submit_and_verify_qh32_inner_impl_ProveIDUniquenessForTempUSBTD(
+    globals1:globalsmap, globals2:globalsmap, globals3:globalsmap, td_slot:uint32
+)
+    requires WK_ValidGlobalVars_Decls(globals1)
+    requires WK_ValidGlobalVars_Decls(globals2)
+    requires WK_ValidGlobalVars_Decls(globals3)
+
+    requires forall i :: usbtd_map_valid_slot_id(i) && i != td_slot &&
+                usbtd_map_get_idword(globals1, i) != USBTD_ID_INVALID
+            ==> usbtd_map_get_idword(globals1, i) != usbtd_temp_get_id(globals1)
+
+    requires usbtd_map_valid_slot_id(td_slot)
+    requires p_usbtd_slot_submit_usbtd_ret_global(globals1, globals2, td_slot)
+    requires globals2 == globals3
+
+    ensures forall i :: usbtd_map_valid_slot_id(i) && i != td_slot &&
+                usbtd_map_get_idword(globals3, i) != USBTD_ID_INVALID
+            ==> usbtd_map_get_idword(globals3, i) != usbtd_temp_get_id(globals3)
+{
+    reveal p_usbtd_equal();
+}
+
+// Prove the property 1 of <_usbtd_slot_submit_and_verify_qh32_inner>
+lemma Lemma__usbtd_slot_submit_and_verify_qh32_inner_ProveProperty1(
+    old_globals:globalsmap, globals1:globalsmap, globals2:globalsmap, new_globals:globalsmap, slot:uint32
+)
+    requires WK_ValidGlobalVars_Decls(old_globals)
+    requires WK_ValidGlobalVars_Decls(globals1)
+    requires WK_ValidGlobalVars_Decls(globals2)
+    requires WK_ValidGlobalVars_Decls(new_globals)
+
+    requires usbtd_map_valid_slot_id(slot)
+
+    requires global_non_scratchpad_vars_are_unchanged(old_globals, globals1)
+
+    requires p_usbtd_slot_submit_usbtd_ret_global(globals1, globals2, slot)
+    requires globals_other_gvar_unchanged_2vars(globals2, new_globals, G_USBTD_MAP_MEM(), G_Temp_USBTD())
+
+    requires forall i :: usbtd_map_valid_slot_id(i) && i != slot
+                ==> p_usbtd_equal(globals2, new_globals, i)
+    requires forall i :: 0 <= i < USB_TD_ENTRY_NUM
+                ==> usbtd_map_get_pid(globals2, i) == usbtd_map_get_pid(new_globals, i)
+
+    ensures usbtd_map_modify_one_usbtd_and_temp_usbtd_only(old_globals, new_globals, slot)
+    ensures usbtd_map_get_pid(old_globals, slot) == usbtd_map_get_pid(new_globals, slot)
+{
+    reveal global_non_scratchpad_vars_are_unchanged();
+
+    // Prove p_usbtd_equal
+    forall i:uint32 | usbtd_map_valid_slot_id(i) && i != slot
+        ensures p_usbtd_equal(old_globals, new_globals, i)
+    {
+        Lemma_global_non_scratchpad_vars_are_unchanged_ImpliesEqualUSBTDs(old_globals, globals1);
+        Lemma_p_usbtd_equal_transitive(old_globals, globals1, globals2, i);
+        Lemma_p_usbtd_equal_transitive(old_globals, globals2, new_globals, i);
+        
+        assert p_usbtd_equal(old_globals, globals1, i);
+        assert p_usbtd_equal(old_globals, globals2, i);
+        assert p_usbtd_equal(globals2, new_globals, i);
+        assert p_usbtd_equal(old_globals, new_globals, i);
+    }
+}
+
+// Prove the property 2 of <_usbtd_slot_submit_and_verify_qh32_inner>
+lemma Lemma__usbtd_slot_submit_and_verify_qh32_inner_ProveProperty2(
+    globals2:globalsmap, new_globals:globalsmap, slot:uint32
+)
+    requires WK_ValidGlobalVars_Decls(globals2)
+    requires WK_ValidGlobalVars_Decls(new_globals)
+
+    requires usbtd_map_valid_slot_id(slot)
+
+    requires usbtd_map_get_type(globals2, slot) == USBTDs_TYPE_QH32
+
+    requires forall i :: 0 <= i < USB_TD_ENTRY_NUM
+                ==> usbtd_map_get_type(globals2, i) == usbtd_map_get_type(new_globals, i)
+
+    ensures usbtd_map_get_type(new_globals, slot) == USBTDs_TYPE_QH32
+{
+    reveal global_non_scratchpad_vars_are_unchanged();
+}
+#endverbatim
